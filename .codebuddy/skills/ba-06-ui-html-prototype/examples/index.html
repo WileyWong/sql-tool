@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI原型演示系统</title>
+    <!-- TDesign Web Components -->
+    <link rel="stylesheet" href="https://unpkg.com/tdesign-web-components@latest/dist/tdesign.css">
+    <script src="https://unpkg.com/tdesign-web-components@latest/dist/TDesign%20Web%20Components.min.js"></script>
+    <!-- 项目自定义样式 -->
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="layout.css">
+    <style>
+        .welcome-banner {
+            background: linear-gradient(135deg, #3464e0 0%, #5d9efe 100%);
+            border-radius: 10px;
+            padding: 32px;
+            margin-bottom: 24px;
+            color: #fff;
+        }
+        .welcome-banner h1 { font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+        .welcome-banner p { opacity: 0.9; font-size: 14px; }
+        
+        .template-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .template-card { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); overflow: hidden; transition: all 0.2s; cursor: pointer; text-decoration: none; color: inherit; }
+        .template-card:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); transform: translateY(-2px); }
+        .template-cover { height: 120px; background: #f5f7f9; display: flex; align-items: center; justify-content: center; font-size: 48px; }
+        .template-body { padding: 16px; }
+        .template-title { font-size: 16px; font-weight: 600; color: #001226; margin-bottom: 8px; }
+        .template-desc { font-size: 13px; color: #666; line-height: 1.5; }
+        .template-tag { display: inline-block; padding: 2px 8px; background: rgba(52, 100, 224, 0.1); color: #3464e0; border-radius: 4px; font-size: 12px; margin-top: 12px; }
+        
+        .section-title { font-size: 18px; font-weight: 600; color: #001226; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .section-title span { font-size: 20px; }
+        
+        @media (max-width: 991.98px) { .template-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 575.98px) { .template-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <!-- ========== 顶部导航栏 ========== -->
+    <div class="sticky-header">
+        <div class="header-background"></div>
+        <div class="sticky-content">
+            <div class="header-left">
+                <button class="mobile-menu-btn header-action" onclick="toggleMobileSidebar()">☰</button>
+                <div class="logo">UI原型演示系统</div>
+                <div class="search-resume">
+                    <div class="search-input"><input type="text" placeholder="搜索模板..."></div>
+                    <button class="search-btn">搜索</button>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="head-navigation">
+                    <span class="navigation-item">模板库</span>
+                    <span class="navigation-item">示例</span>
+                    <span class="navigation-item">文档</span>
+                </div>
+                <div class="header-action" title="通知">🔔</div>
+                <div class="header-action" title="帮助">❓</div>
+                <div class="header-user" onclick="toggleUserDropdown()">
+                    <div class="header-user-avatar">张</div>
+                    <span class="header-user-name">张三</span>
+                    <span style="font-size: 10px;">▼</span>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-item"><span>👤</span><span>个人中心</span></div>
+                        <div class="dropdown-item"><span>⚙️</span><span>账号设置</span></div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" style="color: #f66664;"><span>🚪</span><span>退出登录</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ========== 内容布局区域 ========== -->
+    <div class="content-layout">
+        <!-- ========== 左侧导航栏 ========== -->
+        <div class="left_nav">
+            <div class="left_layout" id="sidebar">
+                <div class="user-info">
+                    <div class="user-photo">
+                        <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #3464e0, #5d9efe); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px;">张</div>
+                    </div>
+                    <div class="user-name">张三</div>
+                </div>
+                <div class="nav">
+                    <div class="nav-auto">
+                        <ul>
+                            <li><a href="index.html" class="router-link-active"><i class="icon">🏠</i><span class="name">首页</span></a></li>
+                            <li><a href="html-content-homepage.html"><i class="icon">📊</i><span class="name">仪表盘</span></a></li>
+                            <li><a href="html-content-search-data-list.html"><i class="icon">📋</i><span class="name">订单列表</span></a></li>
+                            <li><a href="html-content-cards.html"><i class="icon">📁</i><span class="name">项目列表</span></a></li>
+                            <li><a href="html-content-details.html"><i class="icon">📄</i><span class="name">详情页</span></a></li>
+                            <li><a href="html-form-filling-submit.html"><i class="icon">📝</i><span class="name">表单提交</span></a></li>
+                            <li><a href="html-content-hr-selectors.html"><i class="icon">👥</i><span class="name">人员选择</span></a></li>
+                            <li><a href="html-content-dialogs.html"><i class="icon">🎯</i><span class="name">弹窗示例</span></a></li>
+                        </ul>
+                        <ul>
+                            <li><a href="../examples/ba-04-INVEST原则评估表单-invest-evaluation-form.html"><i class="icon">📈</i><span class="name">INVEST评估</span></a></li>
+                            <li><a href="../examples/US-015-配置BG级审批规则-approval-rule-config.html"><i class="icon">⚙️</i><span class="name">审批规则</span></a></li>
+                        </ul>
+                        <ul>
+                            <li class="slide-btn"><div class="slide-icon" onclick="toggleSidebar()" title="收起/展开菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg></div></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+        </div>
+        
+        <!-- ========== 视图容器 ========== -->
+        <div class="view-container">
+            <div class="welcome-banner">
+                <h1>欢迎使用 UI 原型演示系统</h1>
+                <p>这是一套完整的后台管理系统 UI 原型模板，包含常用页面布局、组件和交互示例</p>
+            </div>
+            
+            <h2 class="section-title"><span>📦</span>页面模板</h2>
+            <div class="template-grid">
+                <a href="html-content-homepage.html" class="template-card">
+                    <div class="template-cover">📊</div>
+                    <div class="template-body">
+                        <h3 class="template-title">仪表盘/首页</h3>
+                        <p class="template-desc">包含统计卡片、快捷入口、待办事项、日程日历等模块</p>
+                        <span class="template-tag">homepage</span>
+                    </div>
+                </a>
+                <a href="html-content-search-data-list.html" class="template-card">
+                    <div class="template-cover">📋</div>
+                    <div class="template-body">
+                        <h3 class="template-title">数据列表</h3>
+                        <p class="template-desc">搜索面板、数据表格、分页、CRUD操作完整示例</p>
+                        <span class="template-tag">data-list</span>
+                    </div>
+                </a>
+                <a href="html-content-cards.html" class="template-card">
+                    <div class="template-cover">📁</div>
+                    <div class="template-body">
+                        <h3 class="template-title">卡片列表</h3>
+                        <p class="template-desc">项目列表、网格/列表视图切换、筛选排序</p>
+                        <span class="template-tag">cards</span>
+                    </div>
+                </a>
+                <a href="html-content-details.html" class="template-card">
+                    <div class="template-cover">📄</div>
+                    <div class="template-body">
+                        <h3 class="template-title">详情页</h3>
+                        <p class="template-desc">项目详情、流程步骤、基本信息、操作日志</p>
+                        <span class="template-tag">details</span>
+                    </div>
+                </a>
+                <a href="html-form-filling-submit.html" class="template-card">
+                    <div class="template-cover">📝</div>
+                    <div class="template-body">
+                        <h3 class="template-title">表单提交</h3>
+                        <p class="template-desc">多分区表单、文件上传、表单验证</p>
+                        <span class="template-tag">form</span>
+                    </div>
+                </a>
+                <a href="html-content-hr-selectors.html" class="template-card">
+                    <div class="template-cover">👥</div>
+                    <div class="template-body">
+                        <h3 class="template-title">人员选择器</h3>
+                        <p class="template-desc">组织架构选择、角色选择、快速选择</p>
+                        <span class="template-tag">selector</span>
+                    </div>
+                </a>
+                <a href="html-content-dialogs.html" class="template-card">
+                    <div class="template-cover">🎯</div>
+                    <div class="template-body">
+                        <h3 class="template-title">弹窗示例</h3>
+                        <p class="template-desc">对话框、抽屉、消息提示组件演示</p>
+                        <span class="template-tag">dialog</span>
+                    </div>
+                </a>
+                <a href="html-master-page-layout.html" class="template-card">
+                    <div class="template-cover">🏗️</div>
+                    <div class="template-body">
+                        <h3 class="template-title">主布局模板</h3>
+                        <p class="template-desc">基础页面框架结构，可作为新页面起点</p>
+                        <span class="template-tag">layout</span>
+                    </div>
+                </a>
+            </div>
+            
+            <h2 class="section-title" style="margin-top: 32px;"><span>💡</span>业务示例</h2>
+            <div class="template-grid">
+                <a href="../examples/ba-04-INVEST原则评估表单-invest-evaluation-form.html" class="template-card">
+                    <div class="template-cover">📈</div>
+                    <div class="template-body">
+                        <h3 class="template-title">INVEST评估表单</h3>
+                        <p class="template-desc">INVEST原则评估、MoSCoW优先级排序、用户故事管理</p>
+                        <span class="template-tag">example</span>
+                    </div>
+                </a>
+                <a href="../examples/US-015-配置BG级审批规则-approval-rule-config.html" class="template-card">
+                    <div class="template-cover">⚙️</div>
+                    <div class="template-body">
+                        <h3 class="template-title">审批规则配置</h3>
+                        <p class="template-desc">6维度条件配置、审批链节点、版本管理</p>
+                        <span class="template-tag">example</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+        function toggleMobileSidebar() { document.getElementById('sidebar').classList.add('mobile-show'); }
+        function closeMobileSidebar() { document.getElementById('sidebar').classList.remove('mobile-show'); }
+        function toggleUserDropdown() { event.stopPropagation(); document.getElementById('userDropdown').classList.toggle('show'); }
+        document.addEventListener('click', function(e) { if (!e.target.closest('.header-user')) document.getElementById('userDropdown').classList.remove('show'); });
+    </script>
+</body>
+</html>

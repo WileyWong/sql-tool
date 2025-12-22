@@ -1,0 +1,92 @@
+import { contextBridge, ipcRenderer } from 'electron'
+import { IpcChannels } from '../shared/constants'
+import type { ConnectionConfig, ConnectionForm, QueryResult, ExplainResult } from '../shared/types'
+
+// 暴露给渲染进程的 API
+const api = {
+  // 连接管理
+  connection: {
+    list: (): Promise<ConnectionConfig[]> => 
+      ipcRenderer.invoke(IpcChannels.CONNECTION_LIST),
+    
+    save: (connection: ConnectionForm, id?: string): Promise<{ success: boolean; connections?: ConnectionConfig[]; connectionId?: string; error?: string; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.CONNECTION_SAVE, { connection, id }),
+    
+    delete: (connectionId: string): Promise<{ success: boolean; connections?: ConnectionConfig[] }> =>
+      ipcRenderer.invoke(IpcChannels.CONNECTION_DELETE, connectionId),
+    
+    test: (config: ConnectionConfig): Promise<{ success: boolean; message: string; serverVersion?: string }> =>
+      ipcRenderer.invoke(IpcChannels.CONNECTION_TEST, config),
+    
+    connect: (connectionId: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.CONNECTION_CONNECT, connectionId),
+    
+    disconnect: (connectionId: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke(IpcChannels.CONNECTION_DISCONNECT, connectionId)
+  },
+  
+  // 数据库操作
+  database: {
+    list: (connectionId: string): Promise<{ success: boolean; databases?: string[]; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_LIST, connectionId),
+    
+    tables: (connectionId: string, database: string) =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_TABLES, { connectionId, database }),
+    
+    columns: (connectionId: string, database: string, table: string) =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_COLUMNS, { connectionId, database, table }),
+    
+    views: (connectionId: string, database: string) =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_VIEWS, { connectionId, database }),
+    
+    functions: (connectionId: string, database: string) =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_FUNCTIONS, { connectionId, database })
+  },
+  
+  // 查询执行
+  query: {
+    execute: (connectionId: string, sql: string, maxRows?: number, database?: string): Promise<{ success: boolean; results?: QueryResult[] }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_EXECUTE, { connectionId, sql, maxRows, database }),
+    
+    cancel: (connectionId: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_CANCEL, connectionId),
+    
+    explain: (connectionId: string, sql: string): Promise<{ success: boolean; explain?: ExplainResult; error?: unknown }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_EXPLAIN, { connectionId, sql }),
+    
+    updateCell: (
+      connectionId: string,
+      database: string,
+      table: string,
+      primaryKeys: { column: string; value: unknown }[],
+      column: string,
+      newValue: unknown
+    ): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_UPDATE_CELL, { connectionId, database, table, primaryKeys, column, newValue })
+  },
+  
+  // 文件操作
+  file: {
+    open: (): Promise<{ success: boolean; filePath?: string; content?: string; canceled?: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.FILE_OPEN),
+    
+    save: (filePath: string, content: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.FILE_SAVE, { filePath, content }),
+    
+    saveAs: (content: string): Promise<{ success: boolean; filePath?: string; canceled?: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.FILE_SAVE_AS, content),
+    
+    export: (
+      columns: { name: string; type: string }[],
+      rows: Record<string, unknown>[],
+      format: 'csv' | 'json'
+    ): Promise<{ success: boolean; filePath?: string; canceled?: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.FILE_EXPORT, { columns, rows, format })
+  }
+}
+
+// 暴露 API 到渲染进程
+contextBridge.exposeInMainWorld('api', api)
+
+// TypeScript 类型声明
+export type Api = typeof api

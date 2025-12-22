@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2025面试官年度回顾</title>
+    <style>
+        /* ========== TDesign企业级CSS变量 ========== */
+        :root {
+            /* 品牌色 */
+            --td-brand-color-1: #E8F3FF;
+            --td-brand-color-2: #BDDBFF;
+            --td-brand-color-3: #92C0FF;
+            --td-brand-color-5: #3D81FF;
+            --td-brand-color-6: #125FFF;
+            --td-brand-color-7: #0B44D2;
+            --td-brand-color: var(--td-brand-color-6);
+            --td-brand-color-hover: var(--td-brand-color-5);
+            --td-brand-color-active: var(--td-brand-color-7);
+            --td-brand-color-light: var(--td-brand-color-1);
+            /* 功能色 */
+            --td-success-color: #2BA471;
+            --td-success-color-light: #E3F9E9;
+            --td-warning-color: #FF9C12;
+            --td-warning-color-light: #FFF9E8;
+            --td-error-color: #D54941;
+            --td-error-color-light: #FFF0ED;
+            /* 文字色 */
+            --td-text-color-primary: rgba(0,0,0,0.9);
+            --td-text-color-secondary: rgba(0,0,0,0.6);
+            --td-text-color-placeholder: rgba(0,0,0,0.4);
+            --td-text-color-disabled: rgba(0,0,0,0.26);
+            --td-text-color-anti: #fff;
+            /* 背景色 */
+            --td-bg-color-container: #FFFFFF;
+            --td-bg-color-page: #F5F7FA;
+            --td-bg-color-secondarycontainer: #F3F3F3;
+            /* 边框色 */
+            --td-component-border: #DCDCDC;
+            --td-component-stroke: #E7E7E7;
+            /* 圆角 */
+            --td-radius-small: 2px;
+            --td-radius-default: 3px;
+            --td-radius-medium: 6px;
+            --td-radius-large: 9px;
+            --td-radius-extraLarge: 12px;
+            --td-radius-round: 999px;
+            /* 阴影 */
+            --td-shadow-1: 0px 2px 4px -1px rgba(0,0,0,0.12), 0px 4px 5px 0px rgba(0,0,0,0.08), 0px 1px 10px 0px rgba(0,0,0,0.05);
+            --td-shadow-2: 0px 5px 5px -3px rgba(0,0,0,0.1), 0px 8px 10px 1px rgba(0,0,0,0.06), 0px 3px 14px 2px rgba(0,0,0,0.05);
+            --td-shadow-3: 0px 8px 10px -5px rgba(0,0,0,0.08), 0px 16px 24px 2px rgba(0,0,0,0.04), 0px 6px 30px 5px rgba(0,0,0,0.05);
+            /* 间距 */
+            --td-size-1: 2px;
+            --td-size-2: 4px;
+            --td-size-3: 6px;
+            --td-size-4: 8px;
+            --td-size-5: 12px;
+            --td-size-6: 16px;
+            --td-size-7: 20px;
+            --td-size-8: 24px;
+            --td-size-9: 28px;
+            --td-size-10: 32px;
+            /* 字体 */
+            --td-font-family: PingFang SC, Microsoft YaHei, Arial, sans-serif;
+            --td-font-size-body-small: 12px;
+            --td-font-size-body-medium: 14px;
+            --td-font-size-body-large: 16px;
+            --td-font-size-title-small: 14px;
+            --td-font-size-title-medium: 16px;
+            --td-font-size-title-large: 20px;
+            --td-font-size-headline-small: 24px;
+            --td-font-size-headline-medium: 28px;
+            --td-font-size-headline-large: 36px;
+            /* 活动主题色 */
+            --theme-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --theme-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --theme-accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --theme-gold: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+            /* 通用背景渐变 */
+            --bg-gradient-theme: linear-gradient(180deg, #667eea 0%, #764ba2 50%, var(--td-bg-color-page) 100%);
+            --bg-gradient-full: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* ========== 基础样式重置 ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; font-family: var(--td-font-family); background: #000; overflow: hidden; }
+
+        /* ========== 通用工具类 ========== */
+        /* 布局 */
+        .flex-center { display: flex; align-items: center; justify-content: center; }
+        .flex-col { display: flex; flex-direction: column; }
+        .text-center { text-align: center; }
+        /* 圆形头像基类 */
+        .avatar-base { border-radius: var(--td-radius-round); display: flex; align-items: center; justify-content: center; }
+        .avatar-sm { width: 60px; height: 60px; font-size: 28px; }
+        .avatar-md { width: 80px; height: 80px; font-size: 40px; }
+        .avatar-lg { width: 100px; height: 100px; font-size: 48px; }
+        /* 卡片基类 */
+        .card-base { background: var(--td-bg-color-container); border-radius: var(--td-radius-extraLarge); box-shadow: var(--td-shadow-2); }
+        .card-base.shadow-lg { box-shadow: var(--td-shadow-3); }
+        /* 按钮基类 */
+        .btn-base { border-radius: var(--td-radius-round); font-weight: 600; cursor: pointer; transition: all 0.3s ease; border: none; }
+        .btn-base:hover { transform: translateY(-2px); }
+        .btn-base:active { transform: translateY(0); }
+        .btn-base.loading { pointer-events: none; opacity: 0.7; }
+        /* 图标尺寸 */
+        .icon-md { font-size: 48px; }
+        .icon-lg { font-size: 64px; }
+        /* 统计数据组合 */
+        .stat-label { font-size: var(--td-font-size-body-medium); color: var(--td-text-color-secondary); margin-bottom: var(--td-size-4); }
+        .stat-value { font-size: 40px; font-weight: 700; color: var(--td-brand-color); line-height: 1.2; }
+        .stat-unit { font-size: var(--td-font-size-body-large); font-weight: 400; margin-left: var(--td-size-2); }
+        /* 标题组合 */
+        .section-title { font-size: var(--td-font-size-title-large); font-weight: 600; color: var(--td-text-color-primary); margin-bottom: var(--td-size-6); }
+        .section-desc { font-size: var(--td-font-size-body-medium); color: var(--td-text-color-secondary); line-height: 1.8; }
+
+        /* ========== H5容器 ========== */
+        .h5-container { width: 100%; max-width: 414px; height: 100%; margin: 0 auto; position: relative; overflow: hidden; background: var(--td-bg-color-page); }
+
+        /* ========== 页面通用样式 ========== */
+        .page { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px var(--td-size-8); opacity: 0; transform: translateX(100%); transition: all 0.3s ease-out; overflow-y: auto; }
+        .page.active { opacity: 1; transform: translateX(0); }
+        .page.prev { transform: translateX(-100%); }
+
+        /* ========== 封面页 ========== */
+        .page-cover { background: var(--theme-primary); color: var(--td-text-color-anti); text-align: center; }
+        .cover-logo { width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: var(--td-radius-round); display: flex; align-items: center; justify-content: center; font-size: 40px; margin-bottom: var(--td-size-10); animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255,255,255,0); }
+        }
+        .cover-title { font-size: var(--td-font-size-headline-large); font-weight: 700; margin-bottom: var(--td-size-6); animation: fadeInUp 0.8s ease; }
+        .cover-subtitle { font-size: var(--td-font-size-body-large); opacity: 0.9; margin-bottom: 48px; animation: fadeInUp 0.8s ease 0.2s both; }
+        .cover-btn { padding: var(--td-size-6) 48px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); border-radius: var(--td-radius-round); color: var(--td-text-color-anti); font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; animation: fadeInUp 0.8s ease 0.4s both; }
+        .cover-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+        .cover-btn:active { transform: scale(0.98); }
+        .cover-btn.loading { pointer-events: none; opacity: 0.7; }
+
+        /* ========== 个人欢迎页 ========== */
+        .page-welcome { background: var(--bg-gradient-theme); padding-top: 80px; }
+        .welcome-avatar { width: 100px; height: 100px; background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%); border-radius: var(--td-radius-round); display: flex; align-items: center; justify-content: center; font-size: 48px; color: #667eea; margin-bottom: var(--td-size-8); box-shadow: var(--td-shadow-3); }
+        .welcome-greeting { font-size: var(--td-font-size-body-large); color: rgba(255,255,255,0.9); margin-bottom: var(--td-size-4); }
+        .welcome-name { font-size: var(--td-font-size-headline-medium); font-weight: 700; color: var(--td-text-color-anti); margin-bottom: var(--td-size-10); }
+        .welcome-duration-card { background: var(--td-bg-color-container); border-radius: var(--td-radius-extraLarge); padding: var(--td-size-8) var(--td-size-10); text-align: center; box-shadow: var(--td-shadow-2); margin-top: var(--td-size-8); }
+        .duration-label { font-size: var(--td-font-size-body-medium); color: var(--td-text-color-secondary); margin-bottom: var(--td-size-5); }
+        .duration-value { font-size: var(--td-font-size-headline-large); font-weight: 700; color: var(--td-brand-color); }
+        .duration-unit { font-size: var(--td-font-size-body-large); color: var(--td-text-color-secondary); margin-left: var(--td-size-2); }
+
+        /* ========== 数据展示页通用样式 ========== */
+        .page-data { background: var(--bg-gradient-theme); padding: 60px var(--td-size-8) 120px; justify-content: flex-start; }
+        .page-header { text-align: center; margin-bottom: var(--td-size-10); }
+        .page-icon { font-size: 48px; margin-bottom: var(--td-size-6); }
+        .page-title { font-size: var(--td-font-size-headline-small); font-weight: 700; color: var(--td-text-color-anti); margin-bottom: var(--td-size-4); text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        .page-desc { font-size: var(--td-font-size-body-medium); color: rgba(255,255,255,0.85); }
+
+        /* ========== 数据卡片 ========== */
+        .data-card { width: 100%; background: var(--td-bg-color-container); border-radius: var(--td-radius-medium); padding: var(--td-size-7); margin-bottom: var(--td-size-6); box-shadow: var(--td-shadow-1); text-align: center; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .data-card:hover { transform: translateY(-2px); box-shadow: var(--td-shadow-2); }
+        .data-card.highlight { background: var(--theme-primary); color: var(--td-text-color-anti); }
+        .data-card.highlight .data-label { color: rgba(255,255,255,0.8); }
+        .data-card.highlight .data-value { color: var(--td-text-color-anti); }
+        .data-card.highlight .data-sub { color: rgba(255,255,255,0.7); }
+        .data-label { font-size: var(--td-font-size-body-medium); color: var(--td-text-color-secondary); margin-bottom: var(--td-size-4); }
+        .data-value { font-size: 40px; font-weight: 700; color: var(--td-brand-color); line-height: 1.2; }
+        .data-unit { font-size: var(--td-font-size-body-large); font-weight: 400; margin-left: var(--td-size-2); }
+        .data-sub { font-size: var(--td-font-size-body-small); color: var(--td-text-color-placeholder); margin-top: var(--td-size-4); }
+        /* 多列卡片布局 */
+        .data-row { display: flex; gap: var(--td-size-5); width: 100%; }
+        .data-row .data-card { flex: 1; }
+        .data-row-3 { display: flex; gap: var(--td-size-4); width: 100%; }
+        .data-row-3 .data-card { flex: 1; padding: var(--td-size-5); }
+        .data-row-3 .data-value { font-size: var(--td-font-size-headline-small); }
+
+        /* ========== 标签组件 ========== */
+        .interview-tags, .tag-group, .poster-tags { display: flex; flex-wrap: wrap; gap: var(--td-size-4); justify-content: center; }
+        .interview-tags { margin-top: var(--td-size-4); }
+        .tag-group { gap: var(--td-size-5); }
+        .interview-tag { padding: var(--td-size-2) var(--td-size-5); border-radius: var(--td-radius-round); font-size: var(--td-font-size-body-small); font-weight: 500; background: rgba(255,255,255,0.2); color: var(--td-text-color-anti); border: 1px solid rgba(255,255,255,0.3); }
+        .tag { padding: var(--td-size-5) var(--td-size-8); border-radius: var(--td-radius-round); font-size: var(--td-font-size-body-medium); font-weight: 600; color: var(--td-text-color-anti); animation: tagBounceIn 0.4s ease both; display: inline-flex; align-items: center; gap: var(--td-size-3); }
+        .poster-tag { padding: var(--td-size-3) var(--td-size-5); border-radius: var(--td-radius-round); font-size: var(--td-font-size-body-small); font-weight: 600; color: var(--td-text-color-anti); }
+        .tag-years { background: var(--theme-primary); }
+        .tag-multi { background: var(--theme-accent); }
+        .tag-talent { background: var(--theme-gold); }
+        .tag-praise { background: var(--theme-secondary); }
+        @keyframes tagBounceIn {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ========== 低数据提示 ========== */
+        .low-data-tip { display: none; text-align: center; padding: var(--td-size-10) var(--td-size-8); color: rgba(255,255,255,0.85); }
+        .low-data-tip.show { display: block; }
+        .low-data-icon { font-size: 48px; opacity: 0.8; margin-bottom: var(--td-size-6); }
+        .low-data-text { font-size: var(--td-font-size-body-medium); line-height: 1.6; color: rgba(255,255,255,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+
+        /* ========== 好评词条卡片 ========== */
+        .praise-card { width: 100%; background: var(--td-bg-color-container); border-radius: var(--td-radius-extraLarge); padding: var(--td-size-10) var(--td-size-8); margin-bottom: var(--td-size-8); box-shadow: var(--td-shadow-2); position: relative; overflow: hidden; }
+        .praise-card::before { content: '"'; position: absolute; top: var(--td-size-6); left: var(--td-size-6); font-size: 80px; color: var(--td-brand-color); opacity: 0.1; font-family: Georgia, serif; line-height: 1; }
+        .praise-content { font-size: 18px; line-height: 1.8; color: var(--td-text-color-primary); position: relative; z-index: 1; }
+        .praise-count { margin-top: var(--td-size-6); font-size: var(--td-font-size-body-medium); color: var(--td-brand-color); font-weight: 600; }
+
+        /* ========== 个人总结页 ========== */
+        .summary-section { width: 100%; margin-bottom: var(--td-size-8); }
+        .summary-title { font-size: var(--td-font-size-body-large); font-weight: 600; color: var(--td-text-color-primary); margin-bottom: var(--td-size-5); display: flex; align-items: center; gap: var(--td-size-4); }
+
+        /* ========== 分享海报页 ========== */
+        .page-share { background: var(--bg-gradient-full); padding: 40px var(--td-size-8); }
+        .poster-preview { width: 100%; max-width: 300px; background: var(--td-bg-color-container); border-radius: var(--td-radius-extraLarge); padding: var(--td-size-8); box-shadow: var(--td-shadow-3); margin-bottom: var(--td-size-10); }
+        .poster-header { text-align: center; margin-bottom: var(--td-size-7); }
+        .poster-avatar { width: 60px; height: 60px; background: var(--theme-primary); border-radius: var(--td-radius-round); display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--td-text-color-anti); margin: 0 auto var(--td-size-5); }
+        .poster-name { font-size: 18px; font-weight: 600; color: var(--td-text-color-primary); }
+        .poster-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--td-size-5); margin-bottom: var(--td-size-7); }
+        .poster-stat { text-align: center; padding: var(--td-size-5); background: var(--td-bg-color-secondarycontainer); border-radius: var(--td-radius-medium); }
+        .poster-stat-value { font-size: var(--td-font-size-title-large); font-weight: 700; color: var(--td-brand-color); }
+        .poster-stat-label { font-size: var(--td-font-size-body-small); color: var(--td-text-color-secondary); }
+        .share-actions { display: flex; gap: var(--td-size-6); }
+        .share-btn { flex: 1; padding: var(--td-size-5) var(--td-size-8); border-radius: var(--td-radius-round); font-size: var(--td-font-size-body-large); font-weight: 600; cursor: pointer; transition: all 0.3s ease; border: none; display: flex; align-items: center; justify-content: center; gap: var(--td-size-3); }
+        .share-btn-save { background: rgba(255,255,255,0.2); color: var(--td-text-color-anti); border: 2px solid rgba(255,255,255,0.5); }
+        .share-btn-share { background: var(--td-text-color-anti); color: #667eea; }
+        .share-btn:hover { transform: translateY(-2px); box-shadow: var(--td-shadow-2); }
+        .share-btn:active { transform: translateY(0); }
+        .share-btn.loading { pointer-events: none; opacity: 0.7; }
+
+        /* ========== 状态页（无权限/无数据）通用样式 ========== */
+        .page-no-access, .page-no-data { background: var(--bg-gradient-theme); text-align: center; }
+        .no-access-card, .no-data-card, .low-data-card { background: var(--td-bg-color-container); border-radius: var(--td-radius-extraLarge); padding: 48px var(--td-size-10); box-shadow: var(--td-shadow-3); max-width: 320px; animation: fadeInUp 0.6s ease; text-align: center; }
+        .low-data-card { padding: 40px var(--td-size-10); max-width: 300px; box-shadow: var(--td-shadow-2); }
+        .no-access-icon, .no-data-icon { font-size: 64px; margin-bottom: var(--td-size-8); }
+        .no-access-icon { opacity: 0.6; }
+        .no-access-title, .no-data-title, .low-data-card-title { font-size: var(--td-font-size-title-large); font-weight: 600; color: var(--td-text-color-primary); margin-bottom: var(--td-size-6); }
+        .low-data-card-title { font-size: 18px; margin-bottom: var(--td-size-5); }
+        .no-access-text, .no-data-text, .low-data-card-desc { font-size: var(--td-font-size-body-medium); color: var(--td-text-color-secondary); line-height: 1.8; }
+        .low-data-card-desc { line-height: 1.6; }
+        .no-access-footer { margin-top: var(--td-size-10); font-size: var(--td-font-size-body-small); color: var(--td-text-color-placeholder); }
+        .low-data-card-icon { font-size: 48px; margin-bottom: var(--td-size-7); opacity: 0.8; }
+        .low-data-card-footer { margin-top: var(--td-size-8); padding-top: var(--td-size-7); border-top: 1px solid var(--td-component-stroke); font-size: var(--td-font-size-body-small); color: var(--td-text-color-placeholder); }
+        .no-data-btn { margin-top: var(--td-size-10); padding: var(--td-size-5) var(--td-size-10); background: var(--td-brand-color); color: var(--td-text-color-anti); border: none; border-radius: var(--td-radius-round); font-size: var(--td-font-size-body-medium); font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .no-data-btn:hover { background: var(--td-brand-color-hover); transform: translateY(-2px); }
+
+        /* ========== 低数据版本页面 ========== */
+        .low-data-page { display: none; }
+        .low-data-page.show { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* ========== 导航控制 ========== */
+        .nav-controls { position: fixed; bottom: var(--td-size-8); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: var(--td-size-6); z-index: 100; }
+        .nav-btn { width: 48px; height: 48px; border-radius: var(--td-radius-round); background: var(--td-bg-color-container); border: none; box-shadow: var(--td-shadow-2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--td-text-color-primary); transition: all 0.3s ease; }
+        .nav-btn:hover { background: var(--td-brand-color); color: var(--td-text-color-anti); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn:disabled:hover { background: var(--td-bg-color-container); color: var(--td-text-color-primary); }
+        .page-indicator { display: flex; gap: var(--td-size-4); }
+        .indicator-dot { width: 8px; height: 8px; border-radius: var(--td-radius-round); background: rgba(0,0,0,0.2); transition: all 0.3s ease; }
+        .indicator-dot.active { width: 24px; border-radius: var(--td-size-2); background: var(--td-brand-color); }
+
+        /* ========== 数据截止日期 ========== */
+        .data-cutoff { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); font-size: var(--td-font-size-body-small); color: var(--td-text-color-placeholder); background: var(--td-bg-color-container); padding: var(--td-size-2) var(--td-size-5); border-radius: var(--td-radius-round); box-shadow: var(--td-shadow-1); z-index: 99; }
+
+        /* ========== Toast提示 ========== */
+        #toastContainer { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: var(--td-size-4); }
+        .toast { display: flex; align-items: center; gap: var(--td-size-4); padding: var(--td-size-5) var(--td-size-7); background: var(--td-bg-color-container); border-radius: var(--td-radius-medium); box-shadow: var(--td-shadow-3); animation: toastIn 0.3s ease; min-width: 200px; }
+        .toast.success { border-left: 4px solid var(--td-success-color); }
+        .toast.error { border-left: 4px solid var(--td-error-color); }
+        .toast.warning { border-left: 4px solid var(--td-warning-color); }
+        .toast.info { border-left: 4px solid var(--td-brand-color); }
+        .toast-icon { font-size: var(--td-font-size-body-large); }
+        .toast-message { flex: 1; font-size: var(--td-font-size-body-medium); color: var(--td-text-color-primary); }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ========== 加载动画 ========== */
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; align-items: center; justify-content: center; z-index: 9998; }
+        .loading-overlay.show { display: flex; }
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--td-component-border); border-top-color: var(--td-brand-color); border-radius: var(--td-radius-round); animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ========== 动画规范 ========== */
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        .animate-fadeInUp { animation: fadeInUp 0.5s ease both; }
+        .animate-slideUp { animation: slideUp 0.5s ease-out both; }
+        .animate-scaleIn { animation: scaleIn 0.3s ease-out both; }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
+        .count-up { display: inline-block; }
+
+        /* ========== 可访问性增强 ========== */
+        /* 屏幕阅读器专用样式 */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* 跳过导航链接 */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: var(--td-brand-color);
+            color: var(--td-text-color-anti);
+            padding: var(--td-size-4) var(--td-size-6);
+            z-index: 10000;
+            text-decoration: none;
+            border-radius: 0 0 var(--td-radius-medium) 0;
+            transition: top 0.3s ease;
+        }
+        .skip-link:focus {
+            top: 0;
+        }
+
+        /* 焦点可见样式 */
+        :focus-visible {
+            outline: 2px solid var(--td-brand-color);
+            outline-offset: 2px;
+        }
+
+        .nav-btn:focus-visible,
+        .cover-btn:focus-visible,
+        .share-btn:focus-visible,
+        .no-data-btn:focus-visible {
+            outline: 2px solid var(--td-text-color-anti);
+            outline-offset: 2px;
+        }
+
+        /* 动画偏好适配 - 减少动画 */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 跳过导航链接 -->
+    <a href="#h5Container" class="skip-link">跳过导航，直接查看内容</a>
+    
+    <!-- 页面状态通知区域 -->
+    <div id="pageAnnouncer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+    
+    <main class="h5-container" id="h5Container">
+        <!-- 第1页：封面页 -->
+        <section class="page page-cover active" id="page0" data-page="0" aria-label="封面页">
+            <div class="cover-logo" aria-hidden="true"><span aria-hidden="true">🎯</span></div>
+            <h1 class="cover-title">2025面试官年度回顾</h1>
+            <p class="cover-subtitle">回顾这一年，感谢有你</p>
+            <button class="cover-btn" id="startBtn" type="button" onclick="startJourney()">
+                <span class="btn-text">开始回顾</span>
+            </button>
+        </section>
+
+        <!-- 第2页：个人欢迎页 -->
+        <section class="page page-welcome" id="page1" data-page="1" aria-label="个人欢迎页">
+            <div class="welcome-avatar" aria-hidden="true"><span aria-hidden="true">👤</span></div>
+            <p class="welcome-greeting">Hi，亲爱的面试官</p>
+            <h2 class="welcome-name" id="interviewerName">张三</h2>
+            <div class="welcome-duration-card animate-fadeInUp delay-2">
+                <p class="duration-label">您已担任面试官</p>
+                <p class="duration-value">
+                    <span class="count-up" id="durationValue">3</span>
+                    <span class="duration-unit">年</span>
+                    <span class="count-up" id="durationMonths">6</span>
+                    <span class="duration-unit">个月</span>
+                </p>
+            </div>
+        </section>
+
+        <!-- 第3页：历史累计统计页 -->
+        <section class="page page-data" id="page2" data-page="2" aria-label="历史累计贡献">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">📊</span></div>
+                <h2 class="page-title">历史累计贡献</h2>
+                <p class="page-desc">成为面试官以来的累计数据</p>
+            </div>
+            
+            <div class="data-card highlight animate-fadeInUp" id="totalInterviewsCard">
+                <p class="data-label">累计面试场次</p>
+                <p class="data-value"><span class="count-up" id="totalInterviews">156</span><span class="data-unit">场</span></p>
+            </div>
+            
+            <div class="data-row" id="historyDataRow">
+                <div class="data-card animate-fadeInUp delay-1" id="totalDurationCard">
+                    <p class="data-label">累计面试时长</p>
+                    <p class="data-value"><span class="count-up" id="totalDuration">312</span><span class="data-unit">小时</span></p>
+                </div>
+                <div class="data-card animate-fadeInUp delay-2" id="maxDailyCard">
+                    <p class="data-label">单日最多面试</p>
+                    <p class="data-value"><span class="count-up" id="maxDaily">8</span><span class="data-unit">场</span></p>
+                    <p class="data-sub" id="maxDailyDate">2024-03-15</p>
+                </div>
+            </div>
+
+            <!-- 低数据版本提示 -->
+            <div class="low-data-tip" id="lowDataE1" role="status">
+                <div class="low-data-icon" aria-hidden="true"><span aria-hidden="true">📭</span></div>
+                <p class="low-data-text">暂无面试数据<br>期待您未来的贡献</p>
+            </div>
+        </section>
+
+        <!-- 第4页：入职贡献页 -->
+        <section class="page page-data" id="page3" data-page="3" aria-label="人才发现">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">🌟</span></div>
+                <h2 class="page-title">人才发现</h2>
+                <p class="page-desc">您发现的优秀人才</p>
+            </div>
+            
+            <div class="data-card highlight animate-fadeInUp" id="totalHiredCard">
+                <p class="data-label">面试人员最终入职人数</p>
+                <p class="data-value"><span class="count-up" id="totalHired">25</span><span class="data-unit">人</span></p>
+            </div>
+            
+            <div class="data-card animate-fadeInUp delay-1" id="longestTenureCard">
+                <p class="data-label">入职人员最长在职年限</p>
+                <p class="data-value" id="longestTenure">3年6个月</p>
+            </div>
+
+            <!-- 低数据版本提示 -->
+            <div class="low-data-tip" id="lowDataE3" role="status">
+                <div class="low-data-icon" aria-hidden="true"><span aria-hidden="true">🔍</span></div>
+                <p class="low-data-text">暂无入职数据<br>期待您发现更多人才</p>
+            </div>
+        </section>
+
+        <!-- 第5页：2025年统计页 -->
+        <section class="page page-data" id="page4" data-page="4" aria-label="2025年度数据">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">🎉</span></div>
+                <h2 class="page-title">2025年度数据</h2>
+                <p class="page-desc">这一年您的面试贡献</p>
+            </div>
+            
+            <div class="data-card highlight animate-fadeInUp" id="interviews2025Card">
+                <p class="data-label">2025年面试总场次</p>
+                <p class="data-value"><span class="count-up" id="interviews2025">48</span><span class="data-unit">场</span></p>
+                <div class="interview-tags">
+                    <span class="interview-tag">社招 <span id="socialInterviews">30</span> 场</span>
+                    <span class="interview-tag">校招 <span id="campusInterviews">18</span> 场</span>
+                </div>
+            </div>
+            
+            <div class="data-row" id="year2025DataRow">
+                <div class="data-card animate-fadeInUp delay-1" id="duration2025Card">
+                    <p class="data-label">面试时长</p>
+                    <p class="data-value"><span class="count-up" id="duration2025">96</span><span class="data-unit">小时</span></p>
+                </div>
+                <div class="data-card animate-fadeInUp delay-2" id="words2025Card">
+                    <p class="data-label">面评字数</p>
+                    <p class="data-value"><span class="count-up" id="words2025">2.5</span><span class="data-unit">万字</span></p>
+                </div>
+            </div>
+
+            <!-- 低数据版本提示 -->
+            <div class="low-data-tip" id="lowDataE4" role="status">
+                <div class="low-data-icon" aria-hidden="true"><span aria-hidden="true">📅</span></div>
+                <p class="low-data-text">2025年暂无面试数据</p>
+            </div>
+        </section>
+
+        <!-- 第6页：好评词条页 -->
+        <section class="page page-data" id="page5" data-page="5" aria-label="候选人评价">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">💬</span></div>
+                <h2 class="page-title">候选人评价</h2>
+                <p class="page-desc">来自候选人的正向反馈</p>
+            </div>
+            
+            <div class="praise-card animate-fadeInUp" id="praiseContentCard">
+                <p class="praise-content" id="praiseContent">面试官对我的阐述和提问积极反馈，友好交流，让我感受到了平等尊重</p>
+                <p class="praise-count">被提及 <span id="praiseCount">15</span> 次</p>
+            </div>
+            
+            <div class="data-card animate-fadeInUp delay-1" id="likeCountCard">
+                <p class="data-label">2025年问卷点赞数</p>
+                <p class="data-value"><span class="count-up" id="likeCount">28</span><span class="data-unit">次</span></p>
+            </div>
+
+            <!-- 低数据版本提示 -->
+            <div class="low-data-tip" id="lowDataE5" role="status">
+                <div class="low-data-icon" aria-hidden="true"><span aria-hidden="true">💭</span></div>
+                <p class="low-data-text">暂无好评词条<br>期待候选人的认可</p>
+            </div>
+        </section>
+
+        <!-- 第7页：个人总结页 -->
+        <section class="page page-data" id="page6" data-page="6" aria-label="您的荣誉标签">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">🏆</span></div>
+                <h2 class="page-title">您的荣誉标签</h2>
+                <p class="page-desc">感谢您为腾讯招聘做出的贡献</p>
+            </div>
+            
+            <div class="tag-group animate-fadeInUp" id="tagGroup" role="list" aria-label="荣誉标签列表">
+                <span class="tag tag-years" id="tag1" role="listitem" style="animation-delay: 0.1s"><span aria-hidden="true">🏅</span> 资深面试官</span>
+                <span class="tag tag-multi" id="tag2" role="listitem" style="animation-delay: 0.2s"><span aria-hidden="true">⭐</span> 多面能手</span>
+                <span class="tag tag-talent" id="tag3" role="listitem" style="animation-delay: 0.3s"><span aria-hidden="true">🏆</span> 人才发现官</span>
+                <span class="tag tag-praise" id="tag4" role="listitem" style="animation-delay: 0.4s"><span aria-hidden="true">❤️</span> 好评如潮</span>
+            </div>
+            
+            <div class="summary-section animate-fadeInUp delay-3" style="margin-top: 32px;">
+                <div class="summary-title"><span aria-hidden="true">🌐</span> 集团数据</div>
+                <div class="data-row-3">
+                    <div class="data-card" id="companyInterviewersCard">
+                        <p class="data-label">面试官</p>
+                        <p class="data-value"><span class="count-up" id="companyInterviewers">10000</span><span class="data-unit">人</span></p>
+                    </div>
+                    <div class="data-card" id="companyDurationCard">
+                        <p class="data-label">总时长</p>
+                        <p class="data-value"><span class="count-up" id="companyDuration">50</span><span class="data-unit">万小时</span></p>
+                    </div>
+                    <div class="data-card" id="companyWordsCard">
+                        <p class="data-label">总字数</p>
+                        <p class="data-value"><span class="count-up" id="companyWords">800</span><span class="data-unit">万字</span></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第8页：分享海报页 -->
+        <section class="page page-share" id="page7" data-page="7" aria-label="分享海报">
+            <div class="poster-preview" id="posterPreview">
+                <div class="poster-header">
+                    <div class="poster-avatar" aria-hidden="true"><span aria-hidden="true">👤</span></div>
+                    <p class="poster-name" id="posterName">张三</p>
+                </div>
+                <div class="poster-stats">
+                    <div class="poster-stat">
+                        <p class="poster-stat-value" id="posterInterviews">156</p>
+                        <p class="poster-stat-label">累计面试</p>
+                    </div>
+                    <div class="poster-stat">
+                        <p class="poster-stat-value" id="posterHired">25</p>
+                        <p class="poster-stat-label">入职人数</p>
+                    </div>
+                    <div class="poster-stat">
+                        <p class="poster-stat-value" id="posterDuration">3年6月</p>
+                        <p class="poster-stat-label">面试官年限</p>
+                    </div>
+                    <div class="poster-stat">
+                        <p class="poster-stat-value" id="posterLikes">28</p>
+                        <p class="poster-stat-label">问卷点赞</p>
+                    </div>
+                </div>
+                <div class="poster-tags" id="posterTags" role="list" aria-label="海报标签">
+                    <span class="poster-tag tag-years" role="listitem">资深面试官</span>
+                    <span class="poster-tag tag-multi" role="listitem">多面能手</span>
+                </div>
+            </div>
+            
+            <div class="share-actions">
+                <button class="share-btn share-btn-save" id="saveBtn" type="button" onclick="savePoster()">
+                    <span aria-hidden="true">💾</span> 保存海报
+                </button>
+                <button class="share-btn share-btn-share" id="shareBtn" type="button" onclick="sharePoster()">
+                    <span aria-hidden="true">📤</span> 分享好友
+                </button>
+            </div>
+        </section>
+
+        <!-- 无权限页（非面试官） -->
+        <section class="page page-no-access" id="pageNoAccess" data-page="-1" aria-label="无访问权限">
+            <div class="no-access-card">
+                <div class="no-access-icon" aria-hidden="true"><span aria-hidden="true">🔒</span></div>
+                <h2 class="no-access-title">暂无访问权限</h2>
+                <p class="no-access-text">Hi，同学：<br><br>本数据回顾仅向面试官群体开放，抱歉目前无法对你开放查看。<br><br>期待未来有机会以鹅厂面试官的身份再与你重逢。</p>
+                <p class="no-access-footer">— 腾讯招聘团队 —</p>
+            </div>
+        </section>
+
+        <!-- 面试官无数据页 -->
+        <section class="page page-no-data" id="pageNoData" data-page="-2" aria-label="暂无数据">
+            <div class="no-data-card">
+                <div class="no-data-icon" aria-hidden="true"><span aria-hidden="true">📋</span></div>
+                <h2 class="no-data-title">Hi，亲爱的面试官</h2>
+                <p class="no-data-text">感谢您成为腾讯面试官大家庭的一员！<br><br>截至2025年12月15日，系统暂未记录到您的面试数据。<br><br>期待在未来的面试中与您相遇，共同发现更多优秀人才！</p>
+                <button class="no-data-btn" type="button" onclick="closeNoDataPage()">我知道了</button>
+            </div>
+        </section>
+
+        <!-- E1低数据版本页：历史面试数据为空 -->
+        <section class="page page-data low-data-page" id="pageLowDataE1" data-page="-3" aria-label="历史累计贡献-无数据">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">📊</span></div>
+                <h2 class="page-title">历史累计贡献</h2>
+                <p class="page-desc">成为面试官以来的累计数据</p>
+            </div>
+            <div class="low-data-card">
+                <div class="low-data-card-icon" aria-hidden="true"><span aria-hidden="true">📭</span></div>
+                <h3 class="low-data-card-title">暂无面试数据</h3>
+                <p class="low-data-card-desc">截至2025年12月15日，系统暂未记录到您的面试数据。</p>
+                <p class="low-data-card-footer">期待您未来的精彩表现！</p>
+            </div>
+        </section>
+
+        <!-- E2低数据版本页：单日最大面试为空 -->
+        <section class="page page-data low-data-page" id="pageLowDataE2" data-page="-4" aria-label="历史累计贡献-单日数据为空">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">📊</span></div>
+                <h2 class="page-title">历史累计贡献</h2>
+                <p class="page-desc">成为面试官以来的累计数据</p>
+            </div>
+            <div class="data-card highlight animate-fadeInUp">
+                <p class="data-label">累计面试场次</p>
+                <p class="data-value"><span class="count-up" id="e2TotalInterviews">0</span><span class="data-unit">场</span></p>
+            </div>
+            <div class="low-data-card" style="margin-top: 16px;">
+                <div class="low-data-card-icon" aria-hidden="true"><span aria-hidden="true">📅</span></div>
+                <h3 class="low-data-card-title">单日最大面试数据暂无</h3>
+                <p class="low-data-card-desc">暂未记录到单日面试高峰数据。</p>
+            </div>
+        </section>
+
+        <!-- E3低数据版本页：入职人数为空 -->
+        <section class="page page-data low-data-page" id="pageLowDataE3" data-page="-5" aria-label="人才发现-无数据">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">🌟</span></div>
+                <h2 class="page-title">人才发现</h2>
+                <p class="page-desc">您发现的优秀人才</p>
+            </div>
+            <div class="low-data-card">
+                <div class="low-data-card-icon" aria-hidden="true"><span aria-hidden="true">🔍</span></div>
+                <h3 class="low-data-card-title">暂无入职数据</h3>
+                <p class="low-data-card-desc">截至2025年12月15日，暂未记录到您面试的候选人入职信息。</p>
+                <p class="low-data-card-footer">期待您发现更多优秀人才！</p>
+            </div>
+        </section>
+
+        <!-- E4低数据版本页：2025年面试数据为空 -->
+        <section class="page page-data low-data-page" id="pageLowDataE4" data-page="-6" aria-label="2025年度数据-无数据">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">🎉</span></div>
+                <h2 class="page-title">2025年度数据</h2>
+                <p class="page-desc">这一年您的面试贡献</p>
+            </div>
+            <div class="low-data-card">
+                <div class="low-data-card-icon" aria-hidden="true"><span aria-hidden="true">📅</span></div>
+                <h3 class="low-data-card-title">2025年暂无面试数据</h3>
+                <p class="low-data-card-desc">截至2025年12月15日，系统暂未记录到您今年的面试数据。</p>
+                <p class="low-data-card-footer">期待您在新的一年继续发光发热！</p>
+            </div>
+        </section>
+
+        <!-- E5低数据版本页：好评词条为空 -->
+        <section class="page page-data low-data-page" id="pageLowDataE5" data-page="-7" aria-label="候选人评价-无数据">
+            <div class="page-header">
+                <div class="page-icon" aria-hidden="true"><span aria-hidden="true">💬</span></div>
+                <h2 class="page-title">候选人评价</h2>
+                <p class="page-desc">来自候选人的正向反馈</p>
+            </div>
+            <div class="low-data-card">
+                <div class="low-data-card-icon" aria-hidden="true"><span aria-hidden="true">💭</span></div>
+                <h3 class="low-data-card-title">暂无好评词条</h3>
+                <p class="low-data-card-desc">截至2025年12月15日，暂未收到候选人的好评反馈。</p>
+                <p class="low-data-card-footer">期待候选人对您的认可！</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- 导航控制 -->
+    <nav class="nav-controls" id="navControls" aria-label="页面导航">
+        <button class="nav-btn" id="prevBtn" type="button" onclick="prevPage()" disabled aria-label="上一页">←</button>
+        <div class="page-indicator" id="pageIndicator" role="tablist" aria-label="页面指示器">
+            <span class="indicator-dot active" role="tab" aria-selected="true" aria-label="第1页"></span>
+            <span class="indicator-dot" role="tab" aria-selected="false" aria-label="第2页"></span>
+            <span class="indicator-dot" role="tab" aria-selected="false" aria-label="第3页"></span>
+            <span class="indicator-dot" role="tab" aria-selected="false" aria-label="第4页"></span>
+            <span class="indicator-dot" role="tab" aria-selected="false" aria-label="第5页"></span>
+            <span class="indicator-dot" role="tab" aria-selected="false" aria-label="第6页"></span>
+            <span class="indicator-dot" role="tab" aria-selected="false" aria-label="第7页"></span>
+            <span class="indicator-dot" role="tab" aria-selected="false" aria-label="第8页"></span>
+        </div>
+        <button class="nav-btn" id="nextBtn" type="button" onclick="nextPage()" aria-label="下一页">→</button>
+    </nav>
+
+    <!-- 数据截止日期 -->
+    <div class="data-cutoff" id="dataCutoff">数据截止: 2025年12月15日</div>
+
+    <!-- Toast容器 -->
+    <div id="toastContainer"></div>
+
+    <!-- 加载遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        // ========== 配置常量 ==========
+        const CONFIG = {
+            DEBOUNCE_TIME: 300,           // 防抖时间（ms）
+            ANIMATION_DURATION: 1000,     // 数字滚动动画时长（ms）
+            SWIPE_THRESHOLD: 50,          // 滑动触发阈值（px）
+            LOADING_DELAY: 1000,          // 模拟加载延迟（ms）
+            BUTTON_LOADING_DELAY: 1500,   // 按钮加载延迟（ms）
+            TOAST_DURATION: {
+                success: 2000,
+                error: 5000,
+                default: 3000
+            },
+            TOTAL_PAGES: 8
+        };
+
+        // ========== 应用状态管理 ==========
+        const AppState = {
+            currentPage: 0,
+            isAnimating: false,
+            lastNavTime: 0,
+            currentScenario: 'normal'
+        };
+
+        // ========== DOM 缓存 ==========
+        const DOMCache = {
+            init() {
+                this.h5Container = document.getElementById('h5Container');
+                this.toastContainer = document.getElementById('toastContainer');
+                this.loadingOverlay = document.getElementById('loadingOverlay');
+                this.pageAnnouncer = document.getElementById('pageAnnouncer');
+                this.navControls = document.getElementById('navControls');
+                this.dataCutoff = document.getElementById('dataCutoff');
+                this.prevBtn = document.getElementById('prevBtn');
+                this.nextBtn = document.getElementById('nextBtn');
+                this.indicators = document.querySelectorAll('.indicator-dot');
+            }
+        };
+
+        // ========== 模拟数据（基于design-element.md数据字段定义） ==========
+        const mockData = {
+            // 权限与状态字段（US001、US002）
+            userId: 'zhangsan',
+            isInterviewer: true,
+            hasData: true,
+            accessStatus: 'hasData', // 'hasData' | 'noData' | 'noAccess'
+            
+            // 面试官基本信息字段（US004）
+            interviewerName: '张三',
+            interviewerEnName: 'zhangsan',
+            firstInterviewDate: '2021-06-15',
+            durationDays: 1278,
+            durationYears: 3,
+            durationMonths: 6,
+            durationFormatted: '3年6个月',
+            bgName: 'IEG',
+            deptName: '天美工作室群',
+            workLocation: '深圳',
+            
+            // 历史累计统计字段（US006）
+            totalInterviewsHistory: 156,
+            totalDurationMinutesHistory: 18720,
+            totalDurationHoursHistory: 312,
+            maxDailyInterviews: 8,
+            maxDailyDate: '2024-03-15',
+            totalHiredCount: 25,
+            longestTenureYears: 3.5,
+            longestTenureFormatted: '3年6个月',
+            
+            // 2025年面试统计字段（US005）
+            totalInterviews2025: 48,
+            socialInterviews2025: 30,
+            campusInterviews2025: 18,
+            totalDurationMinutes2025: 5760,
+            totalDurationHours2025: 96,
+            totalWords2025: 25000,
+            totalWordsWan2025: 2.5,
+            likeCount2025: 28,
+            goodReviewCount2025: 35,
+            
+            // 好评词条字段（US009、US010）
+            praiseContent: '面试官对我的阐述和提问积极反馈，友好交流，让我感受到了平等尊重',
+            praiseCount: 15,
+            
+            // 集团汇总字段（US011、US012）
+            companyInterviewers: 10000,
+            companyDurationMinutes: 30000000,
+            companyDurationHours: 500000,
+            companyDurationWan: 50,
+            companyTotalWords: 8000000000,
+            companyTotalWordsWan: 800,
+            
+            // TAG标签字段（US013、US014）
+            tag1YearsLevel: '资深', // '新进' | '熟练' | '资深'
+            tag2MultiExpert: true,  // 多面能手：≥30场
+            tag3TalentFinder: true, // 人才发现官：≥8人
+            tag4HighPraise: true,   // 好评如潮：≥10次
+            
+            // 低数据版本标识字段（US015-US017）
+            isE1LowData: false, // E1: 面试人数=0 或 总面试时长=0
+            isE2LowData: false, // E2: 单日最多面试人次=0
+            isE3LowData: false, // E3: 总入职人数=0
+            isE4LowData: false, // E4: 2025年面试总人数=0
+            isE5LowData: false  // E5: 无好评词条记录 或 问卷点赞数=0
+        };
+
+        // ========== 测试场景配置 ==========
+        const testScenarios = {
+            normal: {
+                accessStatus: 'hasData',
+                isE1LowData: false,
+                isE2LowData: false,
+                isE3LowData: false,
+                isE4LowData: false,
+                isE5LowData: false
+            },
+            noAccess: {
+                accessStatus: 'noAccess'
+            },
+            noData: {
+                accessStatus: 'noData'
+            },
+            lowDataE1: {
+                accessStatus: 'hasData',
+                isE1LowData: true,
+                totalInterviewsHistory: 0,
+                totalDurationHoursHistory: 0
+            },
+            lowDataE2: {
+                accessStatus: 'hasData',
+                isE2LowData: true,
+                maxDailyInterviews: 0
+            },
+            lowDataE3: {
+                accessStatus: 'hasData',
+                isE3LowData: true,
+                totalHiredCount: 0
+            },
+            lowDataE4: {
+                accessStatus: 'hasData',
+                isE4LowData: true,
+                totalInterviews2025: 0,
+                socialInterviews2025: 0,
+                campusInterviews2025: 0
+            },
+            lowDataE5: {
+                accessStatus: 'hasData',
+                isE5LowData: true,
+                praiseCount: 0,
+                likeCount2025: 0
+            }
+        };
+
+        let currentScenario = 'normal';
+
+        // ========== 全局错误处理 ==========
+        window.addEventListener('error', function(event) {
+            console.error('全局错误:', event.error);
+            showToast('页面发生错误，请刷新重试', 'error');
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('未处理的Promise拒绝:', event.reason);
+            showToast('操作失败，请稍后重试', 'error');
+        });
+
+        // ========== 状态管理 ==========
+        let currentPage = 0;
+        const totalPages = CONFIG.TOTAL_PAGES;
+        let isAnimating = false;
+
+        // ========== 工具函数 ==========
+        // 页面状态通知（可访问性增强）
+        function announcePageChange(pageIndex) {
+            const announcer = document.getElementById('pageAnnouncer');
+            if (announcer) {
+                announcer.textContent = `第 ${pageIndex + 1} 页，共 ${totalPages} 页`;
+            }
+        }
+
+        // Toast提示（按交互反馈设计规范）
+        function showToast(message, type = 'info', duration = CONFIG.TOAST_DURATION.default) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icons = { 
+                success: '✅', 
+                error: '❌', 
+                warning: '⚠️', 
+                info: 'ℹ️' 
+            };
+            toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><span class="toast-message">${message}</span>`;
+            container.appendChild(toast);
+            
+            // 根据类型设置持续时间：成功2秒，错误5秒
+            const actualDuration = type === 'error' ? CONFIG.TOAST_DURATION.error : (type === 'success' ? CONFIG.TOAST_DURATION.success : duration);
+            
+            setTimeout(() => {
+                toast.style.animation = 'toastIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, actualDuration);
+        }
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        // 按钮loading状态（防重复提交）
+        function setButtonLoading(btn, loading) {
+            if (loading) {
+                btn.classList.add('loading');
+                btn.disabled = true;
+                btn.dataset.originalText = btn.innerHTML;
+                btn.innerHTML = '处理中...';
+            } else {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+                btn.innerHTML = btn.dataset.originalText;
+            }
+        }
+
+        // 数字滚动动画（使用CONFIG配置）
+        function countUp(element, target, duration = CONFIG.ANIMATION_DURATION) {
+            const start = 0;
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = start + (target - start) * easeOut;
+                
+                if (typeof target === 'number' && target % 1 !== 0) {
+                    element.textContent = current.toFixed(1);
+                } else {
+                    element.textContent = Math.floor(current);
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    element.textContent = target;
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+
+        // 应用测试场景
+        function applyScenario(scenarioName) {
+            const scenario = testScenarios[scenarioName];
+            if (scenario) {
+                Object.assign(mockData, scenario);
+                currentScenario = scenarioName;
+            }
+        }
+
+        // ========== 页面导航（使用CONFIG防抖配置） ==========
+        let lastNavTime = 0;
+        
+        function goToPage(pageIndex) {
+            const now = Date.now();
+            if (now - lastNavTime < CONFIG.DEBOUNCE_TIME) return;
+            lastNavTime = now;
+            
+            if (isAnimating || pageIndex < 0 || pageIndex >= totalPages) return;
+            if (pageIndex === currentPage) return;
+            
+            isAnimating = true;
+            
+            const currentPageEl = document.getElementById(`page${currentPage}`);
+            const targetPageEl = document.getElementById(`page${pageIndex}`);
+            
+            if (!currentPageEl || !targetPageEl) {
+                isAnimating = false;
+                return;
+            }
+            
+            // 页面切换动画（300ms）
+            if (pageIndex > currentPage) {
+                currentPageEl.classList.remove('active');
+                currentPageEl.classList.add('prev');
+                targetPageEl.classList.add('active');
+            } else {
+                currentPageEl.classList.remove('active');
+                targetPageEl.classList.remove('prev');
+                targetPageEl.classList.add('active');
+            }
+            
+            currentPage = pageIndex;
+            updateNavigation();
+            announcePageChange(pageIndex);
+            
+            // 触发页面进入动画
+            setTimeout(() => {
+                triggerPageAnimations(pageIndex);
+                isAnimating = false;
+            }, CONFIG.DEBOUNCE_TIME);
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages - 1) {
+                goToPage(currentPage + 1);
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 0) {
+                goToPage(currentPage - 1);
+            }
+        }
+
+        function updateNavigation() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const indicators = document.querySelectorAll('.indicator-dot');
+            
+            prevBtn.disabled = currentPage === 0;
+            nextBtn.disabled = currentPage === totalPages - 1;
+            
+            indicators.forEach((dot, index) => {
+                const isActive = index === currentPage;
+                dot.classList.toggle('active', isActive);
+                dot.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+            
+            // 控制数据截止日期显示
+            const dataCutoff = document.getElementById('dataCutoff');
+            dataCutoff.style.display = (currentPage >= 2 && currentPage <= 6) ? 'block' : 'none';
+        }
+
+        // 触发页面动画
+        function triggerPageAnimations(pageIndex) {
+            const page = document.getElementById(`page${pageIndex}`);
+            if (!page) return;
+            
+            // 数字滚动动画
+            const countUpElements = page.querySelectorAll('.count-up');
+            countUpElements.forEach(el => {
+                const target = parseFloat(el.textContent);
+                if (!isNaN(target)) {
+                    countUp(el, target);
+                }
+            });
+        }
+
+        // ========== 业务逻辑 ==========
+        function startJourney() {
+            const btn = document.getElementById('startBtn');
+            setButtonLoading(btn, true);
+            
+            // 模拟数据加载
+            setTimeout(() => {
+                setButtonLoading(btn, false);
+                
+                // 根据权限状态决定展示页面
+                if (mockData.accessStatus === 'noAccess') {
+                    showNoAccessPage();
+                } else if (mockData.accessStatus === 'noData') {
+                    showNoDataPage();
+                } else {
+                    loadInterviewerData();
+                    goToPage(1);
+                }
+            }, CONFIG.LOADING_DELAY);
+        }
+
+        // ========== 数据加载函数拆分 ==========
+        function fillBasicInfo() {
+            document.getElementById('interviewerName').textContent = mockData.interviewerName;
+            document.getElementById('durationValue').textContent = mockData.durationYears;
+            document.getElementById('durationMonths').textContent = mockData.durationMonths;
+        }
+
+        function fillHistoryStats() {
+            document.getElementById('totalInterviews').textContent = mockData.totalInterviewsHistory;
+            document.getElementById('totalDuration').textContent = mockData.totalDurationHoursHistory;
+            document.getElementById('maxDaily').textContent = mockData.maxDailyInterviews;
+            document.getElementById('maxDailyDate').textContent = mockData.maxDailyDate;
+            document.getElementById('totalHired').textContent = mockData.totalHiredCount;
+            document.getElementById('longestTenure').textContent = mockData.longestTenureFormatted;
+        }
+
+        function fill2025Stats() {
+            document.getElementById('interviews2025').textContent = mockData.totalInterviews2025;
+            document.getElementById('socialInterviews').textContent = mockData.socialInterviews2025;
+            document.getElementById('campusInterviews').textContent = mockData.campusInterviews2025;
+            document.getElementById('duration2025').textContent = mockData.totalDurationHours2025;
+            document.getElementById('words2025').textContent = mockData.totalWordsWan2025;
+        }
+
+        function fillPraiseData() {
+            document.getElementById('praiseContent').textContent = mockData.praiseContent;
+            document.getElementById('praiseCount').textContent = mockData.praiseCount;
+            document.getElementById('likeCount').textContent = mockData.likeCount2025;
+        }
+
+        function fillCompanyData() {
+            document.getElementById('companyInterviewers').textContent = mockData.companyInterviewers;
+            document.getElementById('companyDuration').textContent = mockData.companyDurationWan;
+            document.getElementById('companyWords').textContent = mockData.companyTotalWordsWan;
+        }
+
+        function updateTags() {
+            const tag1Text = {
+                '新进': '🏅 新进面试官',
+                '熟练': '🏅 熟练面试官',
+                '资深': '🏅 资深面试官'
+            };
+            const tag1El = document.getElementById('tag1');
+            tag1El.innerHTML = `<span aria-hidden="true">🏅</span> ${mockData.tag1YearsLevel || ''}面试官`;
+            document.getElementById('tag2').style.display = mockData.tag2MultiExpert ? 'inline-flex' : 'none';
+            document.getElementById('tag3').style.display = mockData.tag3TalentFinder ? 'inline-flex' : 'none';
+            document.getElementById('tag4').style.display = mockData.tag4HighPraise ? 'inline-flex' : 'none';
+        }
+
+        function fillPosterData() {
+            document.getElementById('posterName').textContent = mockData.interviewerName;
+            document.getElementById('posterInterviews').textContent = mockData.totalInterviewsHistory;
+            document.getElementById('posterHired').textContent = mockData.totalHiredCount;
+            document.getElementById('posterDuration').textContent = mockData.durationFormatted;
+            document.getElementById('posterLikes').textContent = mockData.likeCount2025;
+        }
+
+        function loadInterviewerData() {
+            fillBasicInfo();
+            fillHistoryStats();
+            fill2025Stats();
+            fillPraiseData();
+            fillCompanyData();
+            updateTags();
+            fillPosterData();
+            updatePosterTags();
+            handleLowDataVersions();
+        }
+
+        function updatePosterTags() {
+            const posterTags = document.getElementById('posterTags');
+            const fragment = document.createDocumentFragment();
+            
+            const tag1Text = {
+                '新进': '新进面试官',
+                '熟练': '熟练面试官',
+                '资深': '资深面试官'
+            };
+            
+            // 添加年限标签
+            const tag1 = document.createElement('span');
+            tag1.className = 'poster-tag tag-years';
+            tag1.setAttribute('role', 'listitem');
+            tag1.textContent = tag1Text[mockData.tag1YearsLevel] || '面试官';
+            fragment.appendChild(tag1);
+            
+            // 添加其他标签
+            if (mockData.tag2MultiExpert) {
+                const tag2 = document.createElement('span');
+                tag2.className = 'poster-tag tag-multi';
+                tag2.setAttribute('role', 'listitem');
+                tag2.textContent = '多面能手';
+                fragment.appendChild(tag2);
+            }
+            if (mockData.tag3TalentFinder) {
+                const tag3 = document.createElement('span');
+                tag3.className = 'poster-tag tag-talent';
+                tag3.setAttribute('role', 'listitem');
+                tag3.textContent = '人才发现官';
+                fragment.appendChild(tag3);
+            }
+            if (mockData.tag4HighPraise) {
+                const tag4 = document.createElement('span');
+                tag4.className = 'poster-tag tag-praise';
+                tag4.setAttribute('role', 'listitem');
+                tag4.textContent = '好评如潮';
+                fragment.appendChild(tag4);
+            }
+            
+            // 批量更新DOM
+            posterTags.innerHTML = '';
+            posterTags.appendChild(fragment);
+        }
+
+        function handleLowDataVersions() {
+            // E1: 历史面试数据为空
+            if (mockData.isE1LowData || (mockData.totalInterviewsHistory === 0 && mockData.totalDurationHoursHistory === 0)) {
+                document.getElementById('lowDataE1').classList.add('show');
+                document.getElementById('totalInterviewsCard').style.display = 'none';
+                document.getElementById('historyDataRow').style.display = 'none';
+            }
+            
+            // E3: 入职人数为空
+            if (mockData.isE3LowData || mockData.totalHiredCount === 0) {
+                document.getElementById('lowDataE3').classList.add('show');
+                document.getElementById('totalHiredCard').style.display = 'none';
+                document.getElementById('longestTenureCard').style.display = 'none';
+            }
+            
+            // E4: 2025年面试数据为空
+            if (mockData.isE4LowData || mockData.totalInterviews2025 === 0) {
+                document.getElementById('lowDataE4').classList.add('show');
+                document.getElementById('interviews2025Card').style.display = 'none';
+                document.getElementById('year2025DataRow').style.display = 'none';
+            }
+            
+            // E5: 好评词条为空
+            if (mockData.isE5LowData || (mockData.praiseCount === 0 && mockData.likeCount2025 === 0)) {
+                document.getElementById('lowDataE5').classList.add('show');
+                document.getElementById('praiseContentCard').style.display = 'none';
+                document.getElementById('likeCountCard').style.display = 'none';
+            }
+        }
+
+        function showNoAccessPage() {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('pageNoAccess').classList.add('active');
+            document.getElementById('navControls').style.display = 'none';
+            document.getElementById('dataCutoff').style.display = 'none';
+        }
+
+        function showNoDataPage() {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('pageNoData').classList.add('active');
+            document.getElementById('navControls').style.display = 'none';
+            document.getElementById('dataCutoff').style.display = 'none';
+        }
+
+        function closeNoDataPage() {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page0').classList.add('active');
+            document.getElementById('navControls').style.display = 'flex';
+            currentPage = 0;
+            updateNavigation();
+        }
+
+        function savePoster() {
+            const btn = document.getElementById('saveBtn');
+            setButtonLoading(btn, true);
+            
+            setTimeout(() => {
+                setButtonLoading(btn, false);
+                showToast('海报已保存到相册', 'success');
+            }, CONFIG.BUTTON_LOADING_DELAY);
+        }
+
+        function sharePoster() {
+            const btn = document.getElementById('shareBtn');
+            setButtonLoading(btn, true);
+            
+            setTimeout(() => {
+                setButtonLoading(btn, false);
+                showToast('分享成功', 'success');
+            }, CONFIG.BUTTON_LOADING_DELAY);
+        }
+
+        // ========== 场景切换（用于测试） ==========
+        function switchScenario(scenarioName) {
+            applyScenario(scenarioName);
+            // 重置页面状态
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active', 'prev'));
+            document.getElementById('page0').classList.add('active');
+            document.getElementById('navControls').style.display = 'flex';
+            currentPage = 0;
+            updateNavigation();
+            
+            // 重置低数据版本显示
+            document.querySelectorAll('.low-data-tip').forEach(el => el.classList.remove('show'));
+            document.querySelectorAll('[id$="Card"], [id$="DataRow"]').forEach(el => {
+                el.style.display = '';
+            });
+            
+            showToast(`已切换到场景: ${scenarioName}`, 'info');
+        }
+
+        // ========== 手势支持（滑动距离>阈值触发） ==========
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(e) {
+            if (isAnimating) return;
+            
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchStartX - touchEndX;
+            const diffY = touchStartY - touchEndY;
+            
+            // 水平滑动距离大于垂直滑动距离，且大于阈值
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > CONFIG.SWIPE_THRESHOLD) {
+                if (diffX > 0) {
+                    nextPage();
+                } else {
+                    prevPage();
+                }
+            }
+        }, { passive: true });
+
+        // ========== 键盘支持 ==========
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                nextPage();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                prevPage();
+            }
+            // 数字键切换测试场景
+            if (e.key === '0') switchScenario('normal');
+            if (e.key === '1') switchScenario('noAccess');
+            if (e.key === '2') switchScenario('noData');
+            if (e.key === '3') switchScenario('lowDataE1');
+            if (e.key === '4') switchScenario('lowDataE3');
+            if (e.key === '5') switchScenario('lowDataE4');
+            if (e.key === '6') switchScenario('lowDataE5');
+        });
+
+        // ========== 初始化 ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化DOM缓存
+            DOMCache.init();
+            
+            updateNavigation();
+            announcePageChange(0);
+            
+            // 如果是无权限用户，直接显示无权限页
+            if (mockData.accessStatus === 'noAccess') {
+                showNoAccessPage();
+            } else if (mockData.accessStatus === 'noData') {
+                showNoDataPage();
+            }
+            
+            // 控制台提示
+            console.log('%c面试官年度H5原型 v2.1 - 场景切换指南', 'font-size: 16px; font-weight: bold; color: #667eea;');
+            console.log('%c按数字键切换测试场景:', 'font-size: 12px; color: #666;');
+            console.log('  0 - 正常数据场景');
+            console.log('  1 - 非面试官（无权限）');
+            console.log('  2 - 面试官无数据');
+            console.log('  3 - E1低数据版本（历史面试为空）');
+            console.log('  4 - E3低数据版本（入职人数为空）');
+            console.log('  5 - E4低数据版本（2025年面试为空）');
+            console.log('  6 - E5低数据版本（好评词条为空）');
+            console.log('%c基于TDesign企业级设计系统 | 可访问性增强版', 'font-size: 12px; color: #125FFF;');
+        });
+    </script>
+</body>
+</html>

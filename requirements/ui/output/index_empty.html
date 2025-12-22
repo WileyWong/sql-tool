@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sql-tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        /* 菜单栏 */
+        .menu-bar {
+            background: #3c3c3c;
+            padding: 4px 8px;
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid #555;
+        }
+
+        .menu-item {
+            padding: 4px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            position: relative;
+        }
+
+        .menu-item:hover {
+            background: #505050;
+        }
+
+        /* 下拉菜单 */
+        .dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            border-radius: 4px;
+            min-width: 180px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .menu-item:hover .dropdown {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dropdown-item:hover {
+            background: #094771;
+        }
+
+        .dropdown-item .shortcut {
+            color: #888;
+            font-size: 12px;
+            margin-left: 20px;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: #555;
+            margin: 4px 0;
+        }
+
+        /* 功能按钮栏 */
+        .toolbar {
+            background: #2d2d2d;
+            padding: 6px 12px;
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid #555;
+        }
+
+        .toolbar-btn {
+            padding: 6px 14px;
+            background: #0e639c;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toolbar-btn:hover {
+            background: #1177bb;
+        }
+
+        .toolbar-btn.secondary {
+            background: #3c3c3c;
+            border: 1px solid #555;
+        }
+
+        .toolbar-btn.secondary:hover {
+            background: #505050;
+        }
+
+        .toolbar-btn.run {
+            background: #388a34;
+        }
+
+        .toolbar-btn.run:hover {
+            background: #45a341;
+        }
+
+        .toolbar-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧数据库树 */
+        .sidebar {
+            width: 260px;
+            min-width: 150px;
+            max-width: 500px;
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 左右分隔条 */
+        .resizer-horizontal {
+            width: 4px;
+            background: #555;
+            cursor: ew-resize;
+            flex-shrink: 0;
+        }
+
+        .resizer-horizontal:hover,
+        .resizer-horizontal.active {
+            background: #0e639c;
+        }
+
+        .sidebar-header {
+            padding: 10px 12px;
+            background: #2d2d2d;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #ccc;
+            border-bottom: 1px solid #555;
+        }
+
+        .db-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 空状态提示 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+
+        .empty-state .message {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+
+        .empty-state .new-connection-link {
+            color: #4fc1ff;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 14px;
+        }
+
+        .empty-state .new-connection-link:hover {
+            color: #6fd4ff;
+        }
+
+        /* 右侧主区域 */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 右侧空状态 */
+        .right-empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #1e1e1e;
+        }
+
+        .right-empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.4;
+        }
+
+        .right-empty-state .message {
+            color: #666;
+            font-size: 16px;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            background: #007acc;
+            padding: 4px 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: white;
+        }
+
+        .status-bar .left,
+        .status-bar .right {
+            display: flex;
+            gap: 16px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 弹框遮罩 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        /* 弹框 */
+        .modal {
+            background: #2d2d2d;
+            border: 1px solid #555;
+            border-radius: 8px;
+            width: 450px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #ccc;
+        }
+
+        .form-group label .optional {
+            color: #888;
+            font-weight: normal;
+        }
+
+        .form-group label .required {
+            color: #f14c4c;
+            margin-left: 2px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #d4d4d4;
+            font-size: 13px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            border-color: #0e639c;
+            box-shadow: 0 0 0 1px #0e639c;
+        }
+
+        .form-group input::placeholder {
+            color: #888;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #555;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .modal-btn.primary {
+            background: #0e639c;
+            color: white;
+        }
+
+        .modal-btn.primary:hover {
+            background: #1177bb;
+        }
+
+        .modal-btn.secondary {
+            background: #3c3c3c;
+            color: #d4d4d4;
+            border: 1px solid #555;
+        }
+
+        .modal-btn.secondary:hover {
+            background: #505050;
+        }
+
+        .modal-btn.success {
+            background: #388a34;
+            color: white;
+        }
+
+        .modal-btn.success:hover {
+            background: #45a341;
+        }
+
+        /* 测试连接结果提示 */
+        .test-result {
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .test-result.success {
+            display: block;
+            background: rgba(56, 138, 52, 0.2);
+            border: 1px solid #388a34;
+            color: #4ec9b0;
+        }
+
+        .test-result.error {
+            display: block;
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid #dc3545;
+            color: #f48771;
+        }
+    </style>
+</head>
+<body>
+    <!-- 新建连接弹框 -->
+    <div class="modal-overlay" id="new-connection-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>新建数据库连接</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>连接名称<span class="required">*</span></label>
+                    <input type="text" id="conn-name" placeholder="例如：本地MySQL开发库">
+                </div>
+                <div class="form-group">
+                    <label>服务地址<span class="required">*</span></label>
+                    <input type="text" id="conn-host" placeholder="例如：localhost:3306">
+                </div>
+                <div class="form-group">
+                    <label>用户名<span class="required">*</span></label>
+                    <input type="text" id="conn-user" placeholder="例如：root">
+                </div>
+                <div class="form-group">
+                    <label>密码<span class="required">*</span></label>
+                    <input type="password" id="conn-password" placeholder="输入密码">
+                </div>
+                <div class="form-group">
+                    <label>默认数据库 <span class="optional">(可选)</span></label>
+                    <input type="text" id="conn-database" placeholder="例如：test_db">
+                </div>
+                <div class="test-result" id="test-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn success" onclick="testConnection()">测试连接</button>
+                <button class="modal-btn secondary" onclick="closeModal()">取消</button>
+                <button class="modal-btn primary" onclick="saveConnection()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 菜单栏 -->
+    <div class="menu-bar">
+        <div class="menu-item">文件(F)
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="openModal()">新建连接<span class="shortcut">Ctrl+N</span></div>
+                <div class="dropdown-item">新建查询<span class="shortcut">Ctrl+T</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">打开文件<span class="shortcut">Ctrl+O</span></div>
+                <div class="dropdown-item">保存<span class="shortcut">Ctrl+S</span></div>
+                <div class="dropdown-item">另存为<span class="shortcut">Ctrl+Shift+S</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">退出<span class="shortcut">Alt+F4</span></div>
+            </div>
+        </div>
+        <div class="menu-item">编辑(E)
+            <div class="dropdown">
+                <div class="dropdown-item">撤销<span class="shortcut">Ctrl+Z</span></div>
+                <div class="dropdown-item">重做<span class="shortcut">Ctrl+Y</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">剪切<span class="shortcut">Ctrl+X</span></div>
+                <div class="dropdown-item">复制<span class="shortcut">Ctrl+C</span></div>
+                <div class="dropdown-item">粘贴<span class="shortcut">Ctrl+V</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">查找<span class="shortcut">Ctrl+F</span></div>
+                <div class="dropdown-item">替换<span class="shortcut">Ctrl+H</span></div>
+            </div>
+        </div>
+        <div class="menu-item">查看(V)
+            <div class="dropdown">
+                <div class="dropdown-item">展开全部<span class="shortcut">Ctrl+Shift+E</span></div>
+                <div class="dropdown-item">折叠全部<span class="shortcut">Ctrl+Shift+C</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">刷新<span class="shortcut">F5</span></div>
+            </div>
+        </div>
+        <div class="menu-item">查询(Q)
+            <div class="dropdown">
+                <div class="dropdown-item">执行<span class="shortcut">F5</span></div>
+                <div class="dropdown-item">执行选中<span class="shortcut">Ctrl+E</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">显示执行计划<span class="shortcut">Ctrl+L</span></div>
+                <div class="dropdown-item">停止执行<span class="shortcut">Ctrl+Break</span></div>
+            </div>
+        </div>
+        <div class="menu-item">工具(T)
+            <div class="dropdown">
+                <div class="dropdown-item">选项</div>
+                <div class="dropdown-item">导入数据</div>
+                <div class="dropdown-item">导出数据</div>
+            </div>
+        </div>
+        <div class="menu-item">帮助(H)
+            <div class="dropdown">
+                <div class="dropdown-item">文档</div>
+                <div class="dropdown-item">关于</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能按钮栏 -->
+    <div class="toolbar">
+        <button class="toolbar-btn secondary" onclick="openModal()">📁 新建连接</button>
+        <button class="toolbar-btn secondary disabled">📄 新建查询</button>
+        <button class="toolbar-btn secondary">📂 打开文件</button>
+        <button class="toolbar-btn secondary disabled">💾 保存</button>
+        <div style="width: 1px; background: #555; margin: 0 8px;"></div>
+        <button class="toolbar-btn run disabled">▶ 执行</button>
+        <button class="toolbar-btn secondary disabled">⏹ 停止</button>
+        <button class="toolbar-btn secondary disabled">📊 执行计划</button>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 左侧数据库树 -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">数据库连接</div>
+            <div class="db-tree" id="db-tree">
+                <!-- 空状态提示 -->
+                <div class="empty-state">
+                    <div class="icon">🗄️</div>
+                    <div class="message">未连接数据库</div>
+                    <span class="new-connection-link" onclick="openModal()">点击新建连接</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 左右分隔条 -->
+        <div class="resizer-horizontal" id="resizer-h"></div>
+
+        <!-- 右侧主区域 -->
+        <div class="right-panel">
+            <!-- 右侧空状态 -->
+            <div class="right-empty-state">
+                <div class="icon">📝</div>
+                <div class="message">无数据库连接</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div class="left">
+            <span class="status-item">🔴 未连接</span>
+        </div>
+        <div class="right">
+            <span class="status-item">UTF-8</span>
+            <span class="status-item">LF</span>
+        </div>
+    </div>
+
+    <script>
+        // 弹框控制
+        function openModal() {
+            document.getElementById('new-connection-modal').classList.add('show');
+            document.getElementById('conn-name').focus();
+            // 清空之前的测试结果
+            const testResult = document.getElementById('test-result');
+            testResult.className = 'test-result';
+            testResult.textContent = '';
+        }
+
+        function closeModal() {
+            document.getElementById('new-connection-modal').classList.remove('show');
+            // 清空表单
+            document.getElementById('conn-name').value = '';
+            document.getElementById('conn-host').value = '';
+            document.getElementById('conn-user').value = '';
+            document.getElementById('conn-password').value = '';
+            document.getElementById('conn-database').value = '';
+            const testResult = document.getElementById('test-result');
+            testResult.className = 'test-result';
+            testResult.textContent = '';
+        }
+
+        function testConnection() {
+            const host = document.getElementById('conn-host').value;
+            const user = document.getElementById('conn-user').value;
+            const testResult = document.getElementById('test-result');
+            
+            if (!host || !user) {
+                testResult.className = 'test-result error';
+                testResult.textContent = '✗ 请填写服务地址和用户名';
+                return;
+            }
+            
+            // 模拟测试连接
+            testResult.className = 'test-result';
+            testResult.style.display = 'block';
+            testResult.style.background = 'rgba(14, 99, 156, 0.2)';
+            testResult.style.border = '1px solid #0e639c';
+            testResult.style.color = '#4fc1ff';
+            testResult.textContent = '⏳ 正在测试连接...';
+            
+            setTimeout(() => {
+                testResult.style.background = '';
+                testResult.style.border = '';
+                testResult.style.color = '';
+                testResult.className = 'test-result success';
+                testResult.textContent = '✓ 连接成功！服务器版本: MySQL 8.0.32';
+            }, 1000);
+        }
+
+        function saveConnection() {
+            const name = document.getElementById('conn-name').value;
+            const host = document.getElementById('conn-host').value;
+            const user = document.getElementById('conn-user').value;
+            const password = document.getElementById('conn-password').value;
+            
+            if (!name || !host || !user) {
+                const testResult = document.getElementById('test-result');
+                testResult.className = 'test-result error';
+                testResult.textContent = '✗ 请填写连接名称、服务地址和用户名';
+                return;
+            }
+            
+            // 模拟保存成功
+            alert('连接 "' + name + '" 已保存成功！');
+            closeModal();
+        }
+
+        // 点击遮罩关闭弹框
+        document.getElementById('new-connection-modal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeModal();
+            }
+        });
+
+        // ESC 关闭弹框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // 左右拖拽调整侧边栏宽度
+        const sidebar = document.getElementById('sidebar');
+        const resizerH = document.getElementById('resizer-h');
+        
+        let isResizingH = false;
+        
+        resizerH.addEventListener('mousedown', (e) => {
+            isResizingH = true;
+            resizerH.classList.add('active');
+            document.body.style.cursor = 'ew-resize';
+            document.body.style.userSelect = 'none';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (isResizingH) {
+                const newWidth = e.clientX;
+                if (newWidth >= 150 && newWidth <= 500) {
+                    sidebar.style.width = newWidth + 'px';
+                }
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizingH) {
+                isResizingH = false;
+                resizerH.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+    </script>
+</body>
+</html>

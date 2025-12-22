@@ -1,0 +1,12 @@
+# .code.yml 说明：
+# https://iwiki.woa.com/pages/viewpage.action?pageId=194198782
+# https://iwiki.woa.com/pages/viewpage.action?pageId=113587682
+
+source:
+  # 使用自动生成的代码进行排除（因为 test_source 依然会被 EPC 规则检查)
+  auto_generate_source:
+    filepath_regex:
+      # 排除掉自动生成对应语言规则 eslintrc 的范例模板，因为是字符串拼接，它会违反 comma-dangle 规则
+      - .*/test/\w*/.eslintrc.js
+      # 排除掉范例文件，good 会违反 no-unused-vars，而 bad 则是对应规则的错误范例
+      - .*/test/.*/(good|bad).(t|j)s

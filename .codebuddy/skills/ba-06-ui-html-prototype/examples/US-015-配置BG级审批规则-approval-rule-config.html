@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>审批管理系统 - BG级审批规则配置</title>
+    <!-- TDesign Web Components -->
+    <link rel="stylesheet" href="https://unpkg.com/tdesign-web-components@latest/dist/tdesign.css">
+    <script src="https://unpkg.com/tdesign-web-components@latest/dist/TDesign%20Web%20Components.min.js"></script>
+    <!-- 项目自定义样式 -->
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="layout.css">
+    <style>
+        /* ========== 页面特有样式 ========== */
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .page-title { font-size: 20px; font-weight: 600; color: #001226; }
+        .page-subtitle { font-size: 14px; color: #666; margin-top: 4px; }
+        .page-actions { display: flex; gap: 12px; }
+        .content-card { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); margin-bottom: 20px; }
+        .content-card-header { padding: 16px 20px; border-bottom: 1px solid #e4e6eb; display: flex; justify-content: space-between; align-items: center; }
+        .content-card-title { font-size: 16px; font-weight: 600; color: #001226; display: flex; align-items: center; gap: 8px; }
+        .content-card-body { padding: 20px; }
+        
+        /* 按钮样式 */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 16px; height: 32px; font-size: 14px; border-radius: 4px; border: 1px solid transparent; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .btn-primary { background: #3464e0; color: #fff; border-color: #3464e0; }
+        .btn-primary:hover { background: #2f5ac9; border-color: #2f5ac9; }
+        .btn-primary:disabled { background: #a5b0bd; border-color: #a5b0bd; cursor: not-allowed; }
+        .btn-primary.loading { pointer-events: none; opacity: 0.8; }
+        .btn-default { background: #fff; color: #333; border-color: #dcdcdc; }
+        .btn-default:hover { background: #f5f7f9; border-color: #3464e0; color: #3464e0; }
+        .btn-success { background: #2ba471; color: #fff; border-color: #2ba471; }
+        .btn-success:hover { background: #239d69; border-color: #239d69; }
+        .btn-text { background: transparent; color: #3464e0; border: none; padding: 0 8px; }
+        .btn-text:hover { background: rgba(52, 100, 224, 0.1); }
+        .btn-sm { height: 28px; padding: 0 12px; font-size: 12px; }
+        
+        /* 标签样式 */
+        .tag { display: inline-flex; align-items: center; padding: 0 8px; height: 22px; font-size: 12px; border-radius: 4px; }
+        .tag-primary { background: rgba(52, 100, 224, 0.1); color: #3464e0; }
+        .tag-success { background: rgba(43, 164, 113, 0.1); color: #2ba471; }
+        .tag-warning { background: rgba(255, 156, 18, 0.1); color: #ff9c12; }
+        .tag-error { background: rgba(213, 73, 65, 0.1); color: #d54941; }
+        .tag-default { background: #f5f7f9; color: #666; }
+        
+        /* 表单样式 */
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 14px; color: #333; margin-bottom: 8px; }
+        .form-label.required::after { content: '*'; color: #d54941; margin-left: 4px; }
+        .form-input { width: 100%; height: 32px; padding: 0 12px; font-size: 14px; color: #333; background: #fff; border: 1px solid #dcdcdc; border-radius: 4px; transition: all 0.2s; }
+        .form-input:hover { border-color: #3464e0; }
+        .form-input:focus { outline: none; border-color: #3464e0; box-shadow: 0 0 0 2px rgba(52, 100, 224, 0.2); }
+        .form-input:disabled { background: #f5f7f9; cursor: not-allowed; }
+        .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M2 4l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+        .form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        
+        /* Tabs 标签页 */
+        .tabs { display: flex; border-bottom: 1px solid #e4e6eb; margin-bottom: 20px; }
+        .tab-item { padding: 12px 20px; font-size: 14px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; margin-bottom: -1px; }
+        .tab-item:hover { color: #3464e0; }
+        .tab-item.active { color: #3464e0; border-bottom-color: #3464e0; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* 6维度条件配置 */
+        .dimension-config { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .dimension-item { background: #f5f7f9; border-radius: 8px; padding: 16px; }
+        .dimension-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .dimension-title { font-size: 14px; font-weight: 600; color: #333; }
+        .dimension-switch { position: relative; width: 44px; height: 22px; background: #dcdcdc; border-radius: 11px; cursor: pointer; transition: all 0.2s; }
+        .dimension-switch.active { background: #3464e0; }
+        .dimension-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: all 0.2s; }
+        .dimension-switch.active::after { left: 24px; }
+        .dimension-values { display: flex; flex-wrap: wrap; gap: 8px; }
+        .dimension-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #fff; border: 1px solid #dcdcdc; border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+        .dimension-tag:hover { border-color: #3464e0; }
+        .dimension-tag.selected { background: rgba(52, 100, 224, 0.1); border-color: #3464e0; color: #3464e0; }
+        
+        /* 审批链节点配置 */
+        .approval-chain { display: flex; align-items: flex-start; gap: 12px; overflow-x: auto; padding: 12px 0; }
+        .chain-node { flex-shrink: 0; width: 200px; background: #fff; border: 2px solid #dcdcdc; border-radius: 8px; padding: 16px; position: relative; }
+        .chain-node.start { border-color: #2ba471; }
+        .chain-node.end { border-color: #d54941; }
+        .chain-node.approval { border-color: #3464e0; }
+        .chain-node-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .chain-node-type { font-size: 12px; padding: 2px 8px; border-radius: 4px; }
+        .chain-node.start .chain-node-type { background: rgba(43, 164, 113, 0.1); color: #2ba471; }
+        .chain-node.end .chain-node-type { background: rgba(213, 73, 65, 0.1); color: #d54941; }
+        .chain-node.approval .chain-node-type { background: rgba(52, 100, 224, 0.1); color: #3464e0; }
+        .chain-node-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 4px; }
+        .chain-node-desc { font-size: 12px; color: #666; }
+        .chain-node-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e4e6eb; }
+        .chain-arrow { flex-shrink: 0; width: 40px; height: 60px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 20px; }
+        .chain-add { flex-shrink: 0; width: 40px; height: 60px; display: flex; align-items: center; justify-content: center; }
+        .chain-add-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #fff; border: 2px dashed #dcdcdc; border-radius: 50%; cursor: pointer; transition: all 0.2s; color: #666; }
+        .chain-add-btn:hover { border-color: #3464e0; color: #3464e0; }
+        
+        /* 版本管理 */
+        .version-list { border: 1px solid #e4e6eb; border-radius: 8px; overflow: hidden; }
+        .version-item { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e4e6eb; transition: background 0.2s; }
+        .version-item:last-child { border-bottom: none; }
+        .version-item:hover { background: #f9fafc; }
+        .version-item.current { background: rgba(52, 100, 224, 0.05); }
+        .version-info { flex: 1; }
+        .version-number { font-size: 14px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 8px; }
+        .version-meta { font-size: 12px; color: #666; margin-top: 4px; }
+        .version-actions { display: flex; gap: 8px; }
+        
+        /* 规则测试 */
+        .test-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .test-input, .test-result { background: #f5f7f9; border-radius: 8px; padding: 16px; }
+        .test-result-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .test-result-icon { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .test-result-icon.success { background: #2ba471; color: #fff; }
+        .test-result-icon.error { background: #d54941; color: #fff; }
+        .test-result-title { font-size: 14px; font-weight: 600; }
+        .test-chain-preview { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .test-chain-node { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; background: #fff; border-radius: 4px; font-size: 12px; }
+        .test-chain-arrow { color: #999; }
+        
+        /* 时间线 */
+        .timeline { position: relative; padding-left: 24px; }
+        .timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #e4e6eb; }
+        .timeline-item { position: relative; padding-bottom: 20px; }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .timeline-dot { position: absolute; left: -21px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #3464e0; border: 2px solid #fff; }
+        .timeline-content { font-size: 14px; color: #333; }
+        .timeline-time { font-size: 12px; color: #666; margin-top: 4px; }
+        
+        /* 继承标识 */
+        .inherit-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #f5f7f9; border-radius: 4px; font-size: 12px; color: #666; }
+        
+        /* Toast 提示 */
+        .toast-container { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+        .toast { display: flex; align-items: center; gap: 8px; padding: 12px 20px; background: #fff; border-radius: 8px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15); animation: toastIn 0.3s ease; }
+        .toast.hiding { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-20px); } }
+        .toast-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; }
+        .toast.success .toast-icon { background: #2ba471; }
+        .toast.error .toast-icon { background: #d54941; }
+        .toast.warning .toast-icon { background: #ff9c12; }
+        .toast.info .toast-icon { background: #3464e0; }
+        .toast-message { font-size: 14px; color: #333; }
+        .toast-close { margin-left: 12px; cursor: pointer; color: #999; }
+        
+        /* 模态框 */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; display: none; align-items: center; justify-content: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: #fff; border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2); width: 560px; max-width: 90vw; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #e4e6eb; }
+        .modal-title { font-size: 16px; font-weight: 600; color: #333; }
+        .modal-close { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #666; border-radius: 4px; transition: all 0.2s; }
+        .modal-close:hover { background: #f5f7f9; color: #333; }
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid #e4e6eb; }
+        
+        .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @media (max-width: 991.98px) {
+            .form-row { grid-template-columns: 1fr; }
+            .dimension-config { grid-template-columns: 1fr; }
+            .test-panel { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========== 顶部导航栏 ========== -->
+    <div class="sticky-header">
+        <div class="header-background"></div>
+        <div class="sticky-content">
+            <div class="header-left">
+                <button class="mobile-menu-btn header-action" onclick="toggleMobileSidebar()">☰</button>
+                <div class="logo">审批管理系统</div>
+                <div class="search-resume">
+                    <div class="search-input"><input type="text" placeholder="搜索规则、审批流程..."></div>
+                    <button class="search-btn">搜索</button>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="head-navigation">
+                    <span class="navigation-item">审批中心</span>
+                    <span class="navigation-item">规则管理</span>
+                    <span class="navigation-item">统计报表</span>
+                </div>
+                <div class="header-action" title="通知">🔔</div>
+                <div class="header-action" title="帮助">❓</div>
+                <div class="header-user" onclick="toggleUserDropdown()">
+                    <div class="header-user-avatar">张</div>
+                    <span class="header-user-name">张三</span>
+                    <span style="font-size: 10px;">▼</span>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-item"><span>👤</span><span>个人中心</span></div>
+                        <div class="dropdown-item"><span>⚙️</span><span>账号设置</span></div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" style="color: #f66664;"><span>🚪</span><span>退出登录</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ========== 内容布局区域 ========== -->
+    <div class="content-layout">
+        <!-- ========== 左侧导航栏 ========== -->
+        <div class="left_nav">
+            <div class="left_layout" id="sidebar">
+                <div class="user-info">
+                    <div class="user-photo">
+                        <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #3464e0, #5d9efe); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px;">张</div>
+                    </div>
+                    <div class="user-name">张三</div>
+                </div>
+                <div class="nav">
+                    <div class="nav-auto">
+                        <ul>
+                            <li><a href="html-content-homepage.html"><i class="icon">🏠</i><span class="name">首页</span></a></li>
+                            <li><a href="html-content-homepage.html"><i class="icon">📊</i><span class="name">仪表盘</span></a></li>
+                            <li><a href="html-content-search-data-list.html"><i class="icon">📋</i><span class="name">订单列表</span></a></li>
+                            <li><a href="html-content-cards.html"><i class="icon">📁</i><span class="name">项目列表</span></a></li>
+                            <li><a href="html-content-details.html"><i class="icon">📄</i><span class="name">详情页</span></a></li>
+                            <li><a href="html-form-filling-submit.html"><i class="icon">📝</i><span class="name">表单提交</span></a></li>
+                            <li><a href="html-content-hr-selectors.html"><i class="icon">👥</i><span class="name">人员选择</span></a></li>
+                            <li><a href="html-content-dialogs.html"><i class="icon">🎯</i><span class="name">弹窗示例</span></a></li>
+                        </ul>
+                        <ul>
+                            <li><a href="ba-04-INVEST原则评估表单-invest-evaluation-form.html"><i class="icon">📈</i><span class="name">INVEST评估</span></a></li>
+                            <li><a href="US-015-配置BG级审批规则-approval-rule-config.html" class="router-link-active"><i class="icon">⚙️</i><span class="name">审批规则</span></a></li>
+                        </ul>
+                        <ul>
+                            <li class="slide-btn"><div class="slide-icon" onclick="toggleSidebar()" title="收起/展开菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg></div></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+        </div>
+        
+        <!-- ========== 视图容器 ========== -->
+        <div class="view-container">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">CDG BG 审批规则配置</h1>
+                    <p class="page-subtitle"><span class="inherit-badge"><span>📋</span>继承自: 集团级规则</span></p>
+                </div>
+                <div class="page-actions">
+                    <button class="btn btn-default" onclick="showVersionModal()">📋 版本管理</button>
+                    <button class="btn btn-success" onclick="showTestModal()">🧪 规则测试</button>
+                    <button class="btn btn-primary" id="saveBtn" onclick="saveRule()">💾 保存规则</button>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab-item active" data-tab="condition">条件配置</div>
+                <div class="tab-item" data-tab="chain">审批链配置</div>
+                <div class="tab-item" data-tab="history">变更历史</div>
+            </div>
+            
+            <!-- Tab内容：条件配置 -->
+            <div class="tab-content active" id="tab-condition">
+                <div class="content-card">
+                    <div class="content-card-header"><h3 class="content-card-title"><span>📊</span>基本信息</h3></div>
+                    <div class="content-card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required">规则名称</label>
+                                <input type="text" class="form-input" id="ruleName" value="CDG-标准入职审批" placeholder="请输入规则名称">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">规则编码</label>
+                                <input type="text" class="form-input" id="ruleCode" value="CDG-ONBOARD-001" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">生效状态</label>
+                                <select class="form-input form-select" id="ruleStatus">
+                                    <option value="draft">草稿</option>
+                                    <option value="active" selected>已生效</option>
+                                    <option value="disabled">已停用</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">规则描述</label>
+                            <input type="text" class="form-input" id="ruleDesc" value="适用于CDG BG的标准入职审批流程，覆盖常规岗位入职场景" placeholder="请输入规则描述">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="content-card">
+                    <div class="content-card-header">
+                        <h3 class="content-card-title"><span>🎯</span>6维度条件配置</h3>
+                        <span class="tag tag-primary">至少配置1个维度</span>
+                    </div>
+                    <div class="content-card-body">
+                        <div class="dimension-config" id="dimensionConfig"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab内容：审批链配置 -->
+            <div class="tab-content" id="tab-chain">
+                <div class="content-card">
+                    <div class="content-card-header">
+                        <h3 class="content-card-title"><span>🔗</span>审批链节点</h3>
+                        <button class="btn btn-default btn-sm" onclick="addChainNode()">+ 添加节点</button>
+                    </div>
+                    <div class="content-card-body">
+                        <div class="approval-chain" id="approvalChain"></div>
+                    </div>
+                </div>
+                
+                <div class="content-card">
+                    <div class="content-card-header"><h3 class="content-card-title"><span>⚙️</span>审批设置</h3></div>
+                    <div class="content-card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">审批超时时间</label>
+                                <select class="form-input form-select" id="timeoutHours">
+                                    <option value="24">24小时</option>
+                                    <option value="48" selected>48小时</option>
+                                    <option value="72">72小时</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">超时处理方式</label>
+                                <select class="form-input form-select" id="timeoutAction">
+                                    <option value="remind">提醒审批人</option>
+                                    <option value="escalate" selected>上升至上级</option>
+                                    <option value="auto_pass">自动通过</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">会签/或签</label>
+                                <select class="form-input form-select" id="signType">
+                                    <option value="or" selected>或签（任一通过即可）</option>
+                                    <option value="and">会签（全部通过）</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab内容：变更历史 -->
+            <div class="tab-content" id="tab-history">
+                <div class="content-card">
+                    <div class="content-card-header"><h3 class="content-card-title"><span>📜</span>操作日志</h3></div>
+                    <div class="content-card-body">
+                        <div class="timeline" id="historyTimeline"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- 版本管理模态框 -->
+    <div class="modal-overlay" id="versionModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">版本管理</h3>
+                <div class="modal-close" onclick="closeModal('versionModal')">✕</div>
+            </div>
+            <div class="modal-body"><div class="version-list" id="versionList"></div></div>
+            <div class="modal-footer">
+                <button class="btn btn-default" onclick="closeModal('versionModal')">关闭</button>
+                <button class="btn btn-primary" onclick="createNewVersion()">创建新版本</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 规则测试模态框 -->
+    <div class="modal-overlay" id="testModal">
+        <div class="modal" style="width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">规则测试</h3>
+                <div class="modal-close" onclick="closeModal('testModal')">✕</div>
+            </div>
+            <div class="modal-body">
+                <div class="test-panel">
+                    <div class="test-input">
+                        <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">测试输入</h4>
+                        <div class="form-group">
+                            <label class="form-label">BG</label>
+                            <select class="form-input form-select" id="testBg"><option value="CDG">CDG</option><option value="WXG">WXG</option><option value="IEG">IEG</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">组织类型</label>
+                            <select class="form-input form-select" id="testOrgType"><option value="tech">技术中心</option><option value="product">产品中心</option><option value="support">支持中心</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">岗位级别</label>
+                            <select class="form-input form-select" id="testLevel"><option value="T1-T3">T1-T3</option><option value="T4-T6">T4-T6</option><option value="T7+">T7+</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">员工类型</label>
+                            <select class="form-input form-select" id="testEmpType"><option value="regular">正式员工</option><option value="intern">实习生</option><option value="contractor">外包</option></select>
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%;" onclick="runTest()">运行测试</button>
+                    </div>
+                    <div class="test-result">
+                        <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">测试结果</h4>
+                        <div id="testResultContent">
+                            <div style="text-align: center; padding: 48px 0; color: #666;">
+                                <div style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;">🧪</div>
+                                <div>点击"运行测试"查看结果</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-default" onclick="closeModal('testModal')">关闭</button></div>
+        </div>
+    </div>
+    
+    <!-- 添加节点模态框 -->
+    <div class="modal-overlay" id="addNodeModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">添加审批节点</h3>
+                <div class="modal-close" onclick="closeModal('addNodeModal')">✕</div>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label required">节点名称</label>
+                    <input type="text" class="form-input" id="nodeName" placeholder="如：部门经理审批">
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">审批人类型</label>
+                    <select class="form-input form-select" id="nodeApproverType"><option value="role">按角色</option><option value="level">按层级</option><option value="user">指定人员</option></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label required">审批人</label>
+                    <select class="form-input form-select" id="nodeApprover"><option value="direct_manager">直属上级</option><option value="dept_manager">部门经理</option><option value="hrbp">HRBP</option><option value="coe">COE专家</option></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">节点描述</label>
+                    <input type="text" class="form-input" id="nodeDesc" placeholder="请输入节点描述">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" onclick="closeModal('addNodeModal')">取消</button>
+                <button class="btn btn-primary" onclick="confirmAddNode()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 侧边栏交互
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+        function toggleMobileSidebar() { document.getElementById('sidebar').classList.add('mobile-show'); }
+        function closeMobileSidebar() { document.getElementById('sidebar').classList.remove('mobile-show'); }
+        function toggleUserDropdown() { event.stopPropagation(); document.getElementById('userDropdown').classList.toggle('show'); }
+        document.addEventListener('click', function(e) { if (!e.target.closest('.header-user')) document.getElementById('userDropdown').classList.remove('show'); });
+        document.querySelectorAll('.nav li a:not([onclick])').forEach(item => { item.addEventListener('click', function() { document.querySelectorAll('.nav li a').forEach(i => i.classList.remove('router-link-active')); this.classList.add('router-link-active'); }); });
+
+        // 模拟数据
+        const mockDimensions = [
+            { id: 'bg', name: 'BG', enabled: true, values: ['CDG', 'WXG', 'IEG', 'PCG', 'CSIG', 'TEG'], selected: ['CDG'] },
+            { id: 'orgType', name: '组织类型', enabled: true, values: ['技术中心', '产品中心', '运营中心', '支持中心'], selected: ['技术中心', '产品中心'] },
+            { id: 'level', name: '岗位级别', enabled: true, values: ['T1-T3', 'T4-T6', 'T7-T9', 'T10+'], selected: ['T1-T3', 'T4-T6'] },
+            { id: 'empType', name: '员工类型', enabled: true, values: ['正式员工', '实习生', '外包', '顾问'], selected: ['正式员工'] },
+            { id: 'salary', name: '薪资档位', enabled: false, values: ['标准档', '超标档', '特批档'], selected: [] },
+            { id: 'tag', name: '特殊标签', enabled: false, values: ['紧急入职', '涉密岗位', 'VIP', '校招'], selected: [] }
+        ];
+        
+        const mockApprovalChain = [
+            { id: 'start', type: 'start', name: '发起申请', desc: 'SSC专员提交入职申请' },
+            { id: 'node1', type: 'approval', name: '直属上级审批', desc: '审批人：直属上级' },
+            { id: 'node2', type: 'approval', name: 'HRBP审批', desc: '审批人：对应HRBP' },
+            { id: 'node3', type: 'approval', name: '部门经理审批', desc: '审批人：部门经理' },
+            { id: 'end', type: 'end', name: '审批完成', desc: '流程结束，通知相关人员' }
+        ];
+        
+        const mockVersions = [
+            { version: 'v1.3', status: 'current', author: '张三', time: '2024-12-10 14:30', desc: '增加T7+岗位审批节点' },
+            { version: 'v1.2', status: 'history', author: '李四', time: '2024-11-25 10:15', desc: '调整超时时间为48小时' },
+            { version: 'v1.1', status: 'history', author: '张三', time: '2024-10-18 16:45', desc: '新增HRBP审批节点' },
+            { version: 'v1.0', status: 'history', author: '王五', time: '2024-09-01 09:00', desc: '初始版本' }
+        ];
+        
+        const mockHistory = [
+            { action: '修改审批超时时间', detail: '48小时 → 72小时', user: '张三', time: '2024-12-10 14:30' },
+            { action: '新增审批节点', detail: '添加"COE专家审批"节点', user: '张三', time: '2024-12-10 14:25' },
+            { action: '修改条件配置', detail: '岗位级别增加"T7+"', user: '李四', time: '2024-12-09 11:20' },
+            { action: '发布新版本', detail: '发布v1.3版本', user: '张三', time: '2024-12-08 16:00' },
+            { action: '创建规则', detail: '基于集团规则创建CDG规则', user: '王五', time: '2024-09-01 09:00' }
+        ];
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            renderDimensionConfig();
+            renderApprovalChain();
+            renderVersionList();
+            renderHistory();
+            initTabs();
+            initModalEvents();
+        });
+
+        // 6维度条件配置
+        function renderDimensionConfig() {
+            document.getElementById('dimensionConfig').innerHTML = mockDimensions.map(dim => `
+                <div class="dimension-item">
+                    <div class="dimension-header">
+                        <span class="dimension-title">${dim.name}</span>
+                        <div class="dimension-switch ${dim.enabled ? 'active' : ''}" onclick="toggleDimension('${dim.id}')"></div>
+                    </div>
+                    <div class="dimension-values" style="opacity: ${dim.enabled ? 1 : 0.5}">
+                        ${dim.values.map(val => `<span class="dimension-tag ${dim.selected.includes(val) ? 'selected' : ''}" onclick="${dim.enabled ? `toggleDimensionValue('${dim.id}', '${val}')` : ''}">${val}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function toggleDimension(dimId) {
+            const dim = mockDimensions.find(d => d.id === dimId);
+            if (dim) { dim.enabled = !dim.enabled; if (!dim.enabled) dim.selected = []; renderDimensionConfig(); }
+        }
+        
+        function toggleDimensionValue(dimId, value) {
+            const dim = mockDimensions.find(d => d.id === dimId);
+            if (dim && dim.enabled) {
+                const index = dim.selected.indexOf(value);
+                if (index > -1) dim.selected.splice(index, 1); else dim.selected.push(value);
+                renderDimensionConfig();
+            }
+        }
+
+        // 审批链配置
+        function renderApprovalChain() {
+            let html = '';
+            mockApprovalChain.forEach((node, index) => {
+                html += `<div class="chain-node ${node.type}">
+                    <div class="chain-node-header">
+                        <span class="chain-node-type">${getNodeTypeLabel(node.type)}</span>
+                        ${node.type === 'approval' ? `<button class="btn btn-text btn-sm" onclick="removeChainNode('${node.id}')">删除</button>` : ''}
+                    </div>
+                    <div class="chain-node-title">${node.name}</div>
+                    <div class="chain-node-desc">${node.desc}</div>
+                    ${node.type === 'approval' ? `<div class="chain-node-actions"><button class="btn btn-text btn-sm" onclick="editChainNode('${node.id}')">编辑</button></div>` : ''}
+                </div>`;
+                if (index < mockApprovalChain.length - 1) {
+                    html += `<div class="chain-arrow">→</div>`;
+                    if (node.type !== 'end' && mockApprovalChain[index + 1].type !== 'end') {
+                        html += `<div class="chain-add"><div class="chain-add-btn" onclick="addChainNodeAt(${index + 1})">+</div></div><div class="chain-arrow">→</div>`;
+                    }
+                }
+            });
+            document.getElementById('approvalChain').innerHTML = html;
+        }
+        
+        function getNodeTypeLabel(type) { return { start: '开始', approval: '审批', end: '结束' }[type] || type; }
+        function addChainNode() { document.getElementById('nodeName').value = ''; document.getElementById('nodeDesc').value = ''; showModal('addNodeModal'); }
+        function addChainNodeAt(index) { addChainNode(); }
+        
+        function confirmAddNode() {
+            const name = document.getElementById('nodeName').value.trim();
+            const approver = document.getElementById('nodeApprover').value;
+            const desc = document.getElementById('nodeDesc').value.trim();
+            if (!name) { showToast('请输入节点名称', 'error'); return; }
+            const newNode = { id: 'node' + Date.now(), type: 'approval', name: name, desc: desc || `审批人：${getApproverLabel(approver)}` };
+            const endIndex = mockApprovalChain.findIndex(n => n.type === 'end');
+            mockApprovalChain.splice(endIndex, 0, newNode);
+            renderApprovalChain();
+            closeModal('addNodeModal');
+            showToast('节点添加成功', 'success');
+        }
+        
+        function getApproverLabel(approver) { return { direct_manager: '直属上级', dept_manager: '部门经理', hrbp: 'HRBP', coe: 'COE专家' }[approver] || approver; }
+        function removeChainNode(nodeId) { const index = mockApprovalChain.findIndex(n => n.id === nodeId); if (index > -1) { mockApprovalChain.splice(index, 1); renderApprovalChain(); showToast('节点已删除', 'success'); } }
+        function editChainNode(nodeId) { const node = mockApprovalChain.find(n => n.id === nodeId); if (node) { document.getElementById('nodeName').value = node.name; document.getElementById('nodeDesc').value = node.desc; showModal('addNodeModal'); } }
+
+        // 版本管理
+        function renderVersionList() {
+            document.getElementById('versionList').innerHTML = mockVersions.map(v => `
+                <div class="version-item ${v.status === 'current' ? 'current' : ''}">
+                    <div class="version-info">
+                        <div class="version-number">${v.version} ${v.status === 'current' ? '<span class="tag tag-success">当前版本</span>' : ''}</div>
+                        <div class="version-meta">${v.desc} · ${v.author} · ${v.time}</div>
+                    </div>
+                    <div class="version-actions">
+                        <button class="btn btn-text btn-sm">查看</button>
+                        ${v.status !== 'current' ? `<button class="btn btn-text btn-sm" onclick="rollbackVersion('${v.version}')">回滚</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function showVersionModal() { showModal('versionModal'); }
+        function createNewVersion() { showToast('新版本创建成功', 'success'); closeModal('versionModal'); }
+        function rollbackVersion(version) { showToast(`已回滚至 ${version}`, 'success'); closeModal('versionModal'); }
+
+        // 变更历史
+        function renderHistory() {
+            document.getElementById('historyTimeline').innerHTML = mockHistory.map(h => `
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content"><strong>${h.action}</strong>：${h.detail}</div>
+                    <div class="timeline-time">${h.user} · ${h.time}</div>
+                </div>
+            `).join('');
+        }
+
+        // 规则测试
+        function showTestModal() { showModal('testModal'); }
+        function runTest() {
+            const bg = document.getElementById('testBg').value;
+            const level = document.getElementById('testLevel').value;
+            const matched = bg === 'CDG' && level !== 'T7+';
+            const resultContainer = document.getElementById('testResultContent');
+            if (matched) {
+                resultContainer.innerHTML = `
+                    <div class="test-result-header"><div class="test-result-icon success">✓</div><div class="test-result-title" style="color: #2ba471;">匹配成功</div></div>
+                    <p style="margin-bottom: 12px; color: #666;">当前条件匹配规则：<strong>CDG-标准入职审批</strong></p>
+                    <h5 style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">生成的审批链：</h5>
+                    <div class="test-chain-preview">
+                        <span class="test-chain-node">📝 发起申请</span><span class="test-chain-arrow">→</span>
+                        <span class="test-chain-node">👤 直属上级</span><span class="test-chain-arrow">→</span>
+                        <span class="test-chain-node">👥 HRBP</span><span class="test-chain-arrow">→</span>
+                        <span class="test-chain-node">👔 部门经理</span><span class="test-chain-arrow">→</span>
+                        <span class="test-chain-node">✅ 完成</span>
+                    </div>`;
+            } else {
+                resultContainer.innerHTML = `
+                    <div class="test-result-header"><div class="test-result-icon error">✕</div><div class="test-result-title" style="color: #d54941;">未匹配</div></div>
+                    <p style="color: #666;">当前条件未匹配任何BG级规则，将使用集团级规则</p>
+                    <div style="margin-top: 12px; padding: 12px; background: rgba(255, 156, 18, 0.1); border-radius: 4px;">
+                        <strong style="color: #ff9c12;">建议：</strong>
+                        <span style="color: #666;">${level === 'T7+' ? '当前岗位级别为T7+，建议创建高级别岗位专用规则' : '检查条件配置是否覆盖当前场景'}</span>
+                    </div>`;
+            }
+        }
+
+        // 保存规则
+        function saveRule() {
+            const btn = document.getElementById('saveBtn');
+            btn.classList.add('loading'); btn.innerHTML = '<span class="spinner"></span> 保存中...'; btn.disabled = true;
+            setTimeout(() => { btn.classList.remove('loading'); btn.innerHTML = '💾 保存规则'; btn.disabled = false; showToast('规则保存成功', 'success'); }, 1000);
+        }
+
+        // Tabs 切换
+        function initTabs() {
+            document.querySelectorAll('.tab-item').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById('tab-' + tabId).classList.add('active');
+                });
+            });
+        }
+
+        // 模态框
+        function showModal(modalId) { document.getElementById(modalId).classList.add('show'); }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('show'); }
+        function initModalEvents() {
+            document.addEventListener('keydown', function(e) { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.show').forEach(modal => modal.classList.remove('show')); });
+            document.querySelectorAll('.modal-overlay').forEach(overlay => { overlay.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); }); });
+        }
+
+        // Toast 提示
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icons = { success: '✓', error: '✕', warning: '!', info: 'i' };
+            toast.innerHTML = `<div class="toast-icon">${icons[type]}</div><span class="toast-message">${message}</span><span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, duration);
+        }
+    </script>
+</body>
+</html>

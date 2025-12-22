@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sql-tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        /* 菜单栏 */
+        .menu-bar {
+            background: #3c3c3c;
+            padding: 4px 8px;
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid #555;
+        }
+
+        .menu-item {
+            padding: 4px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            position: relative;
+        }
+
+        .menu-item:hover {
+            background: #505050;
+        }
+
+        /* 下拉菜单 */
+        .dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            border-radius: 4px;
+            min-width: 180px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .menu-item:hover .dropdown {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dropdown-item:hover {
+            background: #094771;
+        }
+
+        .dropdown-item .shortcut {
+            color: #888;
+            font-size: 12px;
+            margin-left: 20px;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: #555;
+            margin: 4px 0;
+        }
+
+        /* 功能按钮栏 */
+        .toolbar {
+            background: #2d2d2d;
+            padding: 6px 12px;
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid #555;
+        }
+
+        .toolbar-btn {
+            padding: 6px 14px;
+            background: #0e639c;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toolbar-btn:hover {
+            background: #1177bb;
+        }
+
+        .toolbar-btn.secondary {
+            background: #3c3c3c;
+            border: 1px solid #555;
+        }
+
+        .toolbar-btn.secondary:hover {
+            background: #505050;
+        }
+
+        .toolbar-btn.run {
+            background: #388a34;
+        }
+
+        .toolbar-btn.run:hover {
+            background: #45a341;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧数据库树 */
+        .sidebar {
+            width: 260px;
+            min-width: 150px;
+            max-width: 500px;
+            background: #252526;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 左右分隔条 */
+        .resizer-horizontal {
+            width: 4px;
+            background: #555;
+            cursor: ew-resize;
+            flex-shrink: 0;
+        }
+
+        .resizer-horizontal:hover,
+        .resizer-horizontal.active {
+            background: #0e639c;
+        }
+
+        .sidebar-header {
+            padding: 10px 12px;
+            background: #2d2d2d;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #ccc;
+            border-bottom: 1px solid #555;
+        }
+
+        .db-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+
+        .tree-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .tree-item:hover {
+            background: #2a2d2e;
+        }
+
+        .tree-item.active {
+            background: #094771;
+        }
+
+        .tree-item .icon {
+            width: 16px;
+            text-align: center;
+        }
+
+        /* 展开/折叠箭头 */
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #888;
+            flex-shrink: 0;
+            transition: transform 0.15s;
+        }
+
+        .tree-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .tree-toggle.empty {
+            visibility: hidden;
+        }
+
+        /* 树节点容器 */
+        .tree-node {
+            user-select: none;
+        }
+
+        .tree-children {
+            display: block;
+        }
+
+        .tree-children.collapsed {
+            display: none;
+        }
+
+        .tree-item.server { 
+            color: #4ec9b0; 
+            position: relative;
+        }
+
+        /* 服务器节点操作按钮 */
+        .server-actions {
+            display: none;
+            margin-left: auto;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .tree-item.server:hover .server-actions {
+            display: flex;
+        }
+
+        .server-action-btn {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            background: transparent;
+            color: #888;
+        }
+
+        .server-action-btn:hover {
+            background: #505050;
+            color: #fff;
+        }
+
+        .server-action-btn.delete:hover {
+            background: #5a1d1d;
+            color: #f48771;
+        }
+
+        /* 服务器名称文本 */
+        .server-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 服务器名称编辑输入框 */
+        .server-name-input {
+            flex: 1;
+            background: #3c3c3c;
+            border: 1px solid #0e639c;
+            border-radius: 3px;
+            color: #4ec9b0;
+            font-size: 13px;
+            padding: 2px 6px;
+            outline: none;
+            min-width: 100px;
+        }
+
+        .server-name-input:focus {
+            box-shadow: 0 0 0 1px #0e639c;
+        }
+        .tree-item.database { color: #dcdcaa; padding-left: 20px; }
+        .tree-item.schema { color: #c586c0; padding-left: 36px; }
+        .tree-item.folder { color: #e8ab53; padding-left: 52px; }
+        .tree-item.folder.level-3 { padding-left: 36px; }
+        .tree-item.table, .tree-item.view, .tree-item.procedure, .tree-item.function { 
+            padding-left: 68px; 
+        }
+        .tree-item.table.level-4, .tree-item.view.level-4, 
+        .tree-item.procedure.level-4, .tree-item.function.level-4 { 
+            padding-left: 52px; 
+        }
+        .tree-item.table { color: #9cdcfe; }
+        .tree-item.view { color: #4fc1ff; }
+        .tree-item.procedure { color: #dcdcaa; }
+        .tree-item.function { color: #c586c0; }
+
+        /* 右侧主区域 */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* SQL文件标签栏 */
+        .tabs-bar {
+            background: #2d2d2d;
+            display: flex;
+            border-bottom: 1px solid #555;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-right: 1px solid #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            background: #2d2d2d;
+        }
+
+        .tab:hover {
+            background: #3c3c3c;
+        }
+
+        .tab.active {
+            background: #1e1e1e;
+            border-bottom: 2px solid #0e639c;
+        }
+
+        .tab .close-btn {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .tab .close-btn:hover {
+            background: #555;
+        }
+
+        /* 连接信息栏 */
+        .connection-info {
+            background: #2d2d2d;
+            padding: 8px 12px;
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            border-bottom: 1px solid #555;
+        }
+
+        .connection-info .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .connection-info .label {
+            color: #888;
+        }
+
+        .connection-info .value {
+            color: #4ec9b0;
+            font-weight: 500;
+        }
+
+        /* 下拉选择框 */
+        .connection-info select {
+            background: #3c3c3c;
+            color: #4ec9b0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 4px 24px 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M3 4.5L6 8l3-3.5H3z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+        }
+
+        .connection-info select:hover {
+            border-color: #0e639c;
+        }
+
+        .connection-info select:focus {
+            border-color: #0e639c;
+            box-shadow: 0 0 0 1px #0e639c;
+        }
+
+        .connection-info select option {
+            background: #2d2d2d;
+            color: #d4d4d4;
+        }
+
+        /* 最大行数输入框 */
+        .max-rows-input {
+            width: 70px;
+            background: #3c3c3c;
+            color: #4ec9b0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            outline: none;
+            text-align: center;
+        }
+
+        .max-rows-input:hover {
+            border-color: #0e639c;
+        }
+
+        .max-rows-input:focus {
+            border-color: #0e639c;
+            box-shadow: 0 0 0 1px #0e639c;
+        }
+
+        /* SQL编辑区 */
+        .editor-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sql-editor {
+            flex: 1;
+            background: #1e1e1e;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 行号区域 */
+        .line-numbers {
+            background: #1e1e1e;
+            color: #858585;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 12px 0;
+            text-align: right;
+            user-select: none;
+            border-right: 1px solid #3c3c3c;
+            overflow: hidden;
+            min-width: 40px;
+        }
+
+        .line-numbers div {
+            padding: 0 12px 0 8px;
+        }
+
+        /* 代码编辑区 */
+        .code-area {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        .sql-editor textarea {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            border: none;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            padding: 12px;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+        }
+
+        /* 结果区分隔条 */
+        .resizer-vertical {
+            height: 4px;
+            background: #555;
+            cursor: ns-resize;
+            flex-shrink: 0;
+        }
+
+        .resizer-vertical:hover,
+        .resizer-vertical.active {
+            background: #0e639c;
+        }
+
+        /* 执行结果区 */
+        .result-area {
+            height: 200px;
+            min-height: 80px;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .result-header {
+            padding: 8px 12px;
+            background: #2d2d2d;
+            font-size: 12px;
+            font-weight: 600;
+            border-bottom: 1px solid #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-tabs {
+            display: flex;
+            gap: 4px;
+        }
+
+        .result-tab {
+            padding: 4px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .result-tab:hover {
+            background: #3c3c3c;
+        }
+
+        .result-tab.active {
+            background: #094771;
+        }
+
+        .result-content {
+            flex: 1;
+            overflow: auto;
+            padding: 8px;
+        }
+
+        .result-table {
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .result-table th,
+        .result-table td {
+            padding: 6px 12px;
+            text-align: left;
+            border: 1px solid #555;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 80px;
+            box-sizing: border-box;
+        }
+
+        .result-table th {
+            background: #2d2d2d;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            position: relative;
+            user-select: none;
+        }
+
+        /* 列调整手柄 */
+        .result-table th .col-resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+        }
+
+        .result-table th .col-resizer:hover,
+        .result-table th .col-resizer.active {
+            background: #0e639c;
+        }
+
+        .result-table tr:hover {
+            background: #2a2d2e;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            background: #007acc;
+            padding: 4px 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: white;
+        }
+
+        .status-bar .left,
+        .status-bar .right {
+            display: flex;
+            gap: 16px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* 弹框遮罩 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        /* 弹框 */
+        .modal {
+            background: #2d2d2d;
+            border: 1px solid #555;
+            border-radius: 8px;
+            width: 450px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #ccc;
+        }
+
+        .form-group label .optional {
+            color: #888;
+            font-weight: normal;
+        }
+
+        .form-group label .required {
+            color: #f14c4c;
+            margin-left: 2px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #d4d4d4;
+            font-size: 13px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            border-color: #0e639c;
+            box-shadow: 0 0 0 1px #0e639c;
+        }
+
+        .form-group input::placeholder {
+            color: #888;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #555;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .modal-btn.primary {
+            background: #0e639c;
+            color: white;
+        }
+
+        .modal-btn.primary:hover {
+            background: #1177bb;
+        }
+
+        .modal-btn.secondary {
+            background: #3c3c3c;
+            color: #d4d4d4;
+            border: 1px solid #555;
+        }
+
+        .modal-btn.secondary:hover {
+            background: #505050;
+        }
+
+        .modal-btn.success {
+            background: #388a34;
+            color: white;
+        }
+
+        .modal-btn.success:hover {
+            background: #45a341;
+        }
+
+        /* 测试连接结果提示 */
+        .test-result {
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
+
+        .test-result.success {
+            display: block;
+            background: rgba(56, 138, 52, 0.2);
+            border: 1px solid #388a34;
+            color: #4ec9b0;
+        }
+
+        .test-result.error {
+            display: block;
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid #dc3545;
+            color: #f48771;
+        }
+
+        /* 确认弹窗 */
+        .confirm-modal {
+            width: 380px;
+        }
+
+        .confirm-modal .modal-body {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .confirm-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .confirm-icon.warning {
+            color: #e6a23c;
+        }
+
+        .confirm-content {
+            flex: 1;
+        }
+
+        .confirm-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .confirm-message {
+            font-size: 13px;
+            color: #a0a0a0;
+            line-height: 1.5;
+        }
+
+        .modal-btn.danger {
+            background: #c45656;
+            color: white;
+        }
+
+        .modal-btn.danger:hover {
+            background: #d96c6c;
+        }
+
+        /* 右键上下文菜单 */
+        .context-menu {
+            display: none;
+            position: fixed;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            border-radius: 4px;
+            min-width: 150px;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            padding: 4px 0;
+        }
+
+        .context-menu.show {
+            display: block;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #d4d4d4;
+        }
+
+        .context-menu-item:hover {
+            background: #094771;
+        }
+
+        .context-menu-item .icon {
+            width: 16px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- 树节点右键菜单 -->
+    <div class="context-menu" id="tree-context-menu">
+        <div class="context-menu-item" onclick="refreshTreeNode()">
+            <span class="icon">🔄</span>刷新
+        </div>
+    </div>
+
+    <!-- 新建连接弹框 -->
+    <div class="modal-overlay" id="new-connection-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>新建数据库连接</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>连接名称<span class="required">*</span></label>
+                    <input type="text" id="conn-name" placeholder="例如：本地MySQL开发库">
+                </div>
+                <div class="form-group">
+                    <label>服务地址<span class="required">*</span></label>
+                    <input type="text" id="conn-host" placeholder="例如：localhost:3306">
+                </div>
+                <div class="form-group">
+                    <label>用户名<span class="required">*</span></label>
+                    <input type="text" id="conn-user" placeholder="例如：root">
+                </div>
+                <div class="form-group">
+                    <label>密码<span class="required">*</span></label>
+                    <input type="password" id="conn-password" placeholder="输入密码">
+                </div>
+                <div class="form-group">
+                    <label>默认数据库 <span class="optional">(可选)</span></label>
+                    <input type="text" id="conn-database" placeholder="例如：test_db">
+                </div>
+                <div class="test-result" id="test-result"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn success" onclick="testConnection()">测试连接</button>
+                <button class="modal-btn secondary" onclick="closeModal()">取消</button>
+                <button class="modal-btn primary" onclick="saveConnection()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认删除弹框 -->
+    <div class="modal-overlay" id="confirm-delete-modal">
+        <div class="modal confirm-modal">
+            <div class="modal-header">
+                <h3>删除确认</h3>
+                <button class="modal-close" onclick="closeConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <span class="confirm-icon warning">⚠️</span>
+                <div class="confirm-content">
+                    <div class="confirm-title">确定要删除此连接吗？</div>
+                    <div class="confirm-message" id="confirm-message">删除后将无法恢复，请谨慎操作。</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn secondary" onclick="closeConfirmModal()">取消</button>
+                <button class="modal-btn danger" id="confirm-delete-btn">确定删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 菜单栏 -->
+    <div class="menu-bar">
+        <div class="menu-item">文件(F)
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="openModal()">新建连接<span class="shortcut">Ctrl+N</span></div>
+                <div class="dropdown-item">新建查询<span class="shortcut">Ctrl+T</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">打开文件<span class="shortcut">Ctrl+O</span></div>
+                <div class="dropdown-item">保存<span class="shortcut">Ctrl+S</span></div>
+                <div class="dropdown-item">另存为<span class="shortcut">Ctrl+Shift+S</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">退出<span class="shortcut">Alt+F4</span></div>
+            </div>
+        </div>
+        <div class="menu-item">编辑(E)
+            <div class="dropdown">
+                <div class="dropdown-item">撤销<span class="shortcut">Ctrl+Z</span></div>
+                <div class="dropdown-item">重做<span class="shortcut">Ctrl+Y</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">剪切<span class="shortcut">Ctrl+X</span></div>
+                <div class="dropdown-item">复制<span class="shortcut">Ctrl+C</span></div>
+                <div class="dropdown-item">粘贴<span class="shortcut">Ctrl+V</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">查找<span class="shortcut">Ctrl+F</span></div>
+                <div class="dropdown-item">替换<span class="shortcut">Ctrl+H</span></div>
+            </div>
+        </div>
+        <div class="menu-item">查看(V)
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="expandAll()">展开全部<span class="shortcut">Ctrl+Shift+E</span></div>
+                <div class="dropdown-item" onclick="collapseAll()">折叠全部<span class="shortcut">Ctrl+Shift+C</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">刷新<span class="shortcut">F5</span></div>
+            </div>
+        </div>
+        <div class="menu-item">查询(Q)
+            <div class="dropdown">
+                <div class="dropdown-item">执行<span class="shortcut">F5</span></div>
+                <div class="dropdown-item">执行选中<span class="shortcut">Ctrl+E</span></div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item">显示执行计划<span class="shortcut">Ctrl+L</span></div>
+                <div class="dropdown-item">停止执行<span class="shortcut">Ctrl+Break</span></div>
+            </div>
+        </div>
+        <div class="menu-item">工具(T)
+            <div class="dropdown">
+                <div class="dropdown-item">选项</div>
+                <div class="dropdown-item">导入数据</div>
+                <div class="dropdown-item">导出数据</div>
+            </div>
+        </div>
+        <div class="menu-item">帮助(H)
+            <div class="dropdown">
+                <div class="dropdown-item">文档</div>
+                <div class="dropdown-item">关于</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能按钮栏 -->
+    <div class="toolbar">
+        <button class="toolbar-btn secondary" onclick="openModal()">📁 新建连接</button>
+        <button class="toolbar-btn secondary">📄 新建查询</button>
+        <button class="toolbar-btn secondary">📂 打开文件</button>
+        <button class="toolbar-btn secondary">💾 保存</button>
+        <div style="width: 1px; background: #555; margin: 0 8px;"></div>
+        <button class="toolbar-btn run">▶ 执行</button>
+        <button class="toolbar-btn secondary">⏹ 停止</button>
+        <button class="toolbar-btn secondary">📊 执行计划</button>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 左侧数据库树 -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">数据库连接</div>
+            <div class="db-tree" id="db-tree">
+                <!-- MySQL 服务器（无Schema层级） -->
+                <div class="tree-node">
+                    <div class="tree-item server" onclick="toggleNode(this)">
+                        <span class="tree-toggle">▼</span>🖥️ <span class="server-name">localhost:3306 (MySQL)</span>
+                        <div class="server-actions">
+                            <span class="server-action-btn edit" title="修改名称" onclick="editServerName(event, this)">✏️</span>
+                            <span class="server-action-btn delete" title="删除" onclick="deleteServer(event, this)">🗑️</span>
+                        </div>
+                    </div>
+                    <div class="tree-children">
+                        <div class="tree-node">
+                            <div class="tree-item database" onclick="toggleNode(this)">
+                                <span class="tree-toggle">▼</span>📁 test_db
+                            </div>
+                            <div class="tree-children">
+                                <div class="tree-node">
+                                    <div class="tree-item folder level-3" onclick="toggleNode(this)">
+                                        <span class="tree-toggle">▼</span>📂 表
+                                    </div>
+                                    <div class="tree-children">
+                                        <div class="tree-item table level-4"><span class="tree-toggle empty"></span>📋 customers</div>
+                                        <div class="tree-item table level-4"><span class="tree-toggle empty"></span>📋 orders</div>
+                                        <div class="tree-item table level-4"><span class="tree-toggle empty"></span>📋 products</div>
+                                    </div>
+                                </div>
+                                <div class="tree-node">
+                                    <div class="tree-item folder level-3" onclick="toggleNode(this)">
+                                        <span class="tree-toggle">▼</span>📂 视图
+                                    </div>
+                                    <div class="tree-children">
+                                        <div class="tree-item view level-4"><span class="tree-toggle empty"></span>👁️ v_active_customers</div>
+                                        <div class="tree-item view level-4"><span class="tree-toggle empty"></span>👁️ v_order_summary</div>
+                                    </div>
+                                </div>
+                                <div class="tree-node">
+                                    <div class="tree-item folder level-3" onclick="toggleNode(this)">
+                                        <span class="tree-toggle">▼</span>📂 存储过程
+                                    </div>
+                                    <div class="tree-children">
+                                        <div class="tree-item procedure level-4"><span class="tree-toggle empty"></span>⚙️ sp_get_orders</div>
+                                        <div class="tree-item procedure level-4"><span class="tree-toggle empty"></span>⚙️ sp_update_stock</div>
+                                    </div>
+                                </div>
+                                <div class="tree-node">
+                                    <div class="tree-item folder level-3" onclick="toggleNode(this)">
+                                        <span class="tree-toggle">▼</span>📂 函数
+                                    </div>
+                                    <div class="tree-children">
+                                        <div class="tree-item function level-4"><span class="tree-toggle empty"></span>ƒ fn_calc_total</div>
+                                        <div class="tree-item function level-4"><span class="tree-toggle empty"></span>ƒ fn_format_date</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SQL Server 服务器（有Schema层级） -->
+                <div class="tree-node">
+                    <div class="tree-item server" onclick="toggleNode(this)">
+                        <span class="tree-toggle">▼</span>🖥️ <span class="server-name">192.168.1.100:1433 (SQL Server)</span>
+                        <div class="server-actions">
+                            <span class="server-action-btn edit" title="修改名称" onclick="editServerName(event, this)">✏️</span>
+                            <span class="server-action-btn delete" title="删除" onclick="deleteServer(event, this)">🗑️</span>
+                        </div>
+                    </div>
+                    <div class="tree-children">
+                        <div class="tree-node">
+                            <div class="tree-item database" onclick="toggleNode(this)">
+                                <span class="tree-toggle">▼</span>📁 AdventureWorks
+                            </div>
+                            <div class="tree-children">
+                                <!-- dbo Schema -->
+                                <div class="tree-node">
+                                    <div class="tree-item schema" onclick="toggleNode(this)">
+                                        <span class="tree-toggle">▼</span>📦 dbo
+                                    </div>
+                                    <div class="tree-children">
+                                        <div class="tree-node">
+                                            <div class="tree-item folder" onclick="toggleNode(this)">
+                                                <span class="tree-toggle">▼</span>📂 表
+                                            </div>
+                                            <div class="tree-children">
+                                                <div class="tree-item table"><span class="tree-toggle empty"></span>📋 Users</div>
+                                                <div class="tree-item table"><span class="tree-toggle empty"></span>📋 Products</div>
+                                                <div class="tree-item table"><span class="tree-toggle empty"></span>📋 Orders</div>
+                                            </div>
+                                        </div>
+                                        <div class="tree-node">
+                                            <div class="tree-item folder" onclick="toggleNode(this)">
+                                                <span class="tree-toggle">▼</span>📂 视图
+                                            </div>
+                                            <div class="tree-children">
+                                                <div class="tree-item view"><span class="tree-toggle empty"></span>👁️ vw_UserOrders</div>
+                                            </div>
+                                        </div>
+                                        <div class="tree-node">
+                                            <div class="tree-item folder" onclick="toggleNode(this)">
+                                                <span class="tree-toggle">▼</span>📂 存储过程
+                                            </div>
+                                            <div class="tree-children">
+                                                <div class="tree-item procedure"><span class="tree-toggle empty"></span>⚙️ usp_GetUserById</div>
+                                                <div class="tree-item procedure"><span class="tree-toggle empty"></span>⚙️ usp_CreateOrder</div>
+                                            </div>
+                                        </div>
+                                        <div class="tree-node">
+                                            <div class="tree-item folder" onclick="toggleNode(this)">
+                                                <span class="tree-toggle">▼</span>📂 函数
+                                            </div>
+                                            <div class="tree-children">
+                                                <div class="tree-item function"><span class="tree-toggle empty"></span>ƒ ufn_GetFullName</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Sales Schema -->
+                                <div class="tree-node">
+                                    <div class="tree-item schema" onclick="toggleNode(this)">
+                                        <span class="tree-toggle collapsed">▼</span>📦 Sales
+                                    </div>
+                                    <div class="tree-children collapsed">
+                                        <div class="tree-node">
+                                            <div class="tree-item folder" onclick="toggleNode(this)">
+                                                <span class="tree-toggle">▼</span>📂 表
+                                            </div>
+                                            <div class="tree-children">
+                                                <div class="tree-item table"><span class="tree-toggle empty"></span>📋 SalesOrder</div>
+                                                <div class="tree-item table"><span class="tree-toggle empty"></span>📋 SalesDetail</div>
+                                            </div>
+                                        </div>
+                                        <div class="tree-node">
+                                            <div class="tree-item folder" onclick="toggleNode(this)">
+                                                <span class="tree-toggle">▼</span>📂 视图
+                                            </div>
+                                            <div class="tree-children">
+                                                <div class="tree-item view"><span class="tree-toggle empty"></span>👁️ vw_SalesSummary</div>
+                                            </div>
+                                        </div>
+                                        <div class="tree-node">
+                                            <div class="tree-item folder" onclick="toggleNode(this)">
+                                                <span class="tree-toggle">▼</span>📂 存储过程
+                                            </div>
+                                            <div class="tree-children">
+                                                <div class="tree-item procedure"><span class="tree-toggle empty"></span>⚙️ usp_ProcessSale</div>
+                                            </div>
+                                        </div>
+                                        <div class="tree-node">
+                                            <div class="tree-item folder" onclick="toggleNode(this)">
+                                                <span class="tree-toggle">▼</span>📂 函数
+                                            </div>
+                                            <div class="tree-children">
+                                                <div class="tree-item function"><span class="tree-toggle empty"></span>ƒ ufn_CalcDiscount</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 左右分隔条 -->
+        <div class="resizer-horizontal" id="resizer-h"></div>
+
+        <!-- 右侧主区域 -->
+        <div class="right-panel">
+            <!-- SQL文件标签栏 -->
+            <div class="tabs-bar">
+                <div class="tab active">
+                    <span>📄 sql1.txt</span>
+                    <span class="close-btn">×</span>
+                </div>
+                <div class="tab">
+                    <span>📄 sql2.txt</span>
+                    <span class="close-btn">×</span>
+                </div>
+                <div class="tab">
+                    <span>📄 query_users.sql</span>
+                    <span class="close-btn">×</span>
+                </div>
+            </div>
+
+            <!-- 连接信息栏 -->
+            <div class="connection-info">
+                <div class="info-item">
+                    <span class="label">服务器:</span>
+                    <select id="server-select">
+                        <option value="localhost:3306">localhost:3306 (MySQL)</option>
+                        <option value="192.168.1.100:1433">192.168.1.100:1433 (SQL Server)</option>
+                        <option value="192.168.1.50:5432">192.168.1.50:5432 (PostgreSQL)</option>
+                    </select>
+                </div>
+                <div class="info-item">
+                    <span class="label">数据库:</span>
+                    <select id="database-select">
+                        <option value="test_db">test_db</option>
+                        <option value="mysql">mysql</option>
+                        <option value="information_schema">information_schema</option>
+                        <option value="production">production</option>
+                    </select>
+                </div>
+                <div class="info-item">
+                    <span class="label">用户:</span>
+                    <span class="value">root</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">最大行数:</span>
+                    <input type="text" id="max-rows" class="max-rows-input" value="5000" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                </div>
+            </div>
+
+            <!-- 编辑区 -->
+            <div class="editor-area" id="editor-area">
+                <!-- SQL编辑器 -->
+                <div class="sql-editor" id="sql-editor">
+                    <div class="line-numbers" id="line-numbers"></div>
+                    <div class="code-area">
+                        <textarea id="sql-textarea" placeholder="在此输入SQL语句...">SELECT 
+    id,
+    name,
+    email,
+    created_at
+FROM customers
+WHERE status = 'active'
+ORDER BY created_at DESC
+LIMIT 100;</textarea>
+                    </div>
+                </div>
+
+                <!-- 上下分隔条 -->
+                <div class="resizer-vertical" id="resizer-v"></div>
+
+                <!-- 执行结果区 -->
+                <div class="result-area" id="result-area">
+                    <div class="result-header">
+                        <div class="result-tabs">
+                            <div class="result-tab active">结果</div>
+                            <div class="result-tab">消息</div>
+                            <div class="result-tab">执行计划</div>
+                        </div>
+                        <span style="color: #4ec9b0;">✓ 查询成功，返回 5 行，耗时 0.023 秒</span>
+                    </div>
+                    <div class="result-content">
+                        <table class="result-table" id="result-table">
+                            <thead>
+                                <tr>
+                                    <th>id<div class="col-resizer"></div></th>
+                                    <th>name<div class="col-resizer"></div></th>
+                                    <th>email<div class="col-resizer"></div></th>
+                                    <th>created_at<div class="col-resizer"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td>张三</td>
+                                    <td>zhangsan@example.com</td>
+                                    <td>2024-12-15 10:30:00</td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td>李四</td>
+                                    <td>lisi@example.com</td>
+                                    <td>2024-12-14 15:20:00</td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td>王五</td>
+                                    <td>wangwu@example.com</td>
+                                    <td>2024-12-13 09:45:00</td>
+                                </tr>
+                                <tr>
+                                    <td>4</td>
+                                    <td>赵六</td>
+                                    <td>zhaoliu@example.com</td>
+                                    <td>2024-12-12 14:10:00</td>
+                                </tr>
+                                <tr>
+                                    <td>5</td>
+                                    <td>钱七</td>
+                                    <td>qianqi@example.com</td>
+                                    <td>2024-12-11 11:55:00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div class="left">
+            <span class="status-item">🟢 已连接</span>
+            <span class="status-item">MySQL 8.0.32</span>
+        </div>
+        <div class="right">
+            <span class="status-item" id="cursor-position">行: 1, 列: 1</span>
+            <span class="status-item">UTF-8</span>
+            <span class="status-item">LF</span>
+        </div>
+    </div>
+
+    <script>
+        // 弹框控制
+        function openModal() {
+            document.getElementById('new-connection-modal').classList.add('show');
+            document.getElementById('conn-name').focus();
+            // 清空之前的测试结果
+            const testResult = document.getElementById('test-result');
+            testResult.className = 'test-result';
+            testResult.textContent = '';
+        }
+
+        function closeModal() {
+            document.getElementById('new-connection-modal').classList.remove('show');
+            // 清空表单
+            document.getElementById('conn-name').value = '';
+            document.getElementById('conn-host').value = '';
+            document.getElementById('conn-user').value = '';
+            document.getElementById('conn-password').value = '';
+            document.getElementById('conn-database').value = '';
+            const testResult = document.getElementById('test-result');
+            testResult.className = 'test-result';
+            testResult.textContent = '';
+        }
+
+        function testConnection() {
+            const host = document.getElementById('conn-host').value;
+            const user = document.getElementById('conn-user').value;
+            const testResult = document.getElementById('test-result');
+            
+            if (!host || !user) {
+                testResult.className = 'test-result error';
+                testResult.textContent = '✗ 请填写服务地址和用户名';
+                return;
+            }
+            
+            // 模拟测试连接
+            testResult.className = 'test-result';
+            testResult.style.display = 'block';
+            testResult.style.background = 'rgba(14, 99, 156, 0.2)';
+            testResult.style.border = '1px solid #0e639c';
+            testResult.style.color = '#4fc1ff';
+            testResult.textContent = '⏳ 正在测试连接...';
+            
+            setTimeout(() => {
+                testResult.style.background = '';
+                testResult.style.border = '';
+                testResult.style.color = '';
+                testResult.className = 'test-result success';
+                testResult.textContent = '✓ 连接成功！服务器版本: MySQL 8.0.32';
+            }, 1000);
+        }
+
+        function saveConnection() {
+            const name = document.getElementById('conn-name').value;
+            const host = document.getElementById('conn-host').value;
+            const user = document.getElementById('conn-user').value;
+            const password = document.getElementById('conn-password').value;
+            
+            if (!name || !host || !user) {
+                const testResult = document.getElementById('test-result');
+                testResult.className = 'test-result error';
+                testResult.textContent = '✗ 请填写连接名称、服务地址和用户名';
+                return;
+            }
+            
+            // 模拟保存成功
+            alert('连接 "' + name + '" 已保存成功！');
+            closeModal();
+        }
+
+        // 点击遮罩关闭弹框
+        document.getElementById('new-connection-modal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeModal();
+            }
+        });
+
+        // ESC 关闭弹框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeConfirmModal();
+            }
+        });
+
+        // 切换节点展开/折叠
+        function toggleNode(element) {
+            const toggle = element.querySelector('.tree-toggle');
+            if (toggle.classList.contains('empty')) return;
+            
+            const parent = element.parentElement;
+            const children = parent.querySelector('.tree-children');
+            
+            if (children) {
+                toggle.classList.toggle('collapsed');
+                children.classList.toggle('collapsed');
+            }
+        }
+
+        // 展开全部
+        function expandAll() {
+            document.querySelectorAll('.tree-toggle').forEach(toggle => {
+                if (!toggle.classList.contains('empty')) {
+                    toggle.classList.remove('collapsed');
+                }
+            });
+            document.querySelectorAll('.tree-children').forEach(children => {
+                children.classList.remove('collapsed');
+            });
+        }
+
+        // 折叠全部
+        function collapseAll() {
+            document.querySelectorAll('.tree-toggle').forEach(toggle => {
+                if (!toggle.classList.contains('empty')) {
+                    toggle.classList.add('collapsed');
+                }
+            });
+            document.querySelectorAll('.tree-children').forEach(children => {
+                children.classList.add('collapsed');
+            });
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+                e.preventDefault();
+                expandAll();
+            }
+            if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                e.preventDefault();
+                collapseAll();
+            }
+        });
+
+        // 编辑服务器名称
+        function editServerName(event, btn) {
+            event.stopPropagation();
+            const serverItem = btn.closest('.tree-item.server');
+            const serverNameSpan = serverItem.querySelector('.server-name');
+            const currentName = serverNameSpan.textContent;
+            
+            // 创建输入框
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'server-name-input';
+            input.value = currentName;
+            
+            // 隐藏原名称和操作按钮
+            serverNameSpan.style.display = 'none';
+            const actionsDiv = serverItem.querySelector('.server-actions');
+            actionsDiv.style.display = 'none';
+            
+            // 插入输入框
+            serverNameSpan.parentNode.insertBefore(input, actionsDiv);
+            input.focus();
+            input.select();
+            
+            // 完成编辑
+            function finishEdit(save) {
+                if (save && input.value.trim()) {
+                    serverNameSpan.textContent = input.value.trim();
+                }
+                input.remove();
+                serverNameSpan.style.display = '';
+                actionsDiv.style.display = '';
+            }
+            
+            // 回车确认
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    finishEdit(true);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    finishEdit(false);
+                }
+            });
+            
+            // 失去焦点保存
+            input.addEventListener('blur', () => {
+                finishEdit(true);
+            });
+            
+            // 阻止点击输入框时触发父级事件
+            input.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+
+        // 删除服务器
+        let pendingDeleteNode = null;
+
+        function deleteServer(event, btn) {
+            event.stopPropagation();
+            const serverItem = btn.closest('.tree-item.server');
+            const serverNameSpan = serverItem.querySelector('.server-name');
+            const serverName = serverNameSpan.textContent;
+            
+            // 保存待删除的节点
+            pendingDeleteNode = serverItem.closest('.tree-node');
+            
+            // 显示确认弹窗
+            document.getElementById('confirm-message').textContent = 
+                '连接 "' + serverName + '" 将被删除，此操作不可恢复。';
+            document.getElementById('confirm-delete-modal').classList.add('show');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-delete-modal').classList.remove('show');
+            pendingDeleteNode = null;
+        }
+
+        // 确认删除按钮点击事件
+        document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+            if (pendingDeleteNode) {
+                pendingDeleteNode.remove();
+            }
+            closeConfirmModal();
+        });
+
+        // 点击遮罩关闭确认弹框
+        document.getElementById('confirm-delete-modal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeConfirmModal();
+            }
+        });
+
+        // 左右拖拽调整侧边栏宽度
+        const sidebar = document.getElementById('sidebar');
+        const resizerH = document.getElementById('resizer-h');
+        
+        let isResizingH = false;
+        
+        resizerH.addEventListener('mousedown', (e) => {
+            isResizingH = true;
+            resizerH.classList.add('active');
+            document.body.style.cursor = 'ew-resize';
+            document.body.style.userSelect = 'none';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (isResizingH) {
+                const newWidth = e.clientX;
+                if (newWidth >= 150 && newWidth <= 500) {
+                    sidebar.style.width = newWidth + 'px';
+                }
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizingH) {
+                isResizingH = false;
+                resizerH.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+
+        // 上下拖拽调整结果区高度
+        const editorArea = document.getElementById('editor-area');
+        const resultArea = document.getElementById('result-area');
+        const resizerV = document.getElementById('resizer-v');
+        
+        let isResizingV = false;
+        let startY = 0;
+        let startHeight = 0;
+        
+        resizerV.addEventListener('mousedown', (e) => {
+            isResizingV = true;
+            startY = e.clientY;
+            startHeight = resultArea.offsetHeight;
+            resizerV.classList.add('active');
+            document.body.style.cursor = 'ns-resize';
+            document.body.style.userSelect = 'none';
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (isResizingV) {
+                const deltaY = startY - e.clientY;
+                const newHeight = startHeight + deltaY;
+                const maxHeight = editorArea.offsetHeight - 100;
+                if (newHeight >= 80 && newHeight <= maxHeight) {
+                    resultArea.style.height = newHeight + 'px';
+                }
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizingV) {
+                isResizingV = false;
+                resizerV.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+
+        // 表格列宽拖拽调整
+        let isResizingCol = false;
+        let currentTh = null;
+        let startX = 0;
+        let startWidth = 0;
+
+        // 初始化：将所有列的宽度固定为当前实际宽度
+        function initTableColumnWidths() {
+            const table = document.getElementById('result-table');
+            if (!table) return;
+            const ths = table.querySelectorAll('th');
+            // 先记录所有列的当前宽度
+            const widths = [];
+            ths.forEach(th => {
+                widths.push(th.getBoundingClientRect().width);
+            });
+            // 设置 table-layout: fixed 并应用宽度
+            table.style.tableLayout = 'fixed';
+            table.style.width = table.getBoundingClientRect().width + 'px';
+            ths.forEach((th, index) => {
+                th.style.width = widths[index] + 'px';
+            });
+        }
+        
+        // 页面加载后初始化列宽
+        initTableColumnWidths();
+
+        document.querySelectorAll('.col-resizer').forEach(resizer => {
+            resizer.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                isResizingCol = true;
+                currentTh = resizer.parentElement;
+                startX = e.clientX;
+                startWidth = currentTh.getBoundingClientRect().width;
+                resizer.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isResizingCol && currentTh) {
+                const deltaX = e.clientX - startX;
+                const newWidth = Math.max(50, startWidth + deltaX);
+                currentTh.style.width = newWidth + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizingCol) {
+                isResizingCol = false;
+                if (currentTh) {
+                    const resizer = currentTh.querySelector('.col-resizer');
+                    if (resizer) resizer.classList.remove('active');
+                }
+                currentTh = null;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+
+        // SQL编辑器行号和光标位置
+        const sqlTextarea = document.getElementById('sql-textarea');
+        const lineNumbers = document.getElementById('line-numbers');
+        const cursorPosition = document.getElementById('cursor-position');
+
+        // 更新行号
+        function updateLineNumbers() {
+            const text = sqlTextarea.value;
+            const lines = text.split('\n');
+            const lineCount = lines.length;
+            
+            let html = '';
+            for (let i = 1; i <= lineCount; i++) {
+                html += '<div>' + i + '</div>';
+            }
+            lineNumbers.innerHTML = html;
+        }
+
+        // 更新光标位置
+        function updateCursorPosition() {
+            const text = sqlTextarea.value;
+            const cursorPos = sqlTextarea.selectionStart;
+            
+            // 计算行和列
+            const textBeforeCursor = text.substring(0, cursorPos);
+            const lines = textBeforeCursor.split('\n');
+            const row = lines.length;
+            const col = lines[lines.length - 1].length + 1;
+            
+            cursorPosition.textContent = '行: ' + row + ', 列: ' + col;
+        }
+
+        // 同步滚动
+        function syncScroll() {
+            lineNumbers.style.marginTop = -sqlTextarea.scrollTop + 'px';
+        }
+
+        // 初始化
+        updateLineNumbers();
+        updateCursorPosition();
+
+        // 事件监听
+        sqlTextarea.addEventListener('input', () => {
+            updateLineNumbers();
+            updateCursorPosition();
+        });
+
+        sqlTextarea.addEventListener('keyup', updateCursorPosition);
+        sqlTextarea.addEventListener('click', updateCursorPosition);
+        sqlTextarea.addEventListener('select', updateCursorPosition);
+        sqlTextarea.addEventListener('scroll', syncScroll);
+
+        // 树节点右键菜单
+        const contextMenu = document.getElementById('tree-context-menu');
+        let currentContextNode = null;
+
+        // 为所有树节点添加右键菜单
+        document.getElementById('db-tree').addEventListener('contextmenu', (e) => {
+            const treeItem = e.target.closest('.tree-item');
+            if (treeItem) {
+                e.preventDefault();
+                currentContextNode = treeItem.closest('.tree-node');
+                
+                // 显示菜单
+                contextMenu.style.left = e.clientX + 'px';
+                contextMenu.style.top = e.clientY + 'px';
+                contextMenu.classList.add('show');
+                
+                // 高亮当前节点
+                document.querySelectorAll('.tree-item').forEach(item => item.classList.remove('active'));
+                treeItem.classList.add('active');
+            }
+        });
+
+        // 点击其他地方关闭右键菜单
+        document.addEventListener('click', (e) => {
+            if (!contextMenu.contains(e.target)) {
+                contextMenu.classList.remove('show');
+                currentContextNode = null;
+            }
+        });
+
+        // 刷新树节点
+        function refreshTreeNode() {
+            if (currentContextNode) {
+                const treeItem = currentContextNode.querySelector('.tree-item');
+                const nodeName = treeItem.textContent.trim();
+                
+                // 模拟刷新效果
+                treeItem.style.opacity = '0.5';
+                setTimeout(() => {
+                    treeItem.style.opacity = '1';
+                    console.log('已刷新节点: ' + nodeName);
+                }, 500);
+            }
+            contextMenu.classList.remove('show');
+            currentContextNode = null;
+        }
+
+        // ESC关闭右键菜单
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                contextMenu.classList.remove('show');
+                currentContextNode = null;
+            }
+        });
+    </script>
+</body>
+</html>

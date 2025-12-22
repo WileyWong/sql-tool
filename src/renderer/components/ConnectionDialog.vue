@@ -1,0 +1,296 @@
+<template>
+  <el-dialog
+    v-model="visible"
+    :title="isEdit ? '编辑连接' : '新建连接'"
+    width="500px"
+    :close-on-click-modal="false"
+    @close="handleClose"
+  >
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-width="100px"
+      label-position="right"
+    >
+      <el-form-item label="连接名称" prop="name">
+        <el-input v-model="form.name" placeholder="请输入连接名称" />
+      </el-form-item>
+      
+      <el-form-item label="服务地址" prop="host">
+        <el-input v-model="form.host" placeholder="localhost">
+          <template #append>
+            <el-input-number
+              v-model="form.port"
+              :min="1"
+              :max="65535"
+              :controls="false"
+              style="width: 80px"
+              placeholder="3306"
+            />
+          </template>
+        </el-input>
+      </el-form-item>
+      
+      <el-form-item label="用户名" prop="username">
+        <el-input v-model="form.username" placeholder="root" />
+      </el-form-item>
+      
+      <el-form-item label="密码" prop="password">
+        <el-input
+          v-model="form.password"
+          type="password"
+          show-password
+          placeholder="请输入密码"
+        />
+      </el-form-item>
+      
+      <el-form-item label="默认数据库">
+        <el-input v-model="form.database" placeholder="可选，连接后默认选中的数据库" />
+      </el-form-item>
+    </el-form>
+    
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="handleTest" :loading="testing">
+          测试连接
+        </el-button>
+        <div class="footer-right">
+          <el-button @click="handleClose">取消</el-button>
+          <el-button type="primary" @click="handleSave" :loading="saving">
+            保存
+          </el-button>
+        </div>
+      </div>
+    </template>
+  </el-dialog>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { useConnectionStore } from '../stores/connection'
+import { Defaults } from '@shared/constants'
+
+const connectionStore = useConnectionStore()
+
+const formRef = ref<FormInstance>()
+const testing = ref(false)
+const saving = ref(false)
+
+const visible = computed({
+  get: () => connectionStore.dialogVisible,
+  set: (val) => {
+    if (!val) connectionStore.closeDialog()
+  }
+})
+
+const isEdit = computed(() => !!connectionStore.editingConnection)
+
+const form = ref({
+  name: '',
+  host: '',
+  port: Defaults.PORT,
+  username: '',
+  password: '',
+  database: ''
+})
+
+const rules: FormRules = {
+  name: [
+    { required: true, message: '请输入连接名称', trigger: 'blur' },
+    { max: 50, message: '连接名称最多50字符', trigger: 'blur' }
+  ],
+  host: [
+    { required: true, message: '请输入服务地址', trigger: 'blur' }
+  ],
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' }
+  ]
+}
+
+// 监听编辑连接变化
+watch(() => connectionStore.editingConnection, (conn) => {
+  if (conn) {
+    form.value = {
+      name: conn.name,
+      host: conn.host,
+      port: conn.port,
+      username: conn.username,
+      password: conn.password,
+      database: conn.database || ''
+    }
+  } else {
+    form.value = {
+      name: '',
+      host: '',
+      port: Defaults.PORT,
+      username: '',
+      password: '',
+      database: ''
+    }
+  }
+}, { immediate: true })
+
+// 测试连接
+async function handleTest() {
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+  
+  testing.value = true
+  
+  try {
+    const result = await connectionStore.testConnection({
+      id: connectionStore.editingConnection?.id || '',
+      name: form.value.name,
+      host: form.value.host,
+      port: form.value.port || Defaults.PORT,
+      username: form.value.username,
+      password: form.value.password,
+      database: form.value.database || undefined,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    })
+    
+    if (result.success) {
+      ElMessage.success(`连接成功！服务器版本: ${result.serverVersion}`)
+    } else {
+      ElMessage.error(result.message)
+    }
+  } finally {
+    testing.value = false
+  }
+}
+
+// 保存
+async function handleSave() {
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+  
+  saving.value = true
+  
+  try {
+    const result = await connectionStore.saveConnection(
+      {
+        name: form.value.name,
+        host: form.value.host,
+        port: form.value.port || Defaults.PORT,
+        username: form.value.username,
+        password: form.value.password,
+        database: form.value.database || undefined
+      },
+      connectionStore.editingConnection?.id
+    )
+    
+    if (result.success) {
+      ElMessage.success('保存成功')
+      connectionStore.closeDialog()
+    } else {
+      ElMessage.error(result.message || '保存失败')
+    }
+  } finally {
+    saving.value = false
+  }
+}
+
+// 关闭
+function handleClose() {
+  connectionStore.closeDialog()
+}
+</script>
+
+<style scoped>
+.dialog-footer {
+  display: flex;
+  justify-content: space-between;
+}
+
+.footer-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* 深色主题对话框样式 */
+:deep(.el-dialog) {
+  background: #2d2d2d;
+  border: 1px solid #555;
+}
+
+:deep(.el-dialog__header) {
+  border-bottom: 1px solid #555;
+}
+
+:deep(.el-dialog__title) {
+  color: #fff;
+}
+
+:deep(.el-dialog__headerbtn .el-dialog__close) {
+  color: #888;
+}
+
+:deep(.el-dialog__headerbtn:hover .el-dialog__close) {
+  color: #fff;
+}
+
+:deep(.el-form-item__label) {
+  color: #ccc;
+}
+
+:deep(.el-input__wrapper) {
+  background: #3c3c3c;
+  border-color: #555;
+  box-shadow: none;
+}
+
+:deep(.el-input__wrapper:hover) {
+  border-color: #0e639c;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  border-color: #0e639c;
+  box-shadow: 0 0 0 1px #0e639c;
+}
+
+:deep(.el-input__inner) {
+  color: #d4d4d4;
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: #888;
+}
+
+:deep(.el-input-group__append) {
+  background: #3c3c3c;
+  border-color: #555;
+}
+
+:deep(.el-dialog__footer) {
+  border-top: 1px solid #555;
+}
+
+:deep(.el-button) {
+  background: #3c3c3c;
+  border-color: #555;
+  color: #d4d4d4;
+}
+
+:deep(.el-button:hover) {
+  background: #505050;
+  border-color: #0e639c;
+  color: #fff;
+}
+
+:deep(.el-button--primary) {
+  background: #0e639c;
+  border-color: #0e639c;
+  color: #fff;
+}
+
+:deep(.el-button--primary:hover) {
+  background: #1177bb;
+  border-color: #1177bb;
+}
+</style>
