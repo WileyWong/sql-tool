@@ -1,16 +1,12 @@
 ---
-command_id: spec-coding.design
 command_name: 设计阶段
-category: spec-coding
 description: 帮助用户完善设计，生成完整的开发指南
-workflow_type: conditional
-estimated_time: 45-90 minutes
-dependencies: [design-api, design-architect, design-db, design-delivery-plan, design-entity, design-interface, design-process, design-task-planning, doc-git-list, doc-extract-proj-knowledge, doc-analyze-code, doc-index]
 ---
 
 # Command: 帮助用户完善设计
 
 > ⚠️ **必须遵守**: [通用规范索引](mdc:spec/global/standards/common/index.md) - 包含项目记忆引用和所有规范要求
+> ⚠️ **编写设计文档时应注意**: 深入理解项目现状和技术架构，为设计提供准确的技术上下文，少写一些繁琐泛泛的代码细节
 
 > 📚 **项目记忆引用**
 > - 遵循 [项目宪章](mdc:.spec-code/memory/constitution.md) 的核心原则和质量标准
@@ -91,7 +87,7 @@ dependencies: [design-api, design-architect, design-db, design-delivery-plan, de
      - [ ] 可复用组件已列出
      - [ ] 技术债务已标记
 
-4. **MUST** 提取技术知识 - Use `doc-extract-proj-knowledge` skill
+4. **MUST** 提取技术知识 - Use `doc-extract-knowledge` skill
    - 提取现有的技术决策和约束
    - 识别关键技术组件和中间件
    - 分析现有的 API 规范和数据模型
@@ -196,7 +192,7 @@ dependencies: [design-api, design-architect, design-db, design-delivery-plan, de
 
 **MANDATORY STEPS**:
 
-1. **MUST** 识别领域概念 - Use `design-entity` skill
+1. **MUST** 识别领域概念 - Use `techdesign-04-entity` skill
    - 识别业务实体（Entity）、值对象（Value Object）
    - 定义聚合根（Aggregate Root）和边界
    - 识别领域服务和领域事件
@@ -233,7 +229,7 @@ dependencies: [design-api, design-architect, design-db, design-delivery-plan, de
 
 **MANDATORY STEPS**:
 
-1. **MUST** 设计表结构 - Use `design-db` skill
+1. **MUST** 设计表结构 - Use `techdesign-05-database` skill
    - 根据实体模型设计表结构
    - 定义字段类型、长度、约束
    - 遵循项目数据库规范（如有）
@@ -279,7 +275,7 @@ dependencies: [design-api, design-architect, design-db, design-delivery-plan, de
 
 **MANDATORY STEPS**:
 
-1. **MUST** 设计 API 端点 - Use `design-interface` skill 或 `design-api` skill
+1. **MUST** 设计 API 端点 - Use `techdesign-06-api` skill
    - 根据功能需求定义 API 端点
    - 遵循 RESTful 规范（资源命名、HTTP 方法）
    - 定义请求参数和响应格式
@@ -325,7 +321,7 @@ dependencies: [design-api, design-architect, design-db, design-delivery-plan, de
 
 **MANDATORY STEPS**:
 
-1. **MUST** 梳理业务流程 - Use `design-process` skill
+1. **MUST** 梳理业务流程 - Use `techdesign-02-process` skill
    - 识别业务流程的关键节点
    - 定义状态和状态转换
    - 识别参与者和角色
@@ -360,7 +356,7 @@ dependencies: [design-api, design-architect, design-db, design-delivery-plan, de
 
 **MANDATORY STEPS**:
 
-1. **MUST** 设计系统架构 - Use `design-architect` skill
+1. **MUST** 设计系统架构 - Use `techdesign-01-architecture` skill
    - 选择架构风格（单体/微服务/Serverless）
    - 进行技术选型（框架/中间件/数据库）
    - 设计模块划分和依赖关系
@@ -400,7 +396,7 @@ dependencies: [design-api, design-architect, design-db, design-delivery-plan, de
 
 **MANDATORY STEPS**:
 
-1. **MUST** 设计功能实现 - Use `design-feature` skill
+1. **MUST** 设计功能实现 - Use `techdesign-03-feature` skill
    - 定义功能的输入输出
    - 设计实现流程和算法
    - 定义数据验证和边界条件
@@ -438,7 +434,7 @@ dependencies: [design-api, design-architect, design-db, design-delivery-plan, de
 
 **MANDATORY STEPS**:
 
-1. **MUST** 拆解实施任务 - Use `design-task-planning` skill 或 `design-delivery-plan` skill
+1. **MUST** 拆解实施任务 - Use `techdesign-07-delivery-planning` skill
    - 根据设计拆解开发任务
    - 识别任务依赖关系
    - 评估工作量和优先级
@@ -977,17 +973,15 @@ Step 6: 更新 README.md，生成审查报告
 - [design-reviewer](mdc:agents/design-reviewer.md) - 设计审查 Agent（Evaluator-Optimizer 模式） ⭐ **Phase 3.5 使用**
 
 ### 核心 Skills
-- [design-entity](mdc:skills/design-entity/SKILL.md) - 实体建模
-- [design-db](mdc:skills/design-db/SKILL.md) - 数据库设计
-- [design-api](mdc:skills/design-api/SKILL.md) - API 设计
-- [design-interface](mdc:skills/design-interface/SKILL.md) - 接口设计
-- [design-process](mdc:skills/design-process/SKILL.md) - 流程设计
-- [design-architect](mdc:skills/design-architect/SKILL.md) - 架构设计
-- [design-feature](mdc:skills/design-feature/SKILL.md) - 功能设计
-- [design-task-planning](mdc:skills/design-task-planning/SKILL.md) - 任务规划
-- [design-delivery-plan](mdc:skills/design-delivery-plan/SKILL.md) - 交付计划
+- [techdesign-04-entity](mdc:skills/techdesign-04-entity/SKILL.md) - 实体建模
+- [techdesign-05-database](mdc:skills/techdesign-05-database/SKILL.md) - 数据库设计
+- [techdesign-06-api](mdc:skills/techdesign-06-api/SKILL.md) - API 设计
+- [techdesign-02-process](mdc:skills/techdesign-02-process/SKILL.md) - 流程设计
+- [techdesign-01-architecture](mdc:skills/techdesign-01-architecture/SKILL.md) - 架构设计
+- [techdesign-03-feature](mdc:skills/techdesign-03-feature/SKILL.md) - 功能设计
+- [techdesign-07-delivery-planning](mdc:skills/techdesign-07-delivery-planning/SKILL.md) - 任务规划
 - [doc-git-list](mdc:skills/doc-git-list/SKILL.md) - 项目结构分析
-- [doc-extract-proj-knowledge](mdc:skills/doc-extract-proj-knowledge/SKILL.md) - 项目知识提取
+- [doc-extract-knowledge](mdc:skills/doc-extract-knowledge/SKILL.md) - 项目知识提取
 - [doc-analyze-code](mdc:skills/doc-analyze-code/SKILL.md) - 代码分析
 - [doc-index](mdc:skills/doc-index/SKILL.md) - 文档索引生成
 

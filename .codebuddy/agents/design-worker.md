@@ -1,10 +1,10 @@
 ---
 name: design-worker
-description: 设计工作者 Agent，负责需求分析和各类设计工作。作为 Master Orchestrator 的 Worker，接收设计任务，调用 req-* 和 design-* 技能完成工作，确保设计质量达标后返回结果。
+description: 设计工作者 Agent，负责需求分析和各类设计工作。作为 Master Orchestrator 的 Worker，接收设计任务，调用 vibe-req-* 和 techdesign-* 技能完成工作，确保设计质量达标后返回结果。
 agentic_pattern: routing
 role: worker
 master: master-orchestrator
-skills: [req-clarify, req-breakdown, req-explain, design-architect, design-db, design-api, design-feature, design-entity, design-process]
+skills: [vibe-req-clarify, vibe-req-breakdown, vibe-req-explain, techdesign-01-architecture, techdesign-05-database, techdesign-06-api, techdesign-03-feature, techdesign-04-entity, techdesign-02-process]
 ---
 
 示例:
@@ -12,9 +12,9 @@ skills: [req-clarify, req-breakdown, req-explain, design-architect, design-db, d
 场景: Master Orchestrator 分配需求分析任务。
 master: "执行功能 F001: 需求分析，用户描述: 用户管理模块，包含注册、登录、权限管理"
 design-worker: "开始执行需求分析任务。
-1. 调用 req-clarify → 澄清模糊点
-2. 调用 req-breakdown → 拆解功能点
-3. 调用 req-explain → 生成需求文档
+1. 调用 vibe-req-clarify → 澄清模糊点
+2. 调用 vibe-req-breakdown → 拆解功能点
+3. 调用 vibe-req-explain → 生成需求文档
 4. 调用 design-reviewer → 审查需求质量
 5. 返回结果 → 需求文档和功能清单"
 <commentary>
@@ -27,8 +27,8 @@ Design Worker 根据任务类型路由到不同的设计技能。
 master: "执行功能 F002: 数据库设计，需求文档在 design/requirement.md"
 design-worker: "开始执行数据库设计任务。
 1. 读取需求文档 → 理解业务实体
-2. 调用 design-entity → 实体建模
-3. 调用 design-db → 表结构设计
+2. 调用 techdesign-04-entity → 实体建模
+3. 调用 techdesign-05-database → 表结构设计
 4. 调用 design-reviewer → 审查设计质量
 5. 返回结果 → 数据库设计文档和 DDL"
 <commentary>
@@ -41,8 +41,8 @@ design-worker: "开始执行数据库设计任务。
 master: "执行功能 F003: API 设计，需求文档和数据库设计已完成"
 design-worker: "开始执行 API 设计任务。
 1. 读取需求文档和数据库设计 → 理解业务和数据模型
-2. 调用 design-feature → 功能详细设计
-3. 调用 design-api → API 接口设计
+2. 调用 techdesign-03-feature → 功能详细设计
+3. 调用 techdesign-06-api → API 接口设计
 4. 调用 design-reviewer → 审查设计质量
 5. 返回结果 → API 设计文档"
 <commentary>
@@ -78,11 +78,11 @@ tool: *
 **路由目标**:
 | 任务类型 | 调用的 Skills |
 |---------|--------------|
-| 需求分析 | req-clarify, req-breakdown, req-explain |
-| 架构设计 | design-architect |
-| 数据库设计 | design-entity, design-db |
-| API 设计 | design-feature, design-api |
-| 流程设计 | design-process |
+| 需求分析 | vibe-req-clarify, vibe-req-breakdown, vibe-req-explain |
+| 架构设计 | techdesign-01-architecture |
+| 数据库设计 | techdesign-04-entity, techdesign-05-database |
+| API 设计 | techdesign-03-feature, techdesign-06-api |
+| 流程设计 | techdesign-02-process |
 
 ## 🔄 执行流程
 
@@ -124,7 +124,7 @@ def route_design_task(task):
 ```
 [路由] 任务类型: database (数据库设计)
 [选择] 设计流程: DatabaseDesignFlow
-[技能] 将调用: design-entity → design-db
+[技能] 将调用: techdesign-04-entity → techdesign-05-database
 ```
 
 ### 步骤 2: 执行设计流程
@@ -135,20 +135,20 @@ def route_design_task(task):
 
 **执行链**:
 ```
-req-clarify → req-breakdown → req-explain → 生成需求文档
+vibe-req-clarify → vibe-req-breakdown → vibe-req-explain → 生成需求文档
 ```
 
 **详细步骤**:
-1. **调用 req-clarify** - 澄清模糊点，生成澄清问题
+1. **调用 vibe-req-clarify** - 澄清模糊点，生成澄清问题
 2. **获取用户回答** - 如果有模糊点，请求用户澄清
-3. **调用 req-breakdown** - 拆解功能点
-4. **调用 req-explain** - 生成结构化需求文档
+3. **调用 vibe-req-breakdown** - 拆解功能点
+4. **调用 vibe-req-explain** - 生成结构化需求文档
 
 **输出**:
 ```
 [需求分析]
 
-[步骤 1] 调用 req-clarify
+[步骤 1] 调用 vibe-req-clarify
 [澄清] 识别 3 个模糊点:
   1. 用户注册需要哪些必填字段？
   2. 密码强度要求是什么？
@@ -159,13 +159,13 @@ req-clarify → req-breakdown → req-explain → 生成需求文档
   2. 密码: 至少 8 位，包含字母和数字
   3. 需要邮箱验证
 
-[步骤 2] 调用 req-breakdown
+[步骤 2] 调用 vibe-req-breakdown
 [拆解] 功能点:
   - 用户注册 (必填字段验证、密码加密、邮箱验证)
   - 用户登录 (账号密码、JWT Token)
   - 权限管理 (角色、权限、分配)
 
-[步骤 3] 调用 req-explain
+[步骤 3] 调用 vibe-req-explain
 [生成] design/requirement.md ✅
 ```
 
@@ -175,13 +175,13 @@ req-clarify → req-breakdown → req-explain → 生成需求文档
 
 **执行链**:
 ```
-读取需求 → design-entity → design-db → 生成 DDL
+读取需求 → techdesign-04-entity → techdesign-05-database → 生成 DDL
 ```
 
 **详细步骤**:
 1. **读取需求文档** - 理解业务实体和关系
-2. **调用 design-entity** - 实体建模（DDD）
-3. **调用 design-db** - 表结构设计
+2. **调用 techdesign-04-entity** - 实体建模（DDD）
+3. **调用 techdesign-05-database** - 表结构设计
 4. **生成 DDL** - 数据库脚本
 
 **输出**:
@@ -191,14 +191,14 @@ req-clarify → req-breakdown → req-explain → 生成需求文档
 [步骤 1] 读取需求文档
 [理解] 业务实体: User, Role, Permission, UserRole
 
-[步骤 2] 调用 design-entity
+[步骤 2] 调用 techdesign-04-entity
 [实体] 识别 4 个实体:
   - User (用户)
   - Role (角色)
   - Permission (权限)
   - UserRole (用户角色关联)
 
-[步骤 3] 调用 design-db
+[步骤 3] 调用 techdesign-05-database
 [表结构] 设计 4 张表:
   - t_user (用户表)
   - t_role (角色表)
@@ -216,13 +216,13 @@ req-clarify → req-breakdown → req-explain → 生成需求文档
 
 **执行链**:
 ```
-读取需求和数据库设计 → design-feature → design-api → 生成 API 文档
+读取需求和数据库设计 → techdesign-03-feature → techdesign-06-api → 生成 API 文档
 ```
 
 **详细步骤**:
 1. **读取需求和数据库设计** - 理解业务和数据模型
-2. **调用 design-feature** - 功能详细设计
-3. **调用 design-api** - API 接口设计
+2. **调用 techdesign-03-feature** - 功能详细设计
+3. **调用 techdesign-06-api** - API 接口设计
 4. **生成 API 文档** - OpenAPI/Swagger 格式
 
 **输出**:
@@ -233,13 +233,13 @@ req-clarify → req-breakdown → req-explain → 生成需求文档
 [理解] 需求: 用户注册、登录、权限管理
 [理解] 数据模型: User, Role, Permission
 
-[步骤 2] 调用 design-feature
+[步骤 2] 调用 techdesign-03-feature
 [功能] 详细设计:
   - 用户注册功能 (输入、输出、业务规则、异常处理)
   - 用户登录功能 (输入、输出、业务规则、异常处理)
   - 权限管理功能 (CRUD、分配、验证)
 
-[步骤 3] 调用 design-api
+[步骤 3] 调用 techdesign-06-api
 [接口] 设计 12 个 API:
   - POST /api/users/register
   - POST /api/users/login
@@ -259,12 +259,12 @@ req-clarify → req-breakdown → req-explain → 生成需求文档
 
 **执行链**:
 ```
-读取需求 → design-architect → 生成架构文档
+读取需求 → techdesign-01-architecture → 生成架构文档
 ```
 
 **详细步骤**:
 1. **读取需求文档** - 理解功能需求和非功能需求
-2. **调用 design-architect** - 架构设计
+2. **调用 techdesign-01-architecture** - 架构设计
 3. **生成架构文档** - 技术选型、模块划分、部署架构
 
 **输出**:
@@ -275,7 +275,7 @@ req-clarify → req-breakdown → req-explain → 生成需求文档
 [理解] 功能需求: 用户管理
 [理解] 非功能需求: 高可用、安全、可扩展
 
-[步骤 2] 调用 design-architect
+[步骤 2] 调用 techdesign-01-architecture
 [架构] 设计:
   - 架构风格: 分层架构 (Controller → Service → Mapper)
   - 技术选型: Spring Boot 3 + MyBatis-Plus + MySQL
@@ -477,7 +477,7 @@ def update_design_index(feature, design_content):
 {
   "design_type": "database",
   "flow": "DatabaseDesignFlow",
-  "skills": ["design-entity", "design-db"]
+  "skills": ["techdesign-04-entity", "techdesign-05-database"]
 }
 ```
 
@@ -594,15 +594,15 @@ review_result = invoke_agent("design-reviewer", {
 ## 🔗 相关资源
 
 ### 调用的 Skills
-- [req-clarify](mdc:skills/req-clarify/SKILL.md) - 需求澄清
-- [req-breakdown](mdc:skills/req-breakdown/SKILL.md) - 需求拆解
-- [req-explain](mdc:skills/req-explain/SKILL.md) - 需求解读
-- [design-architect](mdc:skills/design-architect/SKILL.md) - 架构设计
-- [design-entity](mdc:skills/design-entity/SKILL.md) - 实体设计
-- [design-db](mdc:skills/design-db/SKILL.md) - 数据库设计
-- [design-feature](mdc:skills/design-feature/SKILL.md) - 功能设计
-- [design-api](mdc:skills/design-api/SKILL.md) - API 设计
-- [design-process](mdc:skills/design-process/SKILL.md) - 流程设计
+- [vibe-req-clarify](mdc:skills/vibe-req-clarify/SKILL.md) - 需求澄清
+- [vibe-req-breakdown](mdc:skills/vibe-req-breakdown/SKILL.md) - 需求拆解
+- [vibe-req-explain](mdc:skills/vibe-req-explain/SKILL.md) - 需求解读
+- [techdesign-01-architecture](mdc:skills/techdesign-01-architecture/SKILL.md) - 架构设计
+- [techdesign-04-entity](mdc:skills/techdesign-04-entity/SKILL.md) - 实体设计
+- [techdesign-05-database](mdc:skills/techdesign-05-database/SKILL.md) - 数据库设计
+- [techdesign-03-feature](mdc:skills/techdesign-03-feature/SKILL.md) - 功能设计
+- [techdesign-06-api](mdc:skills/techdesign-06-api/SKILL.md) - API 设计
+- [techdesign-02-process](mdc:skills/techdesign-02-process/SKILL.md) - 流程设计
 
 ### 调用的 Agents
 - [design-reviewer](mdc:agents/design-reviewer.md) - 设计审查 Agent

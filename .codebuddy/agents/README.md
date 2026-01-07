@@ -106,8 +106,8 @@
 
 | Agent | 模式 | 职责 | 调用的 Skills/Agents |
 |-------|------|------|---------------------|
-| [initializer](./initializer.md) | Prompt Chaining | 环境初始化、功能列表生成 | init-*-scaffold, req-* |
-| [design-worker](./design-worker.md) | Routing | 需求分析、各类设计 | req-*, design-*, design-reviewer |
+| [initializer](./initializer.md) | Prompt Chaining | 环境初始化、功能列表生成 | init-*-scaffold, vibe-req-* |
+| [design-worker](./design-worker.md) | Routing | 需求分析、各类设计 | vibe-req-*, techdesign-*, design-reviewer |
 | [coding-worker](./coding-worker.md) | Prompt Chaining | 代码生成、代码审查、测试 | code-generator, code-reviewer-supervisor, tdd-* |
 
 ### 专业 Agents（被 Worker 调用）
@@ -133,10 +133,10 @@ Master Orchestrator:
 │   └── 初始化项目结构
 │
 ├── 调用 design-worker (F001-F004)
-│   ├── F001: 需求分析 → req-clarify, req-breakdown
-│   ├── F002: 数据库设计 → design-entity, design-db
-│   ├── F003: API 设计 → design-feature, design-api
-│   └── F004: 架构设计 → design-architect
+│   ├── F001: 需求分析 → vibe-req-clarify, vibe-req-breakdown
+│   ├── F002: 数据库设计 → techdesign-04-entity, techdesign-05-database
+│   ├── F003: API 设计 → techdesign-03-feature, techdesign-06-api
+│   └── F004: 架构设计 → techdesign-01-architecture
 │
 ├── 调用 coding-worker (F005-F008)
 │   ├── F005: 用户注册接口 → code-generator, code-reviewer-supervisor
@@ -203,7 +203,7 @@ workspace/{task-id}/                 # 任务工作目录（统一工作空间�
 - ✅ 任务元数据存放在 `workspace/{task-id}/` 下，与现有 Skills 统一
 - ✅ 源代码和测试代码直接写入项目对应目录
 - ✅ 遵循项目现有的目录结构和代码规范
-- ✅ 与 `design-feature`、`cr-java-code`、`tdd-build-test-case` 等 Skills 的输出路径一致
+- ✅ 与 `techdesign-03-feature`、`cr-java-code`、`tdd-build-test-case` 等 Skills 的输出路径一致
 
 ## 🧠 上下文管理机制
 

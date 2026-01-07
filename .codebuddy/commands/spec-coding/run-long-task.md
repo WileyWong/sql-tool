@@ -1,13 +1,6 @@
 ---
-command_id: spec-coding.run-long-task
 command_name: 执行长任务
-category: spec-coding
 description: 驱动长时间运行的 Agent 执行大型任务。基于 Anthropic 最佳实践，支持跨会话任务管理、进度追踪、状态恢复和多 Agent 协作。适用于需要多步骤、多会话完成的复杂任务。
-allowed-tools: read_file, write_to_file, execute_command, search_content, list_files
-argument-hint: <action> [task-id]
-estimated_time: 30-180 minutes (跨多个会话)
-workflow_type: conditional
-dependencies: [master-orchestrator, initializer, design-worker, coding-worker]
 ---
 
 # Command: 执行长任务
@@ -539,7 +532,7 @@ workspace/{task-id}/                 # 任务工作目录（统一工作空间�
 - ✅ 任务元数据存放在 `workspace/{task-id}/` 下，与现有 Skills 统一
 - ✅ 源代码和测试代码直接写入项目对应目录
 - ✅ 遵循项目现有的目录结构和代码规范
-- ✅ 与 `design-feature`、`cr-java-code`、`tdd-build-test-case` 等 Skills 的输出路径一致
+- ✅ 与 `techdesign-03-feature`、`cr-java-code`、`tdd-build-test-case` 等 Skills 的输出路径一致
 
 ---
 

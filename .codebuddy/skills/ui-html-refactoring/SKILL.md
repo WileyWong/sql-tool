@@ -22,6 +22,7 @@ description: 前端页面重构与优化。包含HTML结构优化、CSS架构重
 | **Vue+TS** | Vue TypeScript最佳实践 | [vue-typescript.md](vue-typescript.md) |
 | **Composables** | Composables设计模式 | [composables-patterns.md](composables-patterns.md) |
 | **可访问性测试** | A11y自动化测试与手动检查 | [accessibility-testing.md](accessibility-testing.md) |
+| **测试属性规范** | data-testid 命名与使用规范 | [data-testid-spec.md](data-testid-spec.md) |
 
 ## 适用场景
 
@@ -52,6 +53,8 @@ description: 前端页面重构与优化。包含HTML结构优化、CSS架构重
 | Vue 2→3迁移 | Vue迁移指南 |
 | Vue+TS改造 | Vue+TS最佳实践 |
 | 可访问性审计 | 可访问性测试指南 |
+| 添加测试属性 | 测试属性规范（data-testid） |
+| 自动化测试准备 | 测试属性规范 + 可访问性测试 |
 
 ## 综合执行流程
 
@@ -79,6 +82,7 @@ description: 前端页面重构与优化。包含HTML结构优化、CSS架构重
 | 标题层级 | 每页一个h1，层级递进不跳级 |
 | 可访问性 | 图片alt、表单label、ARIA属性、键盘导航 |
 | 结构优化 | 嵌套不超过5层，消除冗余包装 |
+| 测试属性 | 交互元素添加 `data-testid`，支持自动化测试 |
 
 详见：[html-refactoring.md](html-refactoring.md)
 
@@ -167,6 +171,7 @@ description: 前端页面重构与优化。包含HTML结构优化、CSS架构重
 | Vue+TS | [vue-typescript.md](vue-typescript.md) | Vue TypeScript最佳实践 |
 | Composables | [composables-patterns.md](composables-patterns.md) | Composables设计模式 |
 | 可访问性测试 | [accessibility-testing.md](accessibility-testing.md) | A11y测试指南 |
+| 测试属性规范 | [data-testid-spec.md](data-testid-spec.md) | data-testid 命名与使用规范 |
 | 检查清单 | [checklist.md](checklist.md) | 综合检查清单 |
 | CSS示例 | [examples.md](examples.md) | 重构前后对比示例 |
 | CSS模板 | [templates/refactored.css](templates/refactored.css) | 重构后CSS模板 |
@@ -176,6 +181,12 @@ description: 前端页面重构与优化。包含HTML结构优化、CSS架构重
 | HTML诊断 | [scripts/analyze-html.py](scripts/analyze-html.py) | HTML自动诊断工具 |
 
 ## 📝 版本历史
+
+- **v1.2.0** (2026-01-04): 测试属性增强
+  - 新增 data-testid-spec.md：测试属性命名规范与使用指南
+  - 更新 checklist.md：增加测试属性检查项
+  - 更新场景判断：增加测试属性相关场景
+  - 更新 HTML 重构要点：增加测试属性说明
 
 - **v1.1.0** (2025-12-17): 功能增强
   - 新增 modern-css.md：Container Queries、CSS Layers、:has()、Subgrid 等

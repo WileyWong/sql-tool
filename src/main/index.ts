@@ -4,6 +4,7 @@ import { setupConnectionHandlers } from './ipc/connection'
 import { setupDatabaseHandlers } from './ipc/database'
 import { setupQueryHandlers } from './ipc/query'
 import { setupFileHandlers } from './ipc/file'
+import { initSqlLanguageServer } from './sql-language-server'
 
 // 禁用硬件加速（解决某些系统上的渲染问题）
 app.disableHardwareAcceleration()
@@ -48,6 +49,9 @@ function setupIpcHandlers() {
   setupDatabaseHandlers(ipcMain)
   setupQueryHandlers(ipcMain)
   setupFileHandlers(ipcMain)
+  
+  // 初始化 SQL Language Server
+  initSqlLanguageServer()
 }
 
 app.whenReady().then(() => {

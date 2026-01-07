@@ -639,7 +639,7 @@ ALTER TABLE t_order ADD CONSTRAINT fk_order_user
 
 **职责分离**:
 - **Agent 职责**: 评估设计质量、发现问题、优化设计、验证优化效果
-- **Skills 职责**: 生成设计（如 design-database、design-api）
+- **Skills 职责**: 生成设计（如 techdesign-05-database、techdesign-06-api）
 
 ### 原则 2: 透明性（Transparency）
 
@@ -928,12 +928,12 @@ Agent: 我来快速评估设计质量。
 ## 🔗 相关资源
 
 ### 核心 Skills
-- [design-db 技能](mdc:skills/design-db/SKILL.md) - 数据库设计
-- [design-api 技能](mdc:skills/design-api/SKILL.md) - API 设计
-- [design-architect 技能](mdc:skills/design-architect/SKILL.md) - 架构设计
-- [design-entity 技能](mdc:skills/design-entity/SKILL.md) - 实体设计
-- [design-process 技能](mdc:skills/design-process/SKILL.md) - 业务流程设计
-- [design-feature 技能](mdc:skills/design-feature/SKILL.md) - 功能详细设计
+- [techdesign-05-database 技能](mdc:skills/techdesign-05-database/SKILL.md) - 数据库设计
+- [techdesign-06-api 技能](mdc:skills/techdesign-06-api/SKILL.md) - API 设计
+- [techdesign-01-architecture 技能](mdc:skills/techdesign-01-architecture/SKILL.md) - 架构设计
+- [techdesign-04-entity 技能](mdc:skills/techdesign-04-entity/SKILL.md) - 实体设计
+- [techdesign-02-process 技能](mdc:skills/techdesign-02-process/SKILL.md) - 业务流程设计
+- [techdesign-03-feature 技能](mdc:skills/techdesign-03-feature/SKILL.md) - 功能详细设计
 
 ### 相关 Commands
 - [设计阶段 Command](mdc:commands/spec-coding/design.md) - 生成设计文档的 Command

@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "name": "E2E Testing AI Execution Override Configuration",
+  "description": "E2E 测试 AI 执行模式专用覆盖配置，仅在通过 MCP 工具执行时生效。此配置会自动覆盖 Excel/YAML 中的默认配置，以优化 AI 执行时的上下文占用和性能。",
+  "enabled": true,
+  
+  "browser": {
+    "viewport": {
+      "width": 1024,
+      "height": 768,
+      "description": "AI 执行使用中等视口（1024x768）以平衡截图像素和可读性，默认配置为 1920x1080"
+    },
+    "deviceScaleFactor": 1.0,
+    "description": "浏览器配置覆盖"
+  },
+
+  "screenshot": {
+    "format": "jpeg",
+    "quality": 70,
+    "fullPage": false,
+    "onFailure": true,
+    "onSuccess": false,
+    "strategy": "only-on-failure",
+    "maxOutputLength": 50000,
+    "description": "AI 执行使用压缩格式（JPEG）和中低质量（70）以减少上下文占用，默认配置为 PNG 格式、质量 100。仅失败时截图，成功时不截图。"
+  },
+  
+  "video": {
+    "enabled": false,
+    "description": "AI 执行默认禁用视频录制以节省资源。用户可在执行指令中明确要求启用录屏，录屏在批次级别生效（整个对话为一个批次）。启用方式：MCP Server 配置 --save-video 参数，批次结束时调用 browser_close 保存视频。"
+  },
+  
+  "trace": {
+    "enabled": false,
+    "description": "AI 执行禁用 Trace 记录"
+  },
+  
+  "retry": {
+    "maxRetries": 0,
+    "retryDelay": 1000,
+    "retryableErrors": ["TimeoutError", "ElementNotFound"],
+    "description": "AI 执行减少重试次数或完全禁用重试以快速失败，默认配置可能包含重试机制"
+  },
+  
+  "execution": {
+    "timeout": 60000,
+    "stepTimeout": 15000,
+    "continueOnFailure": true,
+    "description": "执行超时和重试策略"
+  },
+  
+  "performance": {
+    "description": "性能优化配置",
+    "metrics": {
+      "screenshotSize": {
+        "expected": "30-50KB",
+        "comparison": "vs default 500KB-2MB"
+      },
+      "contextUsage": {
+        "expected": "50-100KB",
+        "comparison": "vs default 500-1500KB"
+      },
+      "executionSpeed": {
+        "expected": "Fast",
+        "comparison": "vs default Medium"
+      }
+    }
+  }
+}

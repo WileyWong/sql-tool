@@ -82,6 +82,41 @@ const api = {
       format: 'csv' | 'json'
     ): Promise<{ success: boolean; filePath?: string; canceled?: boolean; message?: string }> =>
       ipcRenderer.invoke(IpcChannels.FILE_EXPORT, { columns, rows, format })
+  },
+
+  // SQL Language Server
+  sqlLanguageServer: {
+    // 自动补全
+    completion: (documentText: string, line: number, character: number) =>
+      ipcRenderer.invoke('sql-ls:completion', documentText, line, character),
+    
+    // 语法诊断
+    validate: (documentText: string) =>
+      ipcRenderer.invoke('sql-ls:validate', documentText),
+    
+    // 悬浮提示
+    hover: (documentText: string, line: number, character: number) =>
+      ipcRenderer.invoke('sql-ls:hover', documentText, line, character),
+    
+    // 代码格式化
+    format: (documentText: string) =>
+      ipcRenderer.invoke('sql-ls:format', documentText),
+    
+    // 更新表元数据
+    updateTables: (tables: { name: string; comment?: string; columns: { name: string; type: string; nullable: boolean; defaultValue?: string; comment?: string; isPrimaryKey?: boolean }[] }[]) =>
+      ipcRenderer.invoke('sql-ls:updateTables', tables),
+    
+    // 更新视图元数据
+    updateViews: (views: { name: string; comment?: string }[]) =>
+      ipcRenderer.invoke('sql-ls:updateViews', views),
+    
+    // 设置上下文
+    setContext: (connectionId: string | null, database: string | null) =>
+      ipcRenderer.invoke('sql-ls:setContext', connectionId, database),
+    
+    // 清空元数据
+    clear: () =>
+      ipcRenderer.invoke('sql-ls:clear')
   }
 }
 

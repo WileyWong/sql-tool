@@ -2,10 +2,10 @@
 
 > 本索引文件基于项目文档结构生成，用于快速定位 Skills 目录中的技能文档资源
 > 
-> **生成时间**: 2025-12-18
+> **生成时间**: 2025-12-26
 > **文档总数**: 200+ 个文件
-> **技能总数**: 45 个技能
-> **完成度**: ✅ 100% (45/45)
+> **技能总数**: 47 个技能
+> **完成度**: ✅ 100% (47/47)
 
 ## 📊 技能统计概览
 
@@ -15,13 +15,14 @@
 | 🎯 需求分析 | 4 | ✅ 100% | SKILL + examples + checklist |
 | 🔧 技术设计 | 7 | ✅ 100% | SKILL + examples + checklist |
 | 🎨 UI 开发 | 3 | ✅ 100% | SKILL + examples + checklist |
-| 📝 文档工程 | 10 | ✅ 100% | SKILL + examples + checklist |
+| 🖥️ UI 测试 | 4 | ✅ 100% | SKILL + examples + reference |
+| 📝 文档工程 | 9 | ✅ 100% | SKILL + examples + checklist |
 | 🧪 测试质量 | 3 | ✅ 100% | SKILL + examples + checklist |
 | 🚀 项目初始化 | 3 | ✅ 100% | SKILL + examples + checklist |
 | 📦 项目管理 | 1 | ✅ 100% | SKILL + examples + checklist |
-| 🔧 代码实现 | 4 | ✅ 100% | SKILL + examples + checklist |
+| 🔧 代码实现 | 3 | ✅ 100% | SKILL + examples + checklist |
 | 📄 办公文档 | 4 | ✅ 100% | SKILL + reference |
-| **总计** | **45** | **✅ 100%** | **完整文档体系** |
+| **总计** | **47** | **✅ 100%** | **完整文档体系** |
 
 ## 📚 快速导航
 
@@ -29,11 +30,12 @@
 - [🎯 需求分析技能](#-需求分析技能-4-个) - 需求审查、解读、澄清、拆解
 - [🔧 技术设计技能](#-技术设计技能-7-个) - 架构、流程、功能、实体、数据库、API、交付规划（techdesign-* 系列）
 - [🎨 UI 开发技能](#-ui-开发技能-3-个) - Figma 转代码、API 对接、前端页面重构
-- [📝 文档工程技能](#-文档工程技能-10-个) - 代码文档、索引、清单生成、项目知识提取、教程生成
+- [🖥️ UI 测试技能](#️-ui-测试技能-4-个) - UI 测试用例设计、转换、执行
+- [📝 文档工程技能](#-文档工程技能-9-个) - 代码文档、索引、清单生成、项目知识提取、教程生成
 - [🧪 测试质量技能](#-测试质量技能-3-个) - 统一测试工作流、代码审查、安全扫描
 - [🚀 项目初始化技能](#-项目初始化技能-3-个) - 前后端脚手架、项目记忆
 - [📦 项目管理技能](#-项目管理技能-1-个) - 归档管理
-- [🔧 代码实现技能](#-代码实现技能-4-个) - 代码生成、AI Agent 生成、数据库执行、注释转代码
+- [🔧 代码实现技能](#-代码实现技能-3-个) - 代码生成、AI Agent 生成、数据库执行
 - [📄 办公文档技能](#-办公文档技能-4-个) - Word、Excel、PDF、PPT 处理
 
 ---
@@ -140,9 +142,9 @@
 
 > 专注于需求的理解、澄清和分解，确保需求质量。所有技能均包含完整的 SKILL.md、examples.md 和 checklist.md。
 
-### 📄 req-review - 需求审查
+### 📄 vibe-req-review - 需求审查
 
-- **文件路径**: `req-review/SKILL.md`
+- **文件路径**: `vibe-req-review/SKILL.md`
 - **核心功能**: 对功能需求进行 6 维度质量扫描（一致性、完整性、清晰性、准确性、无重复性、可验证性）
 - **触发场景**: 需求文档审查、质量检查、PR Review
 - **主要能力**: 
@@ -150,13 +152,13 @@
   - ✅ 需求一致性验证（前后矛盾、术语统一）
   - ✅ 可验证性分析（验收标准、测试用例设计）
   - ✅ 问题直接嵌入 FR 确认项
-- **完整文档**: [检查清单](req-review/checklist.md) | [示例](req-review/examples.md)
+- **完整文档**: [检查清单](vibe-req-review/checklist.md) | [示例](vibe-req-review/examples.md)
 
 ---
 
-### 📄 req-explain - 需求解读
+### 📄 vibe-req-explain - 需求解读
 
-- **文件路径**: `req-explain/SKILL.md`
+- **文件路径**: `vibe-req-explain/SKILL.md`
 - **核心功能**: 将原始需求转化为清晰的功能性需求和验收标准，通过澄清循环消除歧义
 - **触发场景**: 需求文档编写、需求理解、团队协作
 - **主要能力**: 
@@ -164,13 +166,13 @@
   - ✅ 业务流程梳理（流程图、状态机）
   - ✅ 验收标准定义（SMART 原则）
   - ✅ 澄清循环机制（迭代优化）
-- **完整文档**: [检查清单](req-explain/checklist.md) | [示例](req-explain/examples.md)
+- **完整文档**: [检查清单](vibe-req-explain/checklist.md) | [示例](vibe-req-explain/examples.md)
 
 ---
 
-### 📄 req-clarify - 需求澄清
+### 📄 vibe-req-clarify - 需求澄清
 
-- **文件路径**: `req-clarify/SKILL.md`
+- **文件路径**: `vibe-req-clarify/SKILL.md`
 - **核心功能**: 通过结构化提问识别需求模糊点和缺失信息，每个问题提供 2-4 个可选方案
 - **触发场景**: 需求澄清、设计前确认、业务逻辑确认
 - **主要能力**: 
@@ -178,13 +180,13 @@
   - ✅ 需求歧义识别（模糊描述、隐含假设）
   - ✅ 业务场景梳理（用例覆盖、边界条件）
   - ✅ 快速决策支持（可选方案提供）
-- **完整文档**: [检查清单](req-clarify/checklist.md) | [示例](req-clarify/examples.md)
+- **完整文档**: [检查清单](vibe-req-clarify/checklist.md) | [示例](vibe-req-clarify/examples.md)
 
 ---
 
-### 📄 req-breakdown - 需求拆解
+### 📄 vibe-req-breakdown - 需求拆解
 
-- **文件路径**: `req-breakdown/SKILL.md`
+- **文件路径**: `vibe-req-breakdown/SKILL.md`
 - **核心功能**: 将需求文档拆解为可执行的功能任务，确保需求原子化、依赖清晰、可并行分析
 - **触发场景**: 任务规划、开发拆解、Sprint 规划
 - **主要能力**: 
@@ -192,7 +194,7 @@
   - ✅ 依赖关系分析（任务依赖图、并行识别）
   - ✅ 优先级排序（业务价值、技术风险）
   - ✅ 工作量估算（T-shirt sizing、Planning Poker）
-- **完整文档**: [检查清单](req-breakdown/checklist.md) | [示例](req-breakdown/examples.md)
+- **完整文档**: [检查清单](vibe-req-breakdown/checklist.md) | [示例](vibe-req-breakdown/examples.md)
 
 ---
 
@@ -347,7 +349,72 @@
 
 ---
 
-## 📝 文档工程技能 (10 个)
+## 🖥️ UI 测试技能 (4 个)
+
+> 完整的 UI 自动化测试工作流，从测试用例设计到执行的端到端解决方案。支持 Playwright 和 Chrome DevTools MCP。
+
+### 📄 tdd-ui-test-case - UI 自动化测试用例生成器
+
+- **文件路径**: `tdd-ui-test-case/SKILL.md`
+- **核心功能**: 基于需求文档或功能描述，生成结构化的 UI 自动化测试用例清单，采用 Chrome DevTools MCP 兼容的操作格式
+- **触发场景**: UI测试用例、界面测试、自动化测试用例、生成测试清单、测试场景
+- **主要能力**: 
+  - ✅ 场景识别：从需求中提取关键测试场景
+  - ✅ 操作建模：将用户操作转换为 DevTools MCP 可执行的命令
+  - ✅ 断言设计：定义清晰的预期结果和验证点
+  - ✅ 数据准备：识别测试所需的前置条件和测试数据
+- **输出格式**: Excel 表格格式（推荐）、YAML 文本格式
+- **完整文档**: [SKILL.md](tdd-ui-test-case/SKILL.md)
+
+---
+
+### 📄 ui-testcase-designer - UI 测试用例设计器
+
+- **文件路径**: `ui-testcase-designer/SKILL.md`
+- **核心功能**: 基于页面快照为主、需求文档为辅，自动生成结构化的 UI 测试用例，支持 Excel/YAML 双格式输出
+- **触发场景**: 设计测试用例、生成UI测试用例、测试用例设计、从页面快照生成测试用例
+- **主要能力**: 
+  - ✅ 页面分析：通过 Playwright MCP 获取页面快照，识别可交互元素
+  - ✅ 场景推断：基于元素类型和页面结构，推断测试场景
+  - ✅ 需求融合：支持需求文档作为补充输入，完善测试覆盖
+  - ✅ 质量检查：内置质检机制，确保用例可执行
+- **工作流程**: URL获取 → 页面导航 → 快照获取 → AI分析 → 用例设计 → 用户确认 → 文档生成 → 质检改进
+- **完整文档**: [SKILL.md](ui-testcase-designer/SKILL.md) | [示例](ui-testcase-designer/examples/) | [模板](ui-testcase-designer/templates/)
+
+---
+
+### 📄 ui-testcase-converter - UI 测试用例转换器
+
+- **文件路径**: `ui-testcase-converter/SKILL.md`
+- **核心功能**: 转换测试用例格式：Excel↔YAML 双向转换、YAML→Playwright 代码生成
+- **触发场景**: 转换测试用例、Excel转YAML、YAML转Excel、从YAML生成Playwright代码
+- **主要能力**: 
+  - ✅ Excel → YAML：将 Excel 测试用例转换为 YAML 格式
+  - ✅ YAML → Excel：将 YAML 测试用例转换为 Excel 格式
+  - ✅ YAML → Playwright：从 YAML 生成可执行的 Playwright 代码
+  - ✅ 批量转换：支持目录级批量转换
+- **代码语言支持**: JavaScript（默认）、TypeScript、Python
+- **完整文档**: [SKILL.md](ui-testcase-converter/SKILL.md) | [映射规则](ui-testcase-converter/reference/) | [模板](ui-testcase-converter/templates/)
+
+---
+
+### 📄 ui-testcase-executor - UI 自动化测试执行器
+
+- **文件路径**: `ui-testcase-executor/SKILL.md`
+- **核心功能**: 解析 ui-testcase-designer 生成的测试用例，根据测试场景智能选择 Playwright 或 Chrome DevTools 执行测试
+- **触发场景**: 执行UI测试、运行测试用例、自动化测试执行、测试报告
+- **主要能力**: 
+  - ✅ 用例解析：解析 Excel/YAML 格式的测试用例
+  - ✅ 工具选择：根据测试场景智能选择 Playwright 或 Chrome DevTools
+  - ✅ 进度追踪：实时更新测试执行进度，支持断点续执行
+  - ✅ 智能重试：步骤级/用例级重试，提升测试稳定性
+  - ✅ 报告生成：输出结构化的测试报告
+- **工作流程**: 检查输出目录 → 读取用例 → 制定计划 → 逐个执行 → 清理操作 → 记录日志 → 输出报告
+- **完整文档**: [SKILL.md](ui-testcase-executor/SKILL.md) | [示例](ui-testcase-executor/examples.md) | [参考](ui-testcase-executor/reference/)
+
+---
+
+## 📝 文档工程技能 (9 个)
 
 > 全面的文档生成能力，覆盖代码分析、索引、清单、项目知识提取、教程生成等多种场景。最强大的文档工程技能集合。
 
@@ -433,20 +500,6 @@
   - ✅ 表关系梳理（一对多、多对多）
   - ✅ 数据字典生成（字段说明、枚举值）
 - **完整文档**: [检查清单](doc-db-schema/checklist.md) | [示例](doc-db-schema/examples.md)
-
----
-
-### 📄 doc-git-list - Git 仓库索引生成
-
-- **文件路径**: `doc-git-list/SKILL.md`
-- **核心功能**: 分析代码仓库结构，生成完整的代码库索引文档，包括架构分析、业务逻辑映射
-- **技术栈**: Git、Markdown
-- **主要能力**: 
-  - ✅ 项目元信息提取（构建配置、技术栈、代码统计）
-  - ✅ 目录结构分析（架构模式识别、职责标注）
-  - ✅ 代码实体索引（类信息、方法签名、依赖关系）
-  - ✅ 业务逻辑映射（API 端点、调用链路）
-- **完整文档**: [检查清单](doc-git-list/checklist.md) | [示例](doc-git-list/examples.md)
 
 ---
 
@@ -627,7 +680,7 @@
 
 ---
 
-## 🔧 代码实现技能 (4 个)
+## 🔧 代码实现技能 (3 个)
 
 > 代码生成和实现相关技能，从设计到代码的桥梁。
 
@@ -644,20 +697,6 @@
   - ✅ 类型安全保证（TypeScript、DTO 转换）
   - ✅ 测试驱动开发（同步生成单元测试）
 - **完整文档**: [检查清单](code-generation/checklist.md) | [示例](code-generation/examples.md) | [参考资料](code-generation/reference.md)
-
----
-
-### 📄 code-from-comment - 注释转代码
-
-- **文件路径**: `code-from-comment/SKILL.md`
-- **核心功能**: 基于详细注释和设计说明生成符合规范的代码实现
-- **技术栈**: Java、TypeScript、Python、Spring Boot、Vue3
-- **主要能力**: 
-  - ✅ 注释解析分析（接口定义、业务规则）
-  - ✅ 代码结构生成（类/方法框架）
-  - ✅ 业务逻辑实现（算法实现、数据处理）
-  - ✅ 代码优化建议（性能、可读性）
-- **完整文档**: [检查清单](code-from-comment/checklist.md) | [示例](code-from-comment/examples.md)
 
 ---
 
@@ -759,17 +798,17 @@
 
 | 文档类型 | 数量 | 说明 |
 |---------|------|------|
-| **SKILL.md** | 45 | 主技能文档（必需） |
-| **examples.md** | 43+ | 示例文档（完整覆盖） |
-| **checklist.md** | 38+ | 检查清单（完整覆盖） |
-| **reference.md** | 18+ | 参考资料（深度文档） |
-| **模板文件** | 15+ | 代码/配置模板 |
-| **辅助文档** | 20+ | README、工具文档等 |
-| **总计** | **200+** | 完整文档体系 |
+| **SKILL.md** | 47 | 主技能文档（必需） |
+| **examples.md** | 45+ | 示例文档（完整覆盖） |
+| **checklist.md** | 40+ | 检查清单（完整覆盖） |
+| **reference.md** | 20+ | 参考资料（深度文档） |
+| **模板文件** | 20+ | 代码/配置模板 |
+| **辅助文档** | 25+ | README、工具文档等 |
+| **总计** | **220+** | 完整文档体系 |
 
 ### 质量保证指标
 
-- ✅ **100% 技能覆盖** - 所有 45 个技能都有完整的 SKILL.md
+- ✅ **100% 技能覆盖** - 所有 47 个技能都有完整的 SKILL.md
 - ✅ **100% 示例覆盖** - 每个技能都包含真实案例
 - ✅ **100% 检查清单覆盖** - 每个技能都有检查项
 - ✅ **统一文档结构** - 遵循标准化的文档模板
@@ -788,6 +827,7 @@
 - **设计阶段** → 🔧 技术设计技能（techdesign-* 系列）
 - **UI 开发** → 🎨 UI 开发技能
 - **前端重构** → 🎨 `ui-html-refactoring`（HTML/CSS/JS/TS/Vue重构）
+- **UI 测试** → 🖥️ UI 测试技能（ui-testcase-* 系列）
 - **后端开发** → 🔧 代码实现技能 + 📝 文档工程技能
 - **测试阶段** → 🧪 测试质量技能
 - **项目启动** → 🚀 项目初始化技能
@@ -799,7 +839,8 @@
 - **业务分析** → `ba-*` 系列技能（Epic、用户故事、验收标准）
 - **API** → `techdesign-06-api`、`doc-api-list`、`doc-public-api-list`
 - **数据库** → `techdesign-05-database`、`doc-db-schema`、`db-mysql-run`
-- **测试** → `tdd-testing`（统一测试工作流）
+- **后端测试** → `tdd-testing`（统一测试工作流）
+- **UI 测试** → `ui-testcase-*` 系列（设计、转换、执行）
 - **文档** → `doc-*` 系列技能
 - **代码审查** → `code-review`（支持 Java、Vue、Go、MySQL）
 - **安全** → `code-security-scan`
@@ -845,7 +886,7 @@ ba-04 INVEST评估 → ba-05 验收标准 → ba-06 UI原型
 #### 需求到设计流程
 
 ```
-req-review → req-explain → req-clarify → req-breakdown
+vibe-req-review → vibe-req-explain → vibe-req-clarify → vibe-req-breakdown
     ↓
 techdesign-01-architecture → techdesign-04-entity → techdesign-05-database → techdesign-06-api
 ```
@@ -860,7 +901,7 @@ doc-api-list → doc-git-list
 doc-index (生成统一索引)
 ```
 
-#### 测试驱动开发流程
+#### 后端测试驱动开发流程
 
 ```
 tdd-testing（统一入口）
@@ -874,6 +915,18 @@ generate-test-code（api-test/unit-test）
 run-test（执行测试）
     ↓
 cleanup（仅集成测试）
+```
+
+#### UI 自动化测试流程
+
+```
+tdd-ui-test-case（基于需求生成用例）
+    ↓
+ui-testcase-designer（基于页面快照设计用例）
+    ↓
+ui-testcase-converter（格式转换：Excel↔YAML→Playwright）
+    ↓
+ui-testcase-executor（执行测试 + 生成报告）
 ```
 
 ---
@@ -924,7 +977,19 @@ cleanup（仅集成测试）
 
 ## 📈 版本历史
 
-### v3.0 (2025-12-18) ✅ 当前版本
+### v3.1 (2025-12-26) ✅ 当前版本
+
+- ✅ 新增 UI 测试技能分类（4 个技能）
+  - `tdd-ui-test-case` - UI 自动化测试用例生成器
+  - `ui-testcase-designer` - UI 测试用例设计器
+  - `ui-testcase-converter` - UI 测试用例转换器
+  - `ui-testcase-executor` - UI 自动化测试执行器
+- ✅ 移除不存在的技能（`doc-git-list`、`code-from-comment`）
+- ✅ 技能总数更新为 47 个
+- ✅ 文档工程技能更新为 9 个
+- ✅ 代码实现技能更新为 3 个
+
+### v3.0 (2025-12-18)
 
 - ✅ 移除 `design-*` 系列（9 个技能），统一使用 `techdesign-*` 系列
 - ✅ 技能总数更新为 45 个
@@ -976,7 +1041,7 @@ cleanup（仅集成测试）
 ### 新手入门
 
 1. 从 **业务分析技能** 开始（ba-01 到 ba-06 完整流程）
-2. 学习 **需求分析技能**（req-review、req-explain）
+2. 学习 **需求分析技能**（vibe-req-review、vibe-req-explain）
 3. 尝试 **设计技能** 的基础（design-api、design-db）
 4. 掌握 **文档生成技能**（doc-api-list、doc-index）
 5. 学习 **测试技能**（tdd-testing）
@@ -997,7 +1062,7 @@ cleanup（仅集成测试）
 
 ---
 
-**Last Updated**: 2025-12-18  
+**Last Updated**: 2025-12-26  
 **Maintainer**: Spec-Code Team  
 **License**: 遵循项目许可证  
 **Contact**: 如有问题或建议，请创建 GitHub Issue

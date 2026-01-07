@@ -3,7 +3,7 @@ name: techdesign-07-delivery-planning
 description: 基于已明确的需求文档，制定科学的软件项目交付计划和技术方案 - 包含工作量评估、时间规划、资源配置、技术选型、任务拆解和风险识别
 category: techdesign
 keywords: [交付计划, 项目管理, 里程碑, 迭代规划, 风险管理, 任务规划, 任务分解, WBS]
-dependencies: [req-clarify]
+dependencies: [vibe-req-clarify]
 ---
 
 # Skill: 交付规划与技术方案 (Delivery Planning)

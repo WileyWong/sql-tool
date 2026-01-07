@@ -67,6 +67,16 @@ Vue 3 + TypeScript 代码审查检查清单，确保审查质量和一致性。
 - [ ] 无控制台打印敏感信息
 - [ ] 动态组件使用白名单验证
 
+### 可访问性与测试属性 ⭐ 新增
+- [ ] 交互元素有 `data-testid` 属性
+- [ ] 表单输入有 `data-testid` 属性
+- [ ] 图片有描述性 `alt` 属性
+- [ ] 表单控件有关联 `<label>`
+- [ ] 焦点状态清晰可见（`:focus-visible`）
+- [ ] 可键盘操作（Tab/Enter/Escape）
+
+> 详见：[accessibility-checklist.md](accessibility-checklist.md)
+
 ---
 
 ## 🔴 专业审查 (2-3h)
@@ -92,11 +102,21 @@ Vue 3 + TypeScript 代码审查检查清单，确保审查质量和一致性。
 - [ ] 测试覆盖率 ≥ 80%
 - [ ] 边界条件有测试用例
 
-### 无障碍性
-- [ ] 图片有 alt 属性
-- [ ] 表单有 label 关联
-- [ ] 可键盘导航
+### 可访问性与测试属性 ⭐ 增强
+- [ ] 图片有描述性 `alt` 属性
+- [ ] 表单有 `<label>` 关联
+- [ ] 可键盘导航（Tab/Enter/Escape）
 - [ ] ARIA 属性正确使用
+- [ ] 所有按钮有 `data-testid`
+- [ ] 所有表单输入有 `data-testid`
+- [ ] 表格行/列表项有唯一 `data-testid`
+- [ ] 模态框有 `data-testid` 和正确 ARIA
+- [ ] 动态内容有 `aria-live` 通知
+- [ ] 模态框有焦点陷阱
+- [ ] 颜色对比度 ≥ 4.5:1
+- [ ] Lighthouse 可访问性评分 ≥ 90
+
+> 详见：[accessibility-checklist.md](accessibility-checklist.md)
 
 ### 性能深度检查
 - [ ] Lighthouse 性能评分 > 90

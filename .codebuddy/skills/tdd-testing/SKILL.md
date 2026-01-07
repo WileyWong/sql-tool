@@ -198,12 +198,14 @@ checkpoint_1_validation:
 
 ### 策略1: api-test（集成测试代码）
 
-支持 **Java** 和 **Python** 两种语言：
+支持 **Java**、**Python**、**Go** 和 **Groovy/Spock** 四种语言：
 
 | 语言 | 技术栈 | 详细指南 |
 |------|--------|---------|
-| **Java** | JUnit 5, OkHttp3, Jackson | [strategies/generate-test-code/api-test/](strategies/generate-test-code/api-test/) |
+| **Java** | JUnit 5, OkHttp3, Jackson | [strategies/generate-test-code/api-test-java/](strategies/generate-test-code/api-test-java/) |
 | **Python** | pytest, requests, filelock | [strategies/generate-test-code/api-test-python/](strategies/generate-test-code/api-test-python/) |
+| **Go** | testing, testify, net/http | [strategies/generate-test-code/api-test-go/](strategies/generate-test-code/api-test-go/) |
+| **Groovy/Spock** | Spock, REST-assured | [strategies/generate-test-code/api-test-spock/](strategies/generate-test-code/api-test-spock/) |
 
 **Java 输出**:
 - 测试类文件 (`*ApiTest.java`)
@@ -214,15 +216,34 @@ checkpoint_1_validation:
 - pytest 配置 (`pytest.ini`)
 - 清理注册表 (`.cleanup_registry.json`)
 
+**Go 输出**:
+- 测试文件 (`*_api_test.go`)
+- 清理注册表 (`cleanup-registry.json`)
+
+**Groovy/Spock 输出**:
+- 测试类文件 (`*ApiSpec.groovy`)
+- 清理类 (`CleanupRegistry.groovy`)
+
 ### 策略2: unit-test（单元测试代码）
 
-**详细指南**: [strategies/generate-test-code/unit-test/](strategies/generate-test-code/unit-test/)
+支持 **Java**、**Go** 和 **Groovy/Spock** 三种语言：
 
-**技术栈**: JUnit 5, Mockito, AssertJ
+| 语言 | 技术栈 | 详细指南 |
+|------|--------|---------|
+| **Java** | JUnit 5, Mockito, AssertJ | [strategies/generate-test-code/unit-test-java/](strategies/generate-test-code/unit-test-java/) |
+| **Go** | testing, testify, mockery | [strategies/generate-test-code/unit-test-go/](strategies/generate-test-code/unit-test-go/) |
+| **Groovy/Spock** | Spock, given-when-then | [strategies/generate-test-code/unit-test-spock/](strategies/generate-test-code/unit-test-spock/) |
 
-**输出**:
+**Java 输出**:
 - 测试类文件 (`*Test.java`)
 - Mock 配置
+
+**Go 输出**:
+- 测试文件 (`*_test.go`)
+- Mock 文件 (`mocks/mock_*.go`)
+
+**Groovy/Spock 输出**:
+- 测试类文件 (`*Spec.groovy`)
 
 ---
 
@@ -252,9 +273,23 @@ checkpoint_2_validation:
     - [ ] 字符串闭合正确
     - [ ] 装饰器使用正确
   
+  语法检查（Go）:
+    - [ ] 无 Go 语法错误
+    - [ ] import 语句正确
+    - [ ] 类型匹配正确
+    - [ ] 错误处理完整
+  
+  语法检查（Groovy/Spock）:
+    - [ ] 无 Groovy 语法错误
+    - [ ] given-when-then 结构正确
+    - [ ] Mock 配置正确
+    - [ ] 闭包语法正确
+  
   编译/语法验证:
     - [ ] Java: mvn test-compile 成功
     - [ ] Python: python -m py_compile test_*.py 成功
+    - [ ] Go: go test -c ./... 成功
+    - [ ] Groovy: mvn test-compile 或 gradle compileTestGroovy 成功
     - [ ] 无编译/语法错误
   
   规范检查:
@@ -287,6 +322,14 @@ checkpoint_2_validation:
   # Python
   python -m py_compile test_*.py    # 语法检查
   pytest --collect-only             # 收集测试用例（不执行）
+  
+  # Go
+  go test -c ./...                  # 编译测试代码
+  go vet ./...                      # 静态检查
+  
+  # Groovy/Spock
+  mvn test-compile                  # Maven 编译
+  ./gradlew compileTestGroovy       # Gradle 编译
 ```
 
 ---
@@ -322,6 +365,37 @@ pytest test_user_api.py -m "p0 or p1" -v
 
 # 生成HTML报告
 pytest test_user_api.py --html=report.html
+```
+
+**Go (testing)**:
+```bash
+# 执行所有测试
+go test -v ./...
+
+# 执行指定测试
+go test -v -run TestUserAPI
+
+# 执行子测试
+go test -v -run TestUserAPI/正常场景/TC001
+
+# 生成覆盖率报告
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+```
+
+**Groovy/Spock (Maven/Gradle)**:
+```bash
+# Maven 执行所有 Spock 测试
+mvn test -Dtest=*Spec
+
+# Gradle 执行所有 Spock 测试
+./gradlew test --tests "*Spec"
+
+# 执行指定测试类
+./gradlew test --tests "UserApiSpec"
+
+# 执行指定测试方法
+./gradlew test --tests "UserApiSpec.TC001*"
 ```
 
 ---
@@ -532,9 +606,13 @@ System.out.println("清理完成: 成功=" + result.get("success") + ", 失败="
 | 设计测试用例 | api-test (黑盒) | [strategies/design-test-case/api-test/](strategies/design-test-case/api-test/) |
 | 设计测试用例 | whitebox (白盒) | [strategies/design-test-case/whitebox/](strategies/design-test-case/whitebox/) |
 | 设计测试用例 | normalize (规范化) | [strategies/design-test-case/normalize/](strategies/design-test-case/normalize/) |
-| 生成测试代码 | api-test (Java) | [strategies/generate-test-code/api-test/](strategies/generate-test-code/api-test/) |
+| 生成测试代码 | api-test (Java) | [strategies/generate-test-code/api-test-java/](strategies/generate-test-code/api-test-java/) |
 | 生成测试代码 | api-test (Python) | [strategies/generate-test-code/api-test-python/](strategies/generate-test-code/api-test-python/) |
-| 生成测试代码 | unit-test | [strategies/generate-test-code/unit-test/](strategies/generate-test-code/unit-test/) |
+| 生成测试代码 | api-test (Go) | [strategies/generate-test-code/api-test-go/](strategies/generate-test-code/api-test-go/) |
+| 生成测试代码 | api-test (Spock) | [strategies/generate-test-code/api-test-spock/](strategies/generate-test-code/api-test-spock/) |
+| 生成测试代码 | unit-test (Java) | [strategies/generate-test-code/unit-test-java/](strategies/generate-test-code/unit-test-java/) |
+| 生成测试代码 | unit-test (Go) | [strategies/generate-test-code/unit-test-go/](strategies/generate-test-code/unit-test-go/) |
+| 生成测试代码 | unit-test (Spock) | [strategies/generate-test-code/unit-test-spock/](strategies/generate-test-code/unit-test-spock/) |
 | 执行测试 | run-test | [strategies/run-test/](strategies/run-test/) |
 | 清理 | cleanup | [strategies/cleanup/](strategies/cleanup/) |
 
@@ -564,6 +642,15 @@ System.out.println("清理完成: 成功=" + result.get("success") + ", 失败="
 ---
 
 ## 版本历史
+
+- **v1.3.0** (2025-12-22): 新增 Go 和 Groovy/Spock 支持
+  - 新增 Go API 测试代码生成策略 (testing + testify + net/http)
+  - 新增 Go 单元测试代码生成策略 (testing + testify + mockery)
+  - 新增 Groovy/Spock API 测试代码生成策略 (Spock + REST-assured)
+  - 新增 Groovy/Spock 单元测试代码生成策略 (Spock + given-when-then)
+  - 支持 Java/Python/Go/Groovy 四种语言测试代码生成
+  - 更新检查点2支持 Go 和 Groovy 语法检查
+  - 更新执行命令支持 go test 和 Spock
 
 - **v1.2.0** (2025-12-18): 新增 Python 支持
   - 新增 Python API 测试代码生成策略 (pytest + requests)

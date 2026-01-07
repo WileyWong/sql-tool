@@ -1,16 +1,12 @@
 ---
-command_id: spec-coding.requirement
 command_name: 需求阶段
-category: spec-coding
 description: 帮助用户完善需求
-workflow_type: sequential
-estimated_time: 30-60 minutes
-dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list, doc-extract-proj-knowledge, doc-analyze-code, doc-code2req, doc-index]
 ---
 
 # Command: 帮助用户完善需求
 
 > ⚠️ **必须遵守**: [通用规范索引](mdc:spec/global/standards/common/index.md) - 包含项目记忆引用和所有规范要求
+> ⚠️ **编写需求时应注意**: 需求文档应该聚焦功能描述、业务规则、验收标准，而不是写详细的代码实现
 
 > 📚 **项目记忆引用**
 > - 遵循 [项目宪章](mdc:.spec-code/memory/constitution.md) 的核心原则和质量标准
@@ -75,7 +71,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
      - [ ] 核心模块已列出
      - [ ] 项目规模已评估
 
-3. **MUST** 提取项目知识 - Use `doc-extract-proj-knowledge` skill
+3. **MUST** 提取项目知识 - Use `doc-extract-knowledge` skill
    - 提取业务领域知识和术语
    - 识别核心业务流程和实体
    - 分析现有功能模块
@@ -174,7 +170,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
 
 **MANDATORY STEPS**:
 
-1. **MUST** 澄清需求 - Use `req-clarify` skill
+1. **MUST** 澄清需求 - Use `vibe-req-clarify` skill
    - 识别需求中的模糊点和歧义
    - 结构化提问澄清疑问
    - 每个问题提供 2-4 个可选方案
@@ -183,7 +179,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
      - [ ] 澄清问题已列出
      - [ ] 用户已回答或确认
 
-2. **MUST** 转化为功能需求 - Use `req-explain` skill
+2. **MUST** 转化为功能需求 - Use `vibe-req-explain` skill
    - 将业务目标转化为功能性需求
    - 定义验收标准和成功指标
    - 识别非功能需求（性能/安全/可用性）
@@ -192,7 +188,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
      - [ ] 验收标准已量化
      - [ ] 非功能需求已识别
 
-3. **OPTIONAL** 拆解需求 - Use `req-breakdown` skill（如需要）
+3. **OPTIONAL** 拆解需求 - Use `vibe-req-breakdown` skill（如需要）
    - 将需求拆解为可执行任务
    - 识别依赖关系和优先级
    - **Verification**:
@@ -217,7 +213,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
 
 **MANDATORY STEPS**:
 
-1. **MUST** 理解需求 - Use `req-explain` skill
+1. **MUST** 理解需求 - Use `vibe-req-explain` skill
    - 分析需求文档结构和内容
    - 识别核心功能和辅助功能
    - 提取业务规则和约束
@@ -225,7 +221,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
      - [ ] 核心功能已识别
      - [ ] 业务规则已提取
 
-2. **MUST** 质量审查 - Use `req-review` skill（如需要）
+2. **MUST** 质量审查 - Use `vibe-req-review` skill（如需要）
    - 检查需求的完整性、一致性、清晰性
    - 识别缺失和矛盾之处
    - 提出改进建议
@@ -233,7 +229,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
      - [ ] 质量问题已识别
      - [ ] 改进建议已提出
 
-3. **OPTIONAL** 拆解需求 - Use `req-breakdown` skill（如需要）
+3. **OPTIONAL** 拆解需求 - Use `vibe-req-breakdown` skill（如需要）
    - 拆解为可执行任务
    - **Verification**:
      - [ ] 任务清单已生成
@@ -256,7 +252,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
 
 **MANDATORY STEPS**:
 
-1. **MUST** 执行 6 维度质量扫描 - Use `req-review` skill
+1. **MUST** 执行 6 维度质量扫描 - Use `vibe-req-review` skill
    - 一致性检查
    - 完整性检查
    - 清晰性检查
@@ -294,7 +290,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
 
 **MANDATORY STEPS**:
 
-1. **MUST** 拆解任务 - Use `req-breakdown` skill
+1. **MUST** 拆解任务 - Use `vibe-req-breakdown` skill
    - 将需求拆解为原子任务
    - 识别依赖关系
    - 评估优先级和工作量
@@ -493,12 +489,12 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
 ## 🔗 相关资源
 
 ### 核心 Skills
-- [req-clarify](mdc:skills/req-clarify/SKILL.md) - 需求澄清
-- [req-explain](mdc:skills/req-explain/SKILL.md) - 需求转化
-- [req-review](mdc:skills/req-review/SKILL.md) - 需求审查
-- [req-breakdown](mdc:skills/req-breakdown/SKILL.md) - 需求拆解
+- [vibe-req-clarify](mdc:skills/vibe-req-clarify/SKILL.md) - 需求澄清
+- [vibe-req-explain](mdc:skills/vibe-req-explain/SKILL.md) - 需求转化
+- [vibe-req-review](mdc:skills/vibe-req-review/SKILL.md) - 需求审查
+- [vibe-req-breakdown](mdc:skills/vibe-req-breakdown/SKILL.md) - 需求拆解
 - [doc-git-list](mdc:skills/doc-git-list/SKILL.md) - 项目结构分析
-- [doc-extract-proj-knowledge](mdc:skills/doc-extract-proj-knowledge/SKILL.md) - 项目知识提取
+- [doc-extract-knowledge](mdc:skills/doc-extract-knowledge/SKILL.md) - 项目知识提取
 - [doc-analyze-code](mdc:skills/doc-analyze-code/SKILL.md) - 代码分析
 - [doc-code2req](mdc:skills/doc-code2req/SKILL.md) - 代码逆向需求
 - [doc-index](mdc:skills/doc-index/SKILL.md) - 文档索引生成
@@ -517,7 +513,7 @@ dependencies: [req-review, req-clarify, req-explain, req-breakdown, doc-git-list
 用户: 帮我完善用户管理系统的需求
 AI: 
 1. 先分析项目代码库 (doc-git-list)
-2. 提取现有功能 (doc-extract-proj-knowledge)
+2. 提取现有功能 (doc-extract-knowledge)
 3. 理解业务背景后再澄清需求
 ```
 

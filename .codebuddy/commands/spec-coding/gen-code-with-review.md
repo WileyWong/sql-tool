@@ -1,18 +1,12 @@
 ---
-command_id: spec-coding.gen-code-with-review
 command_name: 生成代码并审查
-category: spec-coding
 description: 基于设计文档生成代码,并通过监督 Agent 进行质量审查和持续优化,直到代码达到企业级标准。调用 code-generator Agent 生成代码,然后调用 code-reviewer-supervisor Agent 进行多维度评估和迭代优化。
-allowed-tools: read_file, write_to_file, search_content, replace_in_file
-argument-hint: <design-docs-path> [tech-stack]
-estimated_time: 30-60 minutes
-workflow_type: sequential
-dependencies: [code-generator, code-reviewer-supervisor, code-generation, cr-java-code, cr-vue-code]
 ---
 
 # Command: 生成代码并审查
 
 > ⚠️ **必须遵守**: [通用规范索引](mdc:.codebuddy/spec/global/standards/common/index.md) - 包含项目记忆引用和所有规范要求
+> ⚠️ **必须遵守**: 必须结合当前项目代码规范，优先使用项目中已有的标准实现或已有类库
 
 > 📚 **项目记忆引用**
 > - 遵循 [项目宪章](mdc:.spec-code/memory/constitution.md) 的核心原则和质量标准
@@ -900,6 +894,8 @@ Iteration 2:
 - [code-generation 技能](mdc:skills/code-generation/SKILL.md) - 代码生成核心技能
 - [cr-java-code 技能](mdc:skills/cr-java-code/SKILL.md) - Java 代码审查技能
 - [cr-vue-code 技能](mdc:skills/cr-vue-code/SKILL.md) - Vue 代码审查技能
+- [techdesign-03-feature 技能](mdc:skills/techdesign-03-feature/SKILL.md) - 功能设计技能
+- [techdesign-06-api 技能](mdc:skills/techdesign-06-api/SKILL.md) - API 设计技能
 
 ### 相关 Commands
 - [生成代码](mdc:commands/implementation/gen-code.md) - 单独的代码生成 Command(不含审查)

@@ -1,382 +1,554 @@
 ---
 name: code-generation
-description: 根据设计文档生成高质量的代码实现，遵循技术栈规范和编码最佳实践，支持 Spring Boot、Vue 等主流框架
-category: implementation
-keywords: [代码生成, 自动化开发, 模板引擎, 脚手架, 快速开发]
+description: 根据输入内容（需求/接口设计/代码注释/DDL/示例/自然语言）生成高质量代码，支持 Java/Go/TypeScript/MySQL/Groovy 多语言输出。当用户需要从设计文档生成代码、从注释生成实现、从 DDL 生成实体类、从需求生成数据库脚本、或通过自然语言描述生成代码时使用。**必须严格按流程执行，绝对不能跳过或省略**
 ---
 
 # Skill: 代码生成
 
-基于设计文档和技术栈规范，生成高质量、可运行的完整代码实现。
+基于输入内容和技术上下文，生成高质量、可运行的完整代码实现。
 
-## 核心原则（15 秒速查）
+## 核心流程
 
-1. **完整理解** - 必须完整读取设计文档，避免信息遗漏导致代码不完整  
-2. **规范优先** - 遵循技术栈文档和编码规范，确保代码质量
-3. **完整可运行** - 包含所有必要的导入、注解、异常处理
-4. **分层架构** - Controller-Service-Mapper 清晰分层，职责明确
-5. **类型安全** - 使用 TypeScript、DTO 转换，避免类型错误
-6. **测试驱动** - 同步生成单元测试，验证代码正确性
+```
+步骤0: 输入分析 → ✅检查点0 → 步骤1: 获取架构信息 → 步骤2: 输出方案(等待确认) → ✅检查点1 → 步骤3: 生成代码 → ✅检查点2 → 完成
+```
 
-## 🎯 目标
+---
 
-解决软件研发中的 **代码实现** 问题，提供 **符合规范的完整代码**。
+## ⚠️ 强制检查点（必须遵守）
 
-**适用场景**:
-- 后端 API 实现（Spring Boot + MyBatis-Plus）
-- 前端组件开发（Vue 2.x、Vue3.x）
-- 数据访问层实现（Mapper、Service）
-- 工具类和辅助函数
+> **重要**: 每个检查点必须通过才能进入下一步，不可跳过！
 
-**输出成果**:
-- 完整的后端代码（Controller、Service、Mapper、Entity、DTO）
-- 完整的前端代码（Components、Services、Types、Composables）
-- 单元测试代码（JUnit、Vitest）
+| 检查点 | 位置 | 检查内容 | 不通过处理 |
+|--------|------|----------|-----------|
+| **检查点0** | 步骤0完成后 | 输入类型正确识别、技术上下文获取完整 | 重新分析输入 |
+| **检查点1** | 步骤2完成后 | 方案已获得用户确认 | 等待用户确认 |
+| **检查点2** | 步骤3完成后 | 代码完整、无语法错误、可编译/运行 | 修正后重新验证 |
 
-## 📚 技术栈参考
+---
 
-本技能基于以下技术栈文档：
-- [Spring Boot 3](mdc:.codebuddy/spec/global/knowledge/stack/springboot3.md) - 后端核心框架
-- [MyBatis-Plus](mdc:.codebuddy/spec/global/knowledge/stack/mybatis_plus.md) - ORM 增强工具
-- [Vue 3](mdc:.codebuddy/spec/global/knowledge/stack/vue3.md) - 前端组件开发
+## ✅ 检查点0: 输入分析验证（必须通过）
 
-参考 [技术栈索引](mdc:.codebuddy/spec/global/knowledge/stack/index.md) 了解更多。
+> **⚠️ 强制要求**: 此检查点必须通过才能进入步骤1！
 
-## 📋 前置条件
+### 检查清单
 
-- [ ] 已有完整的设计文档（API 设计、数据库设计、业务流程设计）
-- [ ] 技术栈已明确（语言、框架、版本）
-- [ ] 开发环境已准备（IDE、编译器、数据库）
-- [ ] 项目脚手架已初始化
+```yaml
+checkpoint_0_validation:
+  输入类型识别:
+    - [ ] 输入类型已正确识别（api-design/code-comment/database-ddl/requirement/example-code/natural-language）
+    - [ ] 若为混合输入，主类型已确定
+    - [ ] 若为混合输入，辅助上下文已提取
+    - [ ] 输入内容完整可解析
+  
+  技术上下文:
+    - [ ] 技术上下文来源已确定（用户指定/知识库/示例/配置/默认）
+    - [ ] 输出目标语言已确定（java/go/typescript/mysql/groovy）
+  
+  策略路由:
+    - [ ] 已匹配到对应策略模块
+    - [ ] 策略模块文档已加载
+```
 
-## ⚠️ 关键提醒
+### 检查点0通过标准
 
-**文档读取要求**:
-- 必须使用 `read_file` 工具完整读取所有设计文档
-- 避免只读取前100行，这会导致重要信息遗漏
-- 如果文档很长，使用分段读取确保覆盖全部内容
-- 代码生成质量完全依赖于对设计文档的完整理解
+```
+✅ 通过条件:
+  - 输入类型识别检查项全部通过
+  - 技术上下文检查项全部通过
+  - 策略路由检查项全部通过
 
-## 🔄 执行步骤
+❌ 不通过处理:
+  1. 列出未通过的检查项
+  2. 向用户确认模糊信息
+  3. 重新执行输入分析
+  4. 直到全部通过才能继续
+```
 
-### 步骤 1: 理解设计文档
+---
 
-**目标**: 深入理解设计意图、技术约束和实现要求
+## 步骤0: 输入分析与三维度判断
 
-**⚠️ 重要**: 必须完整读取所有设计文档，避免只读取前100行导致信息不完整
+### 维度1: 输入内容形式 (INPUT_TYPE)
 
-**操作**:
-1. **完整阅读** API 设计文档（接口定义、参数、返回值、错误码）
-   - 使用 `read_file` 工具读取完整文档，不限制行数
-   - 如果文档很长，分段读取确保覆盖所有内容
-2. **完整阅读** 数据库设计文档（表结构、字段、索引、关系）
-   - 读取所有表的DDL语句和字段说明
-   - 理解实体关系和外键约束
-3. **完整阅读** 业务流程设计（状态机、条件分支、异常处理）
-   - 获取完整的业务规则和验证逻辑
-   - 理解所有异常场景和错误处理要求
-4. 确认技术栈版本和依赖关系
+| 输入类型 | 识别特征 | 说明 |
+|---------|---------|------|
+| **api-design** | OpenAPI/Swagger/接口文档/paths/endpoints/接口描述/接口调用命令 | 已有接口设计，或可推断出接口设计 |
+| **code-comment** | @param/@return/JavaDoc/TODO:实现 | 带详细注释的接口签名 |
+| **database-ddl** | CREATE TABLE/ALTER TABLE/DDL | 数据库表结构 |
+| **requirement** | 用户故事/PRD/需求文档/功能说明 | 原始需求 |
+| **example-code** | 参考代码/模板代码/示例实现 | 参考实现 |
+| **natural-language** | 口语化描述/简短指令/对话式输入 | 用户自然语言输入 |
 
-**读取策略**:
+### 混合输入处理
+
+当输入包含多种类型时（如"帮我实现这个接口" + OpenAPI片段）：
+
+**处理流程**:
+1. **识别所有类型**: 列出输入中包含的所有类型
+2. **确定主类型**: 按优先级判定主类型
+3. **提取辅助上下文**: 其他类型作为生成时的参考信息
+4. **路由到主类型策略**: 使用主类型对应的策略模块
+
+**主类型判定优先级**（从高到低）:
+
+| 优先级 | 类型 | 判定条件 |
+|--------|------|---------|
+| **1** | api-design | 包含完整的 OpenAPI/Swagger 结构 |
+| **2** | database-ddl | 包含 CREATE TABLE/ALTER TABLE |
+| **3** | code-comment | 包含带注释的接口/方法签名 |
+| **4** | requirement | 包含结构化的需求文档/用户故事 |
+| **5** | example-code | 包含完整的参考代码 |
+| **6** | natural-language | 仅有口语化描述 |
+
+**辅助上下文的作用**:
+
+| 辅助类型 | 提供的上下文 |
+|---------|-------------|
+| natural-language | 用户意图、特殊要求、业务背景 |
+| example-code | 代码风格、命名规范、实现模式 |
+| requirement | 业务规则、边界条件、验收标准 |
+| database-ddl | 数据模型、字段约束、表关系 |
+
+### 维度2: 技术上下文 (TECH_CONTEXT)
+
+**获取优先级（从高到低）**:
+
+| 优先级 | 来源 | 获取方式 | 详情 |
+|--------|------|---------|------|
+| **1** | 用户明确指定 | 解析用户输入中的技术栈描述 | - |
+| **2** | 知识库 | 读取 `.spec-code/memory/`，若没有，则搜索 kb、knowledge、knowledge base 等文件夹 | [知识库集成](shared/knowledge-base-integration.md) |
+| **3** | 示例代码 | 分析参考文件或同模块代码 | [示例分析](shared/example-analysis.md) |
+| **4** | 项目配置 | 解析 `pom.xml`/`go.mod`/`package.json` | [上下文检测](shared/context-detection.md) |
+| **5** | 默认值 | 若以上都找不到，则明确询问用户，让用户补充输入 | - |
+
+### 维度3: 输出目标 (OUTPUT_TARGET)
+
+| 输出语言 | 典型产物 | 规范参考 |
+|---------|---------|---------|
+| **java** | Controller, Service, Mapper, Entity, DTO | [Java 规范](standards/java/) |
+| **go** | Handler, Service, Model, Repository | [Go 规范](standards/go/) |
+| **typescript** | Vue组件, Service, Types, Composables | [TypeScript 规范](standards/typescript/) |
+| **mysql** | DDL, DML, 存储过程, 索引 | [MySQL 规范](standards/mysql/) |
+| **groovy** | Gradle脚本, Spock测试 | [Groovy 规范](standards/groovy/) |
+
+---
+
+## 步骤1: 获取架构信息
+
+### 1.1 从输入获取
+
+解析需求/设计文档/上下文中的架构描述、知识库文件/文件夹
+
+### 1.2 从知识库获取
+
+```yaml
+读取顺序:
+  1. .spec-code/memory/context.md      # 技术栈、版本、架构
+  2. .spec-code/memory/guidelines.md   # 编码规范、命名约定
+  3. .spec-code/memory/constitution.md # 核心原则、约束
+```
+
+### 1.3 从代码获取
+
+分析现有代码的目录结构、配置文件、依赖声明
+
+### 1.4 从示例获取
+
+分析参考代码的风格、命名、注释、异常处理模式
+
+---
+
+## 步骤2: 输出方案（等待确认）
+
+> ⚠️ **必须等待用户确认后才能进入步骤3**
+
+### 方案输出模板
+
 ```markdown
-// 推荐的文档读取方式
-1. 先用 read_file 不限制行数读取整个文档
-2. 如果文档超长，使用 offset 和 limit 分段读取
-3. 确保读取到文档末尾，获取完整信息
+## 代码生成方案
+
+### 技术栈
+- **语言**: [语言版本]
+- **框架**: [框架版本]
+- **架构**: [架构模式]
+
+### 架构信息来源
+- [ ] 用户指定
+- [ ] 知识库
+- [ ] 示例代码
+- [ ] 项目配置
+
+### 将生成的文件
+| 文件 | 职责 | 路径 |
+|------|------|------|
+| ... | ... | ... |
+
+### 关键设计决策
+- **命名规范**: ...
+- **异常处理**: ...
+- **日志策略**: ...
+
+---
+**确认以上方案后，我将开始生成代码。是否继续？**
 ```
-
-**验收标准**:
-- [ ] API 接口定义清晰（路径、方法、参数、返回值）
-- [ ] 数据库表结构完整（表名、字段、类型、约束）
-- [ ] 业务规则明确（验证规则、边界条件、异常场景）
-- [ ] 技术依赖已确认（框架版本、库版本）
-- [ ] **已读取设计文档的完整内容，不遗漏任何重要信息**
-
-### 步骤 2: 选择技术实现方案
-
-**目标**: 根据设计文档选择合适的技术实现方案和代码模式
-
-**后端架构**（Spring Boot 项目）:
-```
-Controller 层: RESTful API 控制器
-Service 层: 业务逻辑实现
-Mapper 层: MyBatis-Plus BaseMapper
-Entity 层: 实体类（对应数据库表）
-DTO 层: 数据传输对象（API 输入输出）
-```
-
-**前端架构**（Vue 项目）:
-```
-Pages: 页面组件（路由级别）
-Components: 可复用组件
-Composables: 组合式函数（状态管理、副作用）
-Services: API 调用服务
-Types: TypeScript 类型定义
-```
-
-**验收标准**:
-- [ ] 分层架构清晰合理
-- [ ] 设计模式选择恰当
-- [ ] 代码结构符合技术栈规范
-
-### 步骤 3: 生成后端代码
-
-**目标**: 生成完整的后端代码
-
-**生成内容**:
-1. **Entity 实体类** - 使用 `@TableName`、`@TableId`、`@TableField` 映射数据库表
-2. **Mapper 接口** - 继承 `BaseMapper<T>` 获得 CRUD 方法
-3. **Service 接口和实现** - 业务逻辑、事务管理、异常处理
-4. **Controller 控制器** - RESTful API、参数验证、全局异常处理
-5. **DTO 类** - 请求和响应数据传输对象
-
-详细代码示例参考 `examples.md` 文件。
-
-**验收标准**:
-- [ ] 所有类包含完整的导入语句
-- [ ] 所有方法有 JavaDoc 注释
-- [ ] 使用 `@Transactional` 确保事务一致性
-- [ ] 使用 `@Valid` 进行参数验证
-- [ ] 实现全局异常处理
-
-### 步骤 4: 生成前端代码
-
-**目标**: 生成完整的前端代码
-
-**生成内容**:
-1. **TypeScript 类型定义** - 请求/响应接口定义
-2. **API 服务** - 封装 axios 调用，类型安全
-3. **Vue 组件** - 页面和可复用组件
-4. **Composables 组合式函数** - 状态管理、数据获取
-
-详细代码示例参考 `examples.md` 文件。
-
-**验收标准**:
-- [ ] 使用 TypeScript 实现类型安全
-- [ ] 使用 Composables 管理状态和副作用
-- [ ] 使用 `ref`/`reactive` 管理响应式数据
-- [ ] 错误处理完善（try-catch、错误提示）
-- [ ] 用户交互友好（加载状态、确认对话框）
-
-### 步骤 5: 编写单元测试
-
-**目标**: 为生成的代码编写单元测试
-
-**后端测试**（JUnit 5）:
-- 使用 `@Mock` 和 `@InjectMocks` 注入依赖
-- 使用 Given-When-Then 模式组织测试
-- 测试正常流程和异常流程
-
-**前端测试**（Vitest + Vue Test Utils）:
-- 使用 `vi.mock` 模拟依赖服务
-- 使用 `@vue/test-utils` 进行组件测试
-- 测试用户交互和 DOM 渲染
-
-详细测试示例参考 `examples.md` 文件。
-
-**验收标准**:
-- [ ] 所有单元测试通过
-- [ ] 测试覆盖率 ≥ 80%
-- [ ] 测试用例覆盖正常和异常流程
-
-### 步骤 6: 验证代码质量
-
-**目标**: 确保生成的代码符合质量标准
-
-**操作**:
-1. 运行单元测试（`mvn test` 或 `npm test`）
-2. 运行代码检查工具（Checkstyle、ESLint）
-3. 检查测试覆盖率（≥ 80%）
-4. 代码审查（检查逻辑、命名、注释）
-
-**验收标准**:
-- [ ] 所有单元测试通过
-- [ ] 代码符合编码规范（Linter 零错误）
-- [ ] 性能指标达标（响应时间 < 200ms）
-- [ ] 日志记录完整
 
 ---
 
-## 💡 最佳实践
+## ✅ 检查点1: 方案确认验证（必须通过）
 
-### 1. 代码质量标准
+> **⚠️ 强制要求**: 此检查点必须通过才能进入步骤3！
 
-✅ **推荐**:
-```java
-/**
- * 用户服务实现
- */
-@Service
-@Slf4j
-@RequiredArgsConstructor
-public class UserServiceImpl implements UserService {
-    
-    private final UserMapper userMapper;
-    
-    /**
-     * 创建用户
-     * @param dto 用户创建 DTO
-     * @return 用户响应 DTO
-     * @throws IllegalArgumentException 如果用户名已存在
-     */
-    @Override
-    @Transactional
-    public UserResponseDTO createUser(UserCreateDTO dto) {
-        // 完整的逻辑实现
-    }
-}
+### 检查清单
+
+```yaml
+checkpoint_1_validation:
+  方案完整性:
+    - [ ] 技术栈信息完整（语言/框架/版本）
+    - [ ] 架构信息来源已标注
+    - [ ] 文件清单完整（文件名/职责/路径）
+    - [ ] 关键设计决策已说明
+  
+  用户确认:
+    - [ ] 方案已展示给用户
+    - [ ] 用户已明确确认（回复"是"/"继续"/"确认"等）
 ```
 
-❌ **不推荐**:
-```java
-// 缺少注释、缺少异常处理、缺少导入
-public class UserService {
-    public User create(String name) {
-        return null;
-    }
-}
+### 检查点1通过标准
+
 ```
+✅ 通过条件:
+  - 所有方案完整性检查项通过
+  - 用户已明确确认
 
-### 2. 分层架构清晰
-
-✅ **推荐的分层**:
-- Controller 层 - HTTP 请求处理、参数验证
-- Service 层 - 业务逻辑、事务管理
-- Mapper 层 - 数据访问、SQL 操作
-- Entity 层 - 实体类、数据库表映射
-- DTO 层 - API 输入输出对象
-
-❌ **不推荐**:
-- Controller 直接操作数据库
-- Entity 直接暴露到 API
-- 缺少 DTO 转换
-
-### 3. 类型安全
-
-✅ **使用 TypeScript**:
-```typescript
-interface User {
-  id: number;
-  username: string;
-  email: string;
-}
-
-<script setup lang="ts">
-import { ref } from 'vue';
-
-const users = ref<User[]>([]);
-// 类型安全的代码
-</script>
+❌ 不通过处理:
+  1. 如果方案不完整，补充缺失信息
+  2. 如果用户未确认，等待用户响应
+  3. 如果用户提出修改，调整方案后重新确认
+  4. 直到用户确认才能继续
 ```
-
-❌ **不使用类型**:
-```javascript
-<script setup>
-import { ref } from 'vue';
-
-const users = ref([]);
-// 运行时类型错误风险高
-</script>
-```
-
-更多最佳实践参考 `reference.md` 文件。
-
-## ⚠️ 常见错误
-
-### 错误 1: 缺少完整的导入语句
-
-**症状**: 代码无法编译，提示类未找到
-
-**解决**: 包含所有必要的导入语句，参考 `examples.md`
-
-### 错误 2: 缺少异常处理
-
-**症状**: 应用在异常情况下崩溃
-
-**解决**: 实现全局异常处理或方法级 try-catch
-
-### 错误 3: 未使用分页
-
-**症状**: 接口响应慢、数据库压力大
-
-**解决**: 使用 MyBatis-Plus 的 `Page<T>` 实现分页查询
-
-更多常见错误参考 `reference.md` 文件。
-
-## ✅ 验证清单
-
-**功能验证**:
-- [ ] 代码可编译通过
-- [ ] 所有单元测试通过
-- [ ] API 接口正常响应
-- [ ] 数据持久化成功
-
-**质量验证**:
-- [ ] 代码符合规范（运行 Linter）
-- [ ] 无安全漏洞（运行安全扫描）
-- [ ] 性能指标达标（响应时间 < 200ms）
-- [ ] 日志记录完整
-
-**技术栈验证**:
-- [ ] 遵循技术栈文档的最佳实践
-- [ ] 使用推荐的 API 和模式
-- [ ] 配置符合生产环境要求
-
-**文档验证**:
-- [ ] 所有公共方法有 JavaDoc/JSDoc 注释
-- [ ] API 文档符合 OpenAPI 3.0 规范
 
 ---
 
-## 📚 可重用资源
+## 步骤3: 生成代码
 
-详细的代码示例、模板和参考文档请查看：
-- `checklist.md` - 完整的质量检查清单
-- `examples.md` - 完整的后端和前端代码示例
-- `reference.md` - 架构设计和技术详细指南
+### 3.1 按分层顺序生成
 
-## 🔗 相关技能
+- Java: `Entity → DTO → Mapper → Service → Controller`
+- Go: `Model → Repository → Service → Handler`
+- TypeScript: `Types → API → Composables → Components`
 
-- [design-interface](mdc:skills/design-interface/SKILL.md) - API 接口设计
-- [design-database](mdc:skills/design-database/SKILL.md) - 数据库设计
-- [doc-code-review](mdc:skills/doc-code-review/SKILL.md) - 代码审查
+### 3.2 应用编码规范
 
-## ❓ 常见问题
+**通用规范（必须遵循）**:
 
-### Q: 如何选择合适的技术栈？
+| 规范 | 文档 |
+|------|------|
+| 日志规范 | [standards/common/logging.md](standards/common/logging.md) |
+| 注释规范 | [standards/common/comments.md](standards/common/comments.md) |
+| 安全规范 | [standards/common/security.md](standards/common/security.md) |
+| 错误处理 | [standards/common/error-handling.md](standards/common/error-handling.md) |
+| 命名规范 | [standards/common/naming.md](standards/common/naming.md) |
+| 性能规范 | [standards/common/performance.md](standards/common/performance.md) |
+| 可读性规范 | [standards/common/readability.md](standards/common/readability.md) |
 
-**A**: 参考 [技术栈索引](mdc:.codebuddy/spec/global/knowledge/stack/index.md)。
+**语言特有规范**: 根据 OUTPUT_TARGET 加载对应语言规范
 
-**推荐组合**:
-- **SPA 应用**: Spring Boot 3 + MyBatis-Plus + Vue 3
+### 3.3 质量验证
 
-### Q: 代码生成后如何验证质量？
+生成代码后，按检查清单验证
 
-**A**: 使用完整验证清单（步骤 6），特别关注：
-1. 代码可编译通过
-2. 单元测试通过
-3. 遵循技术栈文档的最佳实践
+---
 
-### Q: 如何确保生成的代码可运行？
+## ✅ 检查点2: 代码质量验证（必须通过）
 
-**A**: 验证以下方面：
-1. **导入完整**: 所有类都有必要的 import 语句
-2. **注解正确**: 使用正确的 Spring、MyBatis-Plus 注解
-3. **异常处理**: 实现全局异常处理
-4. **测试通过**: 所有单元测试通过
+> **⚠️ 强制要求**: 此检查点必须通过才能标记任务完成！
 
-## 🔄 版本历史
+### 检查清单
 
-- **v3.0** (2025-11-10): Claude Skill 最佳实践优化版
-  - 大幅精简内容（减少 85%）
-  - 添加核心原则速查卡
-  - 调整自由度（从低到中）
-  - 创建完善的辅助文件（checklist、examples、reference）
-  - 删除冗余代码示例，移至 examples.md
+```yaml
+checkpoint_2_validation:
+  代码完整性:
+    - [ ] 所有计划文件已生成
+    - [ ] 所有 import 语句完整
+    - [ ] 所有依赖类已引用
+    - [ ] 代码结构完整（无截断）
+  
+  语法检查:
+    - [ ] 无语法错误
+    - [ ] 括号/引号匹配正确
+    - [ ] 注解/装饰器使用正确
+  
+  编译/运行验证:
+    Java:
+      - [ ] mvn compile -DskipTests 成功
+    Go:
+      - [ ] go build ./... 成功
+    TypeScript:
+      - [ ] npm run build 或 tsc --noEmit 成功
+    MySQL:
+      - [ ] DDL 语法正确（可在数据库执行）
+  
+  规范检查:
+    - [ ] 命名符合规范
+    - [ ] 注释完整
+    - [ ] 异常处理完善
+    - [ ] 日志记录完整
+```
 
-- **v2.0** (2025-11-07): 软件研发专业化版本
-  - 深度集成技术栈文档
-  - 提供完整可运行的代码示例
-  - 新增架构模式和设计建议
+### 检查点2通过标准
 
-- **v1.0**: 初始版本
+```
+✅ 通过条件:
+  - 所有代码完整性检查项通过
+  - 所有语法检查项通过
+  - 编译/运行验证通过
+  - 规范检查项至少 80% 通过
+
+❌ 不通过处理:
+  1. 列出编译错误和语法错误
+  2. 修正代码
+  3. 重新执行验证
+  4. 直到全部通过才能标记完成
+
+验证命令:
+  # Java
+  mvn compile -DskipTests
+  
+  # Go
+  go build ./...
+  
+  # TypeScript
+  npm run build
+  # 或
+  npx tsc --noEmit
+  
+  # MySQL
+  # 使用数据库客户端验证 DDL 语法
+```
+
+---
+
+## 策略路由表
+
+| INPUT_TYPE | OUTPUT_TARGET | 策略模块 |
+|------------|---------------|---------|
+| api-design | java | [java/from-api-design/](java/from-api-design/) |
+| api-design | typescript | [typescript/from-api-design/](typescript/from-api-design/) |
+| code-comment | java | [java/from-comment/](java/from-comment/) |
+| code-comment | go | [go/from-comment/](go/from-comment/) |
+| code-comment | groovy | [groovy/from-comment/](groovy/from-comment/) |
+| database-ddl | java | [java/from-ddl/](java/from-ddl/) |
+| requirement | mysql | [mysql/from-requirement/](mysql/from-requirement/) |
+| java-entity | mysql | [mysql/from-entity/](mysql/from-entity/) |
+| natural-language | java | [java/from-api-design/](java/from-api-design/) |
+| natural-language | go | [go/from-comment/](go/from-comment/) |
+| natural-language | typescript | [typescript/from-api-design/](typescript/from-api-design/) |
+| natural-language | mysql | [mysql/from-requirement/](mysql/from-requirement/) |
+| natural-language | groovy | [groovy/from-comment/](groovy/from-comment/) |
+
+---
+
+## ⚡ MySQL 简化流程
+
+> **说明**: MySQL DDL 生成采用简化流程，跳过分层生成步骤。如已配置 `mysql-mcp-server`，可直接使用 MCP 执行 DDL。
+
+### MySQL 专用流程
+
+```
+输入分析 → 应用命名规范 → 生成 DDL → 语法验证 → 完成
+```
+
+### 与标准流程的差异
+
+| 项目 | 标准流程 | MySQL 简化流程 |
+|------|---------|---------------|
+| 分层生成 | Entity→DTO→Mapper→Service→Controller | 单一 DDL 文件 |
+| 编译验证 | mvn/go/tsc | 数据库语法检查 |
+| 检查点1 | 方案确认 | 可选（简单场景可跳过） |
+| 检查点2 | 编译通过 | DDL 语法正确 |
+
+### MySQL 输入类型
+
+| INPUT_TYPE | 说明 | 输出 |
+|------------|------|------|
+| **requirement** | 业务需求/实体描述 | CREATE TABLE DDL |
+| **java-entity** | Java Entity 类 | 反向生成 DDL |
+
+### MySQL 检查清单
+
+```yaml
+mysql_validation:
+  命名规范:
+    - [ ] 表名小写下划线，t_ 前缀
+    - [ ] 字段名小写下划线
+    - [ ] 索引命名：pk_/uk_/idx_ 前缀
+  
+  DDL 结构:
+    - [ ] 主键 BIGINT AUTO_INCREMENT
+    - [ ] 包含公共字段（create_time/update_time/is_deleted）
+    - [ ] 字段有 COMMENT
+    - [ ] utf8mb4 字符集
+  
+  索引设计:
+    - [ ] 主键索引
+    - [ ] 唯一约束索引
+    - [ ] 查询条件索引
+```
+
+### 规范参考
+
+- [MySQL 命名规范](standards/mysql/naming.md)
+- [MySQL DDL 规范](standards/mysql/ddl.md)
+- [MySQL 索引规范](standards/mysql/index.md)
+- [MySQL 最佳实践](standards/mysql/best-practices.md)
+
+---
+
+## 目录结构
+
+```
+code-generation/
+├── SKILL.md                    # 本文件（主入口）
+├── standards/                  # 编码规范体系
+│   ├── common/                 # 通用规范
+│   │   ├── logging.md
+│   │   ├── comments.md
+│   │   ├── security.md
+│   │   ├── error-handling.md
+│   │   ├── naming.md
+│   │   ├── performance.md
+│   │   └── readability.md
+│   ├── java/                   # Java 规范
+│   ├── go/                     # Go 规范
+│   ├── typescript/             # TypeScript 规范
+│   ├── mysql/                  # MySQL 规范
+│   └── groovy/                 # Groovy 规范
+├── java/                       # Java 策略模块
+│   ├── from-api-design/
+│   ├── from-comment/
+│   ├── from-ddl/
+│   └── reference.md
+├── go/                         # Go 策略模块
+│   ├── from-comment/
+│   └── reference.md
+├── typescript/                 # TypeScript 策略模块
+│   ├── from-api-design/
+│   └── reference.md
+├── mysql/                      # MySQL 策略模块（简化流程）
+│   ├── from-requirement/       # 从需求生成 DDL
+│   ├── from-entity/            # 从 Java Entity 反向生成 DDL
+│   └── reference.md
+└── shared/                     # 共享资源
+    ├── context-detection.md
+    ├── knowledge-base-integration.md
+    └── example-analysis.md
+```
+
+---
+
+## 快速开始
+
+复制此清单跟踪进度：
+
+```
+代码生成进度:
+- [ ] 步骤0: 输入分析
+  - [ ] 识别输入类型: ___________
+  - [ ] 确定输出目标: ___________
+  - [ ] 匹配策略模块: ___________
+- [ ] ✅ 检查点0: 输入分析验证
+  - [ ] 输入类型正确识别
+  - [ ] 技术上下文获取完整
+  - [ ] 策略路由匹配成功
+- [ ] 步骤1: 获取架构信息
+  - [ ] 知识库检测
+  - [ ] 示例代码分析
+  - [ ] 项目配置解析
+- [ ] 步骤2: 输出方案
+  - [ ] 技术栈确认
+  - [ ] 文件清单确认
+  - [ ] ⏳ 等待用户确认
+- [ ] ✅ 检查点1: 方案确认验证
+  - [ ] 方案完整
+  - [ ] 用户已确认
+- [ ] 步骤3: 生成代码
+  - [ ] 按分层顺序生成
+  - [ ] 应用编码规范
+- [ ] ✅ 检查点2: 代码质量验证
+  - [ ] 代码完整性检查通过
+  - [ ] 语法检查通过
+  - [ ] 编译/运行验证通过
+  - [ ] 规范检查通过
+```
+
+---
+
+## 常见场景
+
+### 场景1: 从 API 设计生成 Java 后端
+
+```
+输入: OpenAPI 文档
+输出: Controller/Service/Mapper/Entity/DTO
+路由: java/from-api-design/
+```
+
+### 场景2: 从注释生成 Go 实现
+
+```
+输入: 带注释的 Go 接口
+输出: Service 实现
+路由: go/from-comment/
+```
+
+### 场景3: 从需求生成 MySQL DDL
+
+```
+输入: 业务需求描述
+输出: CREATE TABLE 语句
+路由: mysql/from-requirement/
+```
+
+### 场景4: 从 API 生成 Vue 前端
+
+```
+输入: 后端 API 文档
+输出: Types/API/Composables/Components
+路由: typescript/from-api-design/
+```
+
+### 场景5: 从自然语言生成代码
+
+```
+输入: "帮我写一个用户登录的接口，包含用户名密码验证"
+输出: 根据输出目标生成对应代码
+路由: 根据 OUTPUT_TARGET 动态路由
+  - java → java/from-api-design/
+  - go → go/from-comment/
+  - typescript → typescript/from-api-design/
+  - mysql → mysql/from-requirement/
+```
+
+---
+
+## 常见错误
+
+| 错误 | 正确做法 |
+|------|----------|
+| ❌ 跳过检查点直接进入下一步 | 每个检查点必须通过才能继续 |
+| ❌ 未确认方案就开始生成代码 | 必须等待用户确认后才能生成 |
+| ❌ 代码未验证就标记完成 | 必须通过检查点2（编译验证）后才能完成 |
+| ❌ 忽略知识库上下文 | 优先从知识库获取技术栈信息 |
+| ❌ 不遵循分层顺序生成 | 按 Entity→DTO→Mapper→Service→Controller 顺序 |
+| ❌ 缺少异常处理 | 所有方法必须有完善的异常处理 |
+| ❌ 缺少日志记录 | 关键操作必须有日志记录 |
+| ❌ 命名不规范 | 严格遵循语言特有命名规范 |
+
+---
+
+## 版本历史
+
+- **v2.1.0** (2025-12-22): 强化检查点机制，新增检查点0/1/2，更新检查清单
+- **v2.0.0** (2025-12-22): 架构升级，整合 code-from-comment，新增知识库上下文、编码规范体系
+- **v1.0.0**: 初始版本

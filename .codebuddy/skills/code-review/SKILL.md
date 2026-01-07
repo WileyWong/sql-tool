@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: 综合代码审查技能，支持 Java/Spring Boot、Vue 2/3、Go、MySQL、微信小程序代码质量审查，包含编码规范、架构设计、性能优化。适用于 PR Review、代码提交审查、上线前检查。触发词：代码审查、Code Review、CR、代码质量、Java审查、Vue审查、Go审查、MySQL审查、SQL审查、小程序审查、miniprogram。
+description: 多语言代码审查，支持 Java/Go/Python/MySQL/Vue/小程序。检查编码规范、架构设计、安全防护、性能优化。用于 PR Review、代码提交审查、上线前检查。
 ---
 
 # 综合代码审查
@@ -16,6 +16,7 @@ description: 综合代码审查技能，支持 Java/Spring Boot、Vue 2/3、Go�
 |------|---------|----------|
 | **Java 审查** | Spring Boot 微服务、Java 后端 | [java/java-review.md](java/java-review.md) |
 | **Go 审查** | Go 微服务、API 服务 | [go/go-review.md](go/go-review.md) |
+| **Python 审查** | Django/Flask/FastAPI、Python 后端 | [python/python-review.md](python/python-review.md) |
 | **MySQL 审查** | SQL 脚本、存储过程、DDL | [mysql/mysql-review.md](mysql/mysql-review.md) |
 | **Vue 3 审查** | Vue 3 + TypeScript + Composition API | [vue3/vue3-review.md](vue3/vue3-review.md) |
 | **Vue 2 审查** | Vue 2 + Options API | [vue2/vue2-review.md](vue2/vue2-review.md) |
@@ -31,6 +32,7 @@ description: 综合代码审查技能，支持 Java/Spring Boot、Vue 2/3、Go�
 |------|----------|
 | Java/Spring Boot 代码审查 | Java 审查模块 |
 | Go/Golang 代码审查 | Go 审查模块 |
+| Python/Django/Flask/FastAPI 代码审查 | Python 审查模块 |
 | MySQL/SQL 脚本审查 | MySQL 审查模块 |
 | Vue 3/TypeScript 代码审查 | Vue 3 审查模块 |
 | Vue 2/Options API 代码审查 | Vue 2 审查模块 |
@@ -112,8 +114,9 @@ description: 综合代码审查技能，支持 Java/Spring Boot、Vue 2/3、Go�
 | 组件设计 | 20% | 职责单一、大小合理 |
 | 响应式系统 | 20% | ref/reactive、避免响应性丢失 |
 | Composables | 15% | 封装合理、副作用清理 |
-| 性能优化 | 20% | 虚拟滚动、懒加载 |
-| 安全性 | 15% | XSS 防护、输入验证 |
+| 性能优化 | 15% | 虚拟滚动、懒加载 |
+| 安全性 | 10% | XSS 防护、输入验证 |
+| 可访问性 | 10% | ARIA、data-testid、键盘导航 |
 | 可维护性 | 10% | 类型完整、测试覆盖 |
 
 ### Vue 2
@@ -121,11 +124,23 @@ description: 综合代码审查技能，支持 Java/Spring Boot、Vue 2/3、Go�
 | 维度 | 权重 | 检查要点 |
 |------|------|---------|
 | 组件设计 | 20% | 职责单一、大小合理 |
-| Options API | 20% | 选项顺序、computed/watch |
-| Mixins | 15% | 命名冲突、依赖清晰 |
+| Options API | 15% | 选项顺序、computed/watch |
+| Mixins | 10% | 命名冲突、依赖清晰 |
 | 性能优化 | 20% | key 使用、懒加载 |
-| 安全性 | 15% | XSS 防护、输入验证 |
-| 可维护性 | 10% | 代码清晰、注释完整 |
+| 安全性 | 10% | XSS 防护、输入验证 |
+| 可访问性 | 10% | ARIA、data-testid、键盘导航 |
+| 可维护性 | 15% | 代码清晰、注释完整 |
+
+### Python
+
+| 维度 | 权重 | 检查要点 |
+|------|------|---------|
+| 代码规范 | 20% | PEP 8、命名、格式、docstring |
+| 类型安全 | 15% | 类型注解、mypy 检查、泛型使用 |
+| 异常处理 | 15% | 异常捕获、上下文管理器、自定义异常 |
+| 安全防护 | 20% | SQL 注入、命令注入、反序列化、敏感信息 |
+| 性能优化 | 15% | 生成器、缓存、异步编程、数据结构 |
+| 可维护性 | 15% | 测试覆盖、依赖管理、文档、复杂度 |
 
 ### 微信小程序
 
@@ -156,80 +171,6 @@ description: 综合代码审查技能，支持 Java/Spring Boot、Vue 2/3、Go�
 | **P2** | 🟡 | 中危问题，建议修复 | 本迭代修复 |
 | **P3** | 🟢 | 低危/建议，可选修复 | 下个迭代 |
 
-## 快速参考
-
-### Java 审查要点
-
-| 要点 | 说明 |
-|------|------|
-| 命名规范 | 类名大驼峰、方法小驼峰、常量全大写 |
-| 事务控制 | Service 方法使用 `@Transactional` |
-| 参数验证 | 使用 `@Valid` + JSR-303 注解 |
-| 权限控制 | 敏感接口使用 `@PreAuthorize` |
-| SQL 安全 | 使用 `#{}` 而非 `${}` |
-
-详见：[java/java-review.md](java/java-review.md)
-
-### Go 审查要点
-
-| 要点 | 说明 |
-|------|------|
-| 错误处理 | 始终检查错误，使用 `%w` 包装 |
-| 并发安全 | goroutine 有退出机制，使用 context |
-| 锁使用 | defer 解锁，读写锁分离 |
-| 性能优化 | 切片预分配，strings.Builder |
-| 命名规范 | 包名小写，接口 -er 后缀 |
-
-详见：[go/go-review.md](go/go-review.md)
-
-### MySQL 审查要点
-
-| 要点 | 说明 |
-|------|------|
-| 命名规范 | 表名小写下划线，索引 `idx_` 前缀 |
-| 索引使用 | WHERE/JOIN 字段有索引，避免函数 |
-| 查询优化 | 避免 SELECT *，大表有 LIMIT |
-| SQL 安全 | 参数化查询，无字符串拼接 |
-| 事务控制 | 关联操作使用事务，有回滚处理 |
-
-详见：[mysql/mysql-review.md](mysql/mysql-review.md)
-
-### Vue 3 审查要点
-
-| 要点 | 说明 |
-|------|------|
-| 组件大小 | 单组件不超过 300 行 |
-| 类型定义 | Props/Emits 必须有 TypeScript 类型 |
-| 响应式 | 正确使用 ref/reactive，避免响应性丢失 |
-| XSS 防护 | 避免 v-html，使用 DOMPurify |
-| 性能优化 | 大列表使用虚拟滚动 |
-
-详见：[vue3/vue3-review.md](vue3/vue3-review.md)
-
-### Vue 2 审查要点
-
-| 要点 | 说明 |
-|------|------|
-| 组件大小 | 单组件不超过 300 行 |
-| Options 顺序 | 遵循规范的选项排列顺序 |
-| Mixins | 避免命名冲突和隐式依赖 |
-| 响应式陷阱 | 新增属性用 `$set`，数组用响应式方法 |
-| 性能优化 | v-for 使用唯一 key，避免与 v-if 同时使用 |
-
-详见：[vue2/vue2-review.md](vue2/vue2-review.md)
-
-### 小程序审查要点
-
-| 要点 | 说明 |
-|------|------|
-| 组件大小 | 单组件不超过 300 行 |
-| setData 优化 | 避免频繁调用，合并更新，减少数据量 |
-| 分包策略 | 主包 < 2MB，合理使用分包和预加载 |
-| 安全防护 | 敏感数据加密，网络请求 HTTPS |
-| rpx 单位 | 统一使用 rpx，避免 px 混用 |
-
-详见：[miniprogram/miniprogram-review.md](miniprogram/miniprogram-review.md)
-
 ## 审查流程
 
 ```
@@ -252,85 +193,50 @@ description: 综合代码审查技能，支持 Java/Spring Boot、Vue 2/3、Go�
 |------|------|------|
 | **Java 审查** | | |
 | 审查指南 | [java/java-review.md](java/java-review.md) | Java/Spring Boot 审查详细指南 |
+| Spring Boot 专项 | [java/springboot-review.md](java/springboot-review.md) | Spring Boot 框架专项审查 |
 | 检查清单 | [java/java-checklist.md](java/java-checklist.md) | Java 审查检查清单 |
-| 审查示例 | [java/examples.md](java/examples.md) | Java 审查示例 |
+| 审查示例 | [java/examples/](java/examples/) | Java 审查示例集 |
 | **Go 审查** | | |
 | 审查指南 | [go/go-review.md](go/go-review.md) | Go 语言审查详细指南 |
+| 进阶专项 | [go/go-advanced-review.md](go/go-advanced-review.md) | Go 框架专项（tRPC/Gin/GORM） |
 | 检查清单 | [go/go-checklist.md](go/go-checklist.md) | Go 审查检查清单 |
 | 审查示例 | [go/examples/](go/examples/) | Go 审查示例集 |
+| **Python 审查** | | |
+| 审查指南 | [python/python-review.md](python/python-review.md) | Python 审查详细指南 |
+| Django 专项 | [python/python-django.md](python/python-django.md) | Django 框架专项审查 |
+| Flask 专项 | [python/python-flask.md](python/python-flask.md) | Flask 框架专项审查 |
+| FastAPI 专项 | [python/python-fastapi.md](python/python-fastapi.md) | FastAPI 框架专项审查 |
+| 检查清单 | [python/python-checklist.md](python/python-checklist.md) | Python 审查检查清单 |
+| 审查示例 | [python/examples/](python/examples/) | Python 审查示例集 |
 | **MySQL 审查** | | |
 | 审查指南 | [mysql/mysql-review.md](mysql/mysql-review.md) | MySQL 脚本审查详细指南 |
+| 进阶专项 | [mysql/mysql-advanced-review.md](mysql/mysql-advanced-review.md) | MySQL 高级优化专项 |
 | 检查清单 | [mysql/mysql-checklist.md](mysql/mysql-checklist.md) | MySQL 审查检查清单 |
 | 审查示例 | [mysql/examples/](mysql/examples/) | MySQL 审查示例集 |
 | **Vue 3 审查** | | |
 | 审查指南 | [vue3/vue3-review.md](vue3/vue3-review.md) | Vue 3/TypeScript 审查详细指南 |
+| 进阶专项 | [vue3/vue3-advanced-review.md](vue3/vue3-advanced-review.md) | Vue 3 高级模式专项 |
 | 检查清单 | [vue3/vue3-checklist.md](vue3/vue3-checklist.md) | Vue 3 审查检查清单 |
 | 审查示例 | [vue3/examples/](vue3/examples/) | Vue 3 审查示例集 |
 | **Vue 2 审查** | | |
 | 审查指南 | [vue2/vue2-review.md](vue2/vue2-review.md) | Vue 2/Options API 审查详细指南 |
+| 进阶专项 | [vue2/vue2-advanced-review.md](vue2/vue2-advanced-review.md) | Vue 2 高级模式专项 |
 | 检查清单 | [vue2/vue2-checklist.md](vue2/vue2-checklist.md) | Vue 2 审查检查清单 |
 | 审查示例 | [vue2/examples/](vue2/examples/) | Vue 2 审查示例集 |
 | **小程序审查** | | |
 | 审查指南 | [miniprogram/miniprogram-review.md](miniprogram/miniprogram-review.md) | 微信小程序审查详细指南 |
+| 进阶专项 | [miniprogram/miniprogram-advanced-review.md](miniprogram/miniprogram-advanced-review.md) | 小程序高级优化专项 |
 | 检查清单 | [miniprogram/miniprogram-checklist.md](miniprogram/miniprogram-checklist.md) | 小程序审查检查清单 |
 | 审查示例 | [miniprogram/examples/](miniprogram/examples/) | 小程序审查示例集 |
 | **通用资源** | | |
+| 常见问题 | [common-issues.md](common-issues.md) | 各技术栈常见问题模式 |
 | 报告模板 | [templates/report-template.md](templates/report-template.md) | 统一审查报告模板 |
 | 组件检查 | [tools/check-component-size.js](tools/check-component-size.js) | Vue 组件大小检查工具 |
 
 > 💡 **安全扫描**: 如需专项安全漏洞扫描，请使用独立的 `code-security-scan` 技能。
 
-## 常见问题模式
-
-### Java 常见问题
-
-| 问题 | 风险 | 修复 |
-|------|------|------|
-| 缺少 `@Transactional` | 数据不一致 | 添加事务注解 |
-| SQL 字符串拼接 | SQL 注入 | 使用参数化查询 |
-| 日志打印密码 | 信息泄露 | 脱敏处理 |
-| N+1 查询 | 性能问题 | 批量查询 |
-
-### Go 常见问题
-
-| 问题 | 风险 | 修复 |
-|------|------|------|
-| 忽略错误 (`_`) | 静默失败 | 检查并处理错误 |
-| goroutine 泄漏 | 资源耗尽 | 使用 context 控制 |
-| 循环内字符串拼接 | 性能问题 | 使用 strings.Builder |
-| 未预分配切片 | 多次扩容 | make 指定容量 |
-
-### MySQL 常见问题
-
-| 问题 | 风险 | 修复 |
-|------|------|------|
-| SELECT * | 性能浪费 | 明确指定字段 |
-| 索引字段用函数 | 索引失效 | 改写条件 |
-| 字符串拼接 SQL | SQL 注入 | 参数化查询 |
-| 无事务控制 | 数据不一致 | 添加事务 |
-
-### Vue 常见问题
-
-| 问题 | 风险 | 修复 |
-|------|------|------|
-| `v-html` 直接渲染 | XSS | 使用 DOMPurify |
-| 解构 `reactive` (Vue 3) | 响应性丢失 | 使用 `toRefs` |
-| 新增属性不响应 (Vue 2) | 数据不更新 | 使用 `$set` |
-| Mixins 命名冲突 (Vue 2) | 属性覆盖 | 转为工具函数 |
-| 大列表直接渲染 | 性能问题 | 虚拟滚动 |
-| 未清理副作用 | 内存泄漏 | 生命周期清理 |
-
-### 小程序常见问题
-
-| 问题 | 风险 | 修复 |
-|------|------|------|
-| 频繁 setData | 性能卡顿 | 合并更新，减少数据量 |
-| 主包过大 | 启动慢 | 分包加载，按需引入 |
-| 敏感数据明文 | 信息泄露 | 加密传输和存储 |
-| 未清理监听器 | 内存泄漏 | onUnload 中清理 |
-
 ---
 
-**版本**: 1.0.0  
-**更新时间**: 2025-12-18  
+**版本**: 1.3.0  
+**更新时间**: 2026-01-04  
 **作者**: spec-code Team

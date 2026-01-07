@@ -1,10 +1,10 @@
 ---
 name: coding-worker
-description: 编码和测试工作者 Agent，负责代码生成、代码审查和测试。作为 Master Orchestrator 的 Worker，接收编码和测试任务，调用 code-generation、cr-*-code 和 tdd-* 技能完成工作，确保代码质量达标后返回结果。
+description: 编码和测试工作者 Agent，负责代码生成、代码审查和测试。作为 Master Orchestrator 的 Worker，接收编码和测试任务，调用 code-generation、code-review 和 tdd-testing 技能完成工作，确保代码质量达标后返回结果。
 agentic_pattern: prompt-chaining
 role: worker
 master: master-orchestrator
-skills: [code-generation, cr-java-code, cr-vue-code, tdd-build-test-case, tdd-build-unit-test, tdd-extract-case-from-code, tdd-run-test-cases, tdd-write-test-code]
+skills: [code-generation, code-review, tdd-testing]
 ---
 
 示例:
@@ -87,13 +87,8 @@ tool: *
 | Skill | 用途 |
 |-------|------|
 | code-generation | 根据设计文档生成代码 |
-| cr-java-code | Java 代码审查 |
-| cr-vue-code | Vue 代码审查 |
-| tdd-build-test-case | 设计 API 测试用例 |
-| tdd-build-unit-test | 生成单元测试代码 |
-| tdd-extract-case-from-code | 从代码提取测试用例 |
-| tdd-run-test-cases | 执行测试并生成报告 |
-| tdd-write-test-code | 生成 API 测试代码 |
+| code-review | 代码审查（支持 Java/Spring Boot、Vue 2/3、Go、MySQL、微信小程序） |
+| tdd-testing | 统一的测试工作流（支持 API 测试和单元测试，包含设计用例、生成测试代码、执行测试、清理） |
 
 **调用的 Agents**:
 | Agent | 用途 |
@@ -298,44 +293,47 @@ result = invoke_agent(
 ### 步骤 3: 调用代码审查
 
 **执行**:
-1. **调用 code-reviewer-supervisor Agent** - 传递设计文档和生成的代码
+1. **调用 code-review 技能** - 传递生成的代码进行质量审查
 2. **获取审查报告** - 评分和问题清单
 3. **判断是否通过** - 评分 ≥ 85 为通过
 
 **调用方式**:
 ```python
-review_result = invoke_agent(
-    agent="code-reviewer-supervisor",
+review_result = invoke_skill(
+    skill="code-review",
     params={
-        "design_docs": ["design/api-design.md"],
         "code_files": generated_files,
-        "tech_stack": "java"
+        "tech_stack": "java",  # 或 "vue3", "go", "mysql", "miniprogram"
+        "review_level": "standard"  # 基础/标准/专业
     }
 )
 ```
 
 **输出**:
 ```
-[调用] code-reviewer-supervisor Agent
+[调用] code-review 技能
 
-[评估] 代码-设计一致性: 78/100 ⚠️
-[评估] 代码质量: 85/100 ✅
-[评估] 设计合理性: 90/100 ✅
+[审查维度] 编码规范: 80/100 ✅
+[审查维度] 架构设计: 85/100 ✅
+[审查维度] 安全防护: 70/100 ⚠️
+[审查维度] 性能优化: 85/100 ✅
+[审查维度] 可维护性: 80/100 ✅
 
-[综合评分] 82/100 (未达标，需要 ≥ 85)
+[综合评分] 78/100 (未达标，需要 ≥ 85)
 
 [问题清单]
-P0 (必须修复):
-1. UserController.java:23 - API 路径不符合设计
-   - 设计: POST /api/users/register
+🔴 P0 (严重问题，阻塞发布):
+1. UserController.java:23 - API 路径不符合 RESTful 规范
    - 实际: POST /users/register
+   - 建议: POST /api/users/register
    
-P1 (建议修复):
+🟠 P1 (高危问题，影响质量):
 2. UserService.java:45 - 缺少参数校验
-   - 建议: 添加 @Valid 注解和参数校验逻辑
+   - 建议: 添加 @Valid 注解和 JSR-303 校验
    
-3. UserServiceImpl.java:67 - 密码未加密
+3. UserServiceImpl.java:67 - 密码未加密存储
    - 建议: 使用 BCryptPasswordEncoder 加密
+   - 风险: 密码泄露严重安全问题
 ```
 
 ### 步骤 4: 修复审查问题
@@ -399,14 +397,17 @@ def fix_review_issues(issues):
 ```
 [重新审查]
 
-[评估] 代码-设计一致性: 95/100 ✅
-[评估] 代码质量: 90/100 ✅
-[评估] 设计合理性: 90/100 ✅
+[审查维度] 编码规范: 90/100 ✅
+[审查维度] 架构设计: 90/100 ✅
+[审查维度] 安全防护: 88/100 ✅
+[审查维度] 性能优化: 90/100 ✅
+[审查维度] 可维护性: 85/100 ✅
 
-[综合评分] 92/100 ✅ 达标!
+[综合评分] 89/100 (A级 - 优秀) ✅ 达标!
 
 [问题清单]
 无 P0/P1 问题
+🟡 P2 (中危问题): 2个 - 可选修复
 ```
 
 ### 步骤 6: 返回结果
@@ -490,23 +491,7 @@ git commit -m "feat(user): [F005] 完成用户注册接口实现"
 }
 ```
 
-### 工具 2: `read_design_docs`
-
-**描述**: 读取设计文档，提取接口规格
-
-**参数**:
-- `doc_paths` (array): 设计文档路径列表
-
-**返回**:
-```json
-{
-  "api_specs": [...],
-  "entity_specs": [...],
-  "business_rules": [...]
-}
-```
-
-### 工具 2: `read_design_docs`
+### 工具 2: `load_design_section`
 
 **描述**: 读取设计文档指定 section（支持按需加载）
 
@@ -577,39 +562,37 @@ git commit -m "feat(user): [F005] 完成用户注册接口实现"
 }
 ```
 
-### 工具 5: `invoke_code_reviewer`
+### 工具 5: `invoke_code_review`
 
-**描述**: 调用 code-reviewer-supervisor Agent 审查代码
+**描述**: 调用 code-review 技能审查代码质量
 
 **参数**:
-- `design_docs` (array): 设计文档路径
 - `code_files` (array): 代码文件路径
-- `tech_stack` (string): 技术栈
+- `tech_stack` (string): 技术栈（java/vue3/vue2/go/mysql/miniprogram）
+- `review_level` (string): 审查级别（基础/标准/专业）
 
 **返回**:
 ```json
 {
-  "overall_score": 82,
-  "issues": [...],
-  "passed": false
-}
-```
-
-### 工具 5: `invoke_code_reviewer`
-
-**描述**: 调用 code-reviewer-supervisor Agent 审查代码
-
-**参数**:
-- `context` (object): 智能上下文（用于验证代码-设计一致性）
-- `code_files` (array): 代码文件路径
-- `tech_stack` (string): 技术栈
-
-**返回**:
-```json
-{
-  "overall_score": 82,
-  "issues": [...],
-  "passed": false
+  "overall_score": 89,
+  "grade": "A",
+  "dimensions": {
+    "coding_standards": 90,
+    "architecture": 90,
+    "security": 88,
+    "performance": 90,
+    "maintainability": 85
+  },
+  "issues": [
+    {
+      "priority": "P2",
+      "file": "UserService.java",
+      "line": 89,
+      "message": "建议使用 Stream API 简化代码",
+      "suggestion": "..."
+    }
+  ],
+  "passed": true
 }
 ```
 
@@ -662,13 +645,14 @@ code_result = invoke_agent("code-generator", {
 })
 ```
 
-### 调用 code-reviewer-supervisor Agent
+### 调用 code-review 技能
 
 ```python
-# Coding Worker 调用 code-reviewer-supervisor
-review_result = invoke_agent("code-reviewer-supervisor", {
-    "design_docs": design_docs,
-    "code_files": code_result.files_created
+# Coding Worker 调用 code-review
+review_result = invoke_skill("code-review", {
+    "code_files": code_result.files_created,
+    "tech_stack": "java",
+    "review_level": "standard"
 })
 ```
 
@@ -720,15 +704,12 @@ review_result = invoke_agent("code-reviewer-supervisor", {
 
 ### 调用的 Skills
 - [code-generation](mdc:skills/code-generation/SKILL.md) - 代码生成技能
-- [tdd-build-test-case](mdc:skills/tdd-build-test-case/SKILL.md) - 构建测试用例
-- [tdd-build-unit-test](mdc:skills/tdd-build-unit-test/SKILL.md) - 构建单元测试
-- [tdd-extract-case-from-code](mdc:skills/tdd-extract-case-from-code/SKILL.md) - 从代码提取测试用例
-- [tdd-run-test-cases](mdc:skills/tdd-run-test-cases/SKILL.md) - 执行测试用例
-- [tdd-write-test-code](mdc:skills/tdd-write-test-code/SKILL.md) - 编写测试代码
+- [code-review](mdc:skills/code-review/SKILL.md) - 综合代码审查技能（支持 Java/Spring Boot、Vue 2/3、Go、MySQL、微信小程序）
+- [tdd-testing](mdc:skills/tdd-testing/SKILL.md) - 统一的测试工作流技能（API 测试和单元测试）
 
 ### 调用的 Agents
-- [code-generator](mdc:agents/code-generator.md) - 代码生成 Agent
-- [code-reviewer-supervisor](mdc:agents/code-reviewer-supervisor.md) - 代码审查监督 Agent
+- [code-generator](mdc:agents/code-generator.md) - 代码生成 Agent（Routing 模式）
+- [code-reviewer-supervisor](mdc:agents/code-reviewer-supervisor.md) - 代码审查监督 Agent（Evaluator-Optimizer 模式）
 
 ### 协作 Agents
 - [master-orchestrator](mdc:agents/master-orchestrator.md) - 任务总控 Agent

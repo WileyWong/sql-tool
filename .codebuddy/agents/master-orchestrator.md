@@ -65,7 +65,7 @@ tool: *
 | Worker | 职责 | 调用的 Skills |
 |--------|------|--------------|
 | initializer | 环境初始化、功能列表生成 | init-backend-scaffold, init-frontend-scaffold, init-project-memory |
-| design-worker | 需求分析、架构设计、数据库设计、API 设计 | req-clarify, req-breakdown, design-architect, design-db, design-api, design-feature |
+| design-worker | 需求分析、架构设计、数据库设计、API 设计 | vibe-req-clarify, vibe-req-breakdown, techdesign-01-architecture, techdesign-05-database, techdesign-06-api, techdesign-03-feature |
 | coding-worker | 代码生成、代码审查、测试用例设计、单元测试 | code-generation, cr-java-code, cr-vue-code, tdd-build-test-case, tdd-build-unit-test, tdd-run-test-cases |
 
 ## 📁 核心文件结构
@@ -101,7 +101,7 @@ workspace/{task-id}/                 # 任务工作目录（统一工作空间�
 - ✅ 任务元数据存放在 `workspace/{task-id}/` 下，与现有 Skills 统一
 - ✅ 源代码和测试代码直接写入项目对应目录
 - ✅ 遵循项目现有的目录结构和代码规范
-- ✅ 与 `design-feature`、`cr-java-code`、`tdd-build-test-case` 等 Skills 的输出路径一致
+- ✅ 与 `techdesign-03-feature`、`cr-java-code`、`tdd-build-test-case` 等 Skills 的输出路径一致
 
 ## 📋 功能清单格式 (feature-list.json)
 
@@ -441,13 +441,13 @@ def dispatch_worker(feature, task_config):
     
     if feature["category"] == "design":
         if "需求" in feature["name"]:
-            return invoke_worker("design-worker", skills=["req-clarify", "req-breakdown"], **worker_params)
+            return invoke_worker("design-worker", skills=["vibe-req-clarify", "vibe-req-breakdown"], **worker_params)
         elif "数据库" in feature["name"]:
-            return invoke_worker("design-worker", skills=["design-db"], **worker_params)
+            return invoke_worker("design-worker", skills=["techdesign-05-database"], **worker_params)
         elif "API" in feature["name"]:
-            return invoke_worker("design-worker", skills=["design-api"], **worker_params)
+            return invoke_worker("design-worker", skills=["techdesign-06-api"], **worker_params)
         else:
-            return invoke_worker("design-worker", skills=["design-architect"], **worker_params)
+            return invoke_worker("design-worker", skills=["techdesign-01-architecture"], **worker_params)
     
     elif feature["category"] == "coding":
         return invoke_worker("coding-worker", skills=["code-generation"], **worker_params)
@@ -1118,8 +1118,8 @@ F006 - 用户登录接口
 
 ### 核心 Skills
 - [code-generation](mdc:skills/code-generation/SKILL.md) - 代码生成技能
-- [design-db](mdc:skills/design-db/SKILL.md) - 数据库设计技能
-- [design-api](mdc:skills/design-api/SKILL.md) - API 设计技能
+- [techdesign-05-database](mdc:skills/techdesign-05-database/SKILL.md) - 数据库设计技能
+- [techdesign-06-api](mdc:skills/techdesign-06-api/SKILL.md) - API 设计技能
 - [tdd-build-unit-test](mdc:skills/tdd-build-unit-test/SKILL.md) - 单元测试技能
 
 ### 最佳实践

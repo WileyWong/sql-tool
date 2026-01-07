@@ -64,6 +64,21 @@
 - [ ] 无 `<table>` 实现布局
 - [ ] 代码缩进一致
 
+### 1.4 测试属性检查 ⭐ 新增
+
+> 详见：[data-testid-spec.md](data-testid-spec.md)
+
+- [ ] 所有按钮有 `data-testid`（命名格式：`btn-{action}`）
+- [ ] 所有表单输入有 `data-testid`（命名格式：`input-{field}`）
+- [ ] 所有导航链接有 `data-testid`（命名格式：`link-{target}`）
+- [ ] 表格行有唯一 `data-testid`（命名格式：`row-{table}-{id}`）
+- [ ] 列表项有唯一 `data-testid`（命名格式：`item-{list}-{id}`）
+- [ ] 模态框有 `data-testid`（命名格式：`modal-{name}`）
+- [ ] 关键状态文本有 `data-testid`（命名格式：`text-{description}`）
+- [ ] 分页控件有 `data-testid`
+- [ ] `data-testid` 使用 kebab-case 命名
+- [ ] 动态元素使用唯一标识符（业务 ID 或索引）
+
 ---
 
 ## 二、CSS检查

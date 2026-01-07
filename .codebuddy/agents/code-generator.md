@@ -626,8 +626,8 @@ Agent: 好的!我将使用 code-generation 技能为你生成 Vue 3 组件代码
 
 ### 核心技能
 - [code-generation 技能](mdc:skills/code-generation/SKILL.md) - 具体的代码生成实现
-- [design-interface 技能](mdc:skills/design-interface/SKILL.md) - API 接口设计
-- [design-feature 技能](mdc:skills/design-feature/SKILL.md) - 功能详细设计
+- [techdesign-06-api 技能](mdc:skills/techdesign-06-api/SKILL.md) - API 接口设计
+- [techdesign-03-feature 技能](mdc:skills/techdesign-03-feature/SKILL.md) - 功能详细设计
 - [cr-java-code 技能](mdc:skills/cr-java-code/SKILL.md) - Java 代码审查
 
 ### 最佳实践

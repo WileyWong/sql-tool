@@ -28,9 +28,9 @@
 **步骤 3**: 识别问题
 
 识别到 3 个安全问题：
-1. **SQL-001**: 第 45 行存在 SQL 注入（字符串拼接）
-2. **LEAK-001**: 第 89 行日志打印密码
-3. **CRYPTO-001**: 第 123 行使用 MD5 加密
+1. **JAVA-SQL-001**: 第 45 行存在 SQL 注入（字符串拼接）
+2. **JAVA-LEAK-001**: 第 89 行日志打印密码
+3. **JAVA-CRYPTO-001**: 第 123 行使用 MD5 加密
 
 ### 输出报告
 
@@ -38,12 +38,12 @@
 # UserService.java 安全扫描结果
 
 **文件**: src/main/java/com/example/user/UserService.java  
-**扫描时间**: 2025-12-08 14:30:25  
+**扫描时间**: 2025-12-22 14:30:25  
 **问题数**: 3
 
 ## 问题列表
 
-### 🔴 SQL-001: SQL 注入漏洞 (行 45-47)
+### 🔴 JAVA-SQL-001: SQL 注入漏洞 (行 45-47)
 
 **问题代码**:
 ```java
@@ -64,7 +64,7 @@ List<User> users = jdbcTemplate.query(sql, new UserRowMapper(), username);
 
 ---
 
-### 🟠 LEAK-001: 日志打印敏感信息 (行 89)
+### 🟠 JAVA-LEAK-001: 日志打印敏感信息 (行 89)
 
 **问题代码**:
 ```java
@@ -88,7 +88,7 @@ public String toString() {
 
 ---
 
-### 🟡 CRYPTO-001: 使用不安全的加密算法 (行 123)
+### 🟡 JAVA-CRYPTO-001: 使用不安全的加密算法 (行 123)
 
 **问题代码**:
 ```java
@@ -148,7 +148,7 @@ String hashedPassword = encoder.encode(password);
 ```markdown
 # User 模块安全扫描报告
 
-**扫描时间**: 2025-12-08 15:20:15  
+**扫描时间**: 2025-12-22 15:20:15  
 **扫描范围**: src/main/java/com/example/user/  
 **扫描文件数**: 5  
 **问题数**: 12
@@ -175,18 +175,18 @@ String hashedPassword = encoder.encode(password);
 
 ## 🔴 严重风险
 
-### SQL-001: SQL 注入 (UserService.java:45)
+### JAVA-SQL-001: SQL 注入 (UserService.java:45)
 [详细内容]
 
-### SQL-002: SQL 注入 (UserRepository.java:78)
+### JAVA-SQL-002: SQL 注入 (UserRepository.java:78)
 [详细内容]
 
 ## 🟠 高危风险
 
-### XSS-001: 未转义输入 (UserController.java:56)
+### JAVA-XSS-001: 未转义输入 (UserController.java:56)
 [详细内容]
 
-### AUTH-001: 缺少权限注解 (UserController.java:89)
+### JAVA-AUTH-001: 缺少权限注解 (UserController.java:89)
 [详细内容]
 
 [其他问题...]
@@ -194,17 +194,17 @@ String hashedPassword = encoder.encode(password);
 ## ✅ 修复优先级
 
 ### 第一优先级 (立即修复)
-- [ ] SQL-001: UserService.java:45
-- [ ] SQL-002: UserRepository.java:78
+- [ ] JAVA-SQL-001: UserService.java:45
+- [ ] JAVA-SQL-002: UserRepository.java:78
 
 ### 第二优先级 (本周内)
-- [ ] AUTH-001: UserController.java:89
-- [ ] XSS-001: UserController.java:56
-- [ ] LEAK-001: UserService.java:112
+- [ ] JAVA-AUTH-001: UserController.java:89
+- [ ] JAVA-XSS-001: UserController.java:56
+- [ ] JAVA-LEAK-001: UserService.java:112
 
 ### 第三优先级 (下个迭代)
-- [ ] CRYPTO-001: UserService.java:145
-- [ ] CONFIG-001: application.yml
+- [ ] JAVA-CRYPTO-001: UserService.java:145
+- [ ] JAVA-CONFIG-001: application.yml
 ```
 
 ---
@@ -239,7 +239,7 @@ String hashedPassword = encoder.encode(password);
 ```markdown
 # SQL 注入风险专项扫描报告
 
-**扫描时间**: 2025-12-08 16:10:30  
+**扫描时间**: 2025-12-22 16:10:30  
 **扫描类型**: SQL 注入专项  
 **可疑文件数**: 8  
 **确认漏洞数**: 5
@@ -254,27 +254,27 @@ String hashedPassword = encoder.encode(password);
 
 ## 🔴 SQL 注入漏洞详情
 
-### SQL-001: 用户查询 SQL 注入
+### JAVA-SQL-001: 用户查询 SQL 注入
 **文件**: user-service/UserService.java:45  
 **类型**: 字符串拼接  
 [详细内容]
 
-### SQL-002: 订单查询 SQL 注入
+### JAVA-SQL-002: 订单查询 SQL 注入
 **文件**: order-service/OrderService.java:123  
 **类型**: 字符串拼接  
 [详细内容]
 
-### SQL-003: MyBatis 动态 SQL
+### JAVA-SQL-003: MyBatis 动态 SQL
 **文件**: order-service/OrderMapper.java:67  
 **类型**: ${} 语法  
 [详细内容]
 
-### SQL-004: JDBC Statement
+### JAVA-SQL-004: JDBC Statement
 **文件**: product-service/ProductRepository.java:89  
 **类型**: Statement 拼接  
 [详细内容]
 
-### SQL-005: 复杂查询拼接
+### JAVA-SQL-005: 复杂查询拼接
 **文件**: user-service/UserQueryService.java:234  
 **类型**: StringBuilder 拼接  
 [详细内容]
@@ -390,5 +390,5 @@ echo "安全扫描完成"
 
 ---
 
-**版本**: 1.0.0  
-**更新时间**: 2025-12-08
+**版本**: 2.1.0  
+**更新时间**: 2025-12-22
