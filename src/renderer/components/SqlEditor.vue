@@ -226,6 +226,18 @@ async function updateLanguageServerMetadata() {
       await connectionStore.loadTables(selectedConnectionId.value, selectedDatabase.value)
       await connectionStore.loadViews(selectedConnectionId.value, selectedDatabase.value)
       dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
+      
+      // 加载所有表的列信息
+      if (dbMeta && dbMeta.tables.length > 0) {
+        console.log('[SqlEditor] Loading columns for', dbMeta.tables.length, 'tables...')
+        await Promise.all(
+          dbMeta.tables.map(table => 
+            connectionStore.loadColumns(selectedConnectionId.value!, selectedDatabase.value!, table.name)
+          )
+        )
+        // 重新获取更新后的元数据
+        dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
+      }
     }
     
     // console.log('[SqlEditor] dbMeta:', dbMeta ? `${dbMeta.tables.length} tables, ${dbMeta.views.length} views` : 'null')
