@@ -145,11 +145,11 @@ export class SqlParserService {
     const textBeforeUpper = textBefore.toUpperCase()
     const fullTextUpper = sql.toUpperCase()
 
-    console.log('[SQL Parser] analyzeContext:', { sql, offset, textBefore })
+    // console.log('[SQL Parser] analyzeContext:', { sql, offset, textBefore })
 
     // 检查光标前最近的关键字
     const lastKeyword = this.findLastKeyword(textBeforeUpper)
-    console.log('[SQL Parser] lastKeyword:', lastKeyword)
+    // console.log('[SQL Parser] lastKeyword:', lastKeyword)
 
     // 表名. 后（优先级最高）
     const dotMatch = textBefore.match(/(\w+)\.\s*$/i)
@@ -157,28 +157,28 @@ export class SqlParserService {
       const tableName = dotMatch[1]
       // 查找该表名是否是别名
       const resolvedTable = this.resolveTableAlias(sql, tableName)
-      console.log('[SQL Parser] TABLE_DOT:', tableName, '->', resolvedTable)
+      // console.log('[SQL Parser] TABLE_DOT:', tableName, '->', resolvedTable)
       return { type: 'TABLE_DOT', targetTable: resolvedTable || tableName }
     }
 
     // FROM/JOIN 后 - 检查是否在 FROM/JOIN 子句中输入表名
     // 匹配: FROM xxx 或 JOIN xxx（xxx 是正在输入的表名）
     if (this.isInFromJoinClause(textBefore, fullTextUpper)) {
-      console.log('[SQL Parser] FROM_CLAUSE detected')
+      // console.log('[SQL Parser] FROM_CLAUSE detected')
       return { type: 'FROM_CLAUSE' }
     }
 
     // ON 后
     if (this.isInOnClause(textBefore, lastKeyword)) {
       const tables = this.extractTablesFromSql(sql)
-      console.log('[SQL Parser] ON_CLAUSE:', tables)
+      // console.log('[SQL Parser] ON_CLAUSE:', tables)
       return { type: 'ON_CLAUSE', tables }
     }
 
     // WHERE 后
     if (this.isInWhereClause(textBefore, textBeforeUpper, lastKeyword)) {
       const tables = this.extractTablesFromSql(sql)
-      console.log('[SQL Parser] WHERE_CLAUSE:', tables)
+      // console.log('[SQL Parser] WHERE_CLAUSE:', tables)
       return { type: 'WHERE_CLAUSE', tables }
     }
 
@@ -186,31 +186,31 @@ export class SqlParserService {
     if (this.isInSelectColumns(textBeforeUpper, fullTextUpper, offset)) {
       const tables = this.extractTablesFromSql(sql)
       if (tables.length > 0) {
-        console.log('[SQL Parser] SELECT_COLUMNS:', tables)
+        // console.log('[SQL Parser] SELECT_COLUMNS:', tables)
         return { type: 'SELECT_COLUMNS', tables }
       }
     }
 
     // SELECT 后但没有 FROM（还不知道表）
     if (/\bSELECT\s+$/i.test(textBefore) && !fullTextUpper.includes('FROM')) {
-      console.log('[SQL Parser] UNKNOWN (SELECT without FROM)')
+      // console.log('[SQL Parser] UNKNOWN (SELECT without FROM)')
       return { type: 'UNKNOWN' }
     }
 
     // CREATE 语句
     if (/\bCREATE\s+$/i.test(textBefore) || lastKeyword === 'CREATE') {
-      console.log('[SQL Parser] DDL_CREATE')
+      // console.log('[SQL Parser] DDL_CREATE')
       return { type: 'DDL_CREATE' }
     }
 
     // ALTER 语句
     if (/\bALTER\s+$/i.test(textBefore) || lastKeyword === 'ALTER') {
-      console.log('[SQL Parser] DDL_ALTER')
+      // console.log('[SQL Parser] DDL_ALTER')
       return { type: 'DDL_ALTER' }
     }
 
     // 默认：语句开始
-    console.log('[SQL Parser] STATEMENT_START (default)')
+    // console.log('[SQL Parser] STATEMENT_START (default)')
     return { type: 'STATEMENT_START' }
   }
 
@@ -222,7 +222,7 @@ export class SqlParserService {
     
     // 直接在 FROM/JOIN 后面（紧跟空格）
     if (/\b(FROM|JOIN)\s+$/i.test(textBefore)) {
-      console.log('[SQL Parser] FROM/JOIN 后直接空格')
+      // console.log('[SQL Parser] FROM/JOIN 后直接空格')
       return true
     }
 
@@ -230,7 +230,7 @@ export class SqlParserService {
     // 检查最后一个 FROM/JOIN 后面是否只有一个简单标识符（没有其他关键字）
     const fromJoinMatch = textBefore.match(/\b(FROM|(?:INNER\s+|LEFT\s+|RIGHT\s+|OUTER\s+|CROSS\s+)?JOIN)\s+(\w*)$/i)
     if (fromJoinMatch) {
-      console.log('[SQL Parser] FROM/JOIN 匹配:', fromJoinMatch)
+      // console.log('[SQL Parser] FROM/JOIN 匹配:', fromJoinMatch)
       return true
     }
 
@@ -240,7 +240,7 @@ export class SqlParserService {
       const lastFromPos = textBeforeUpper.lastIndexOf('FROM')
       const afterFrom = textBefore.substring(lastFromPos)
       if (!/\b(WHERE|ON|ORDER|GROUP|HAVING|LIMIT)\b/i.test(afterFrom)) {
-        console.log('[SQL Parser] FROM 后逗号分隔')
+        // console.log('[SQL Parser] FROM 后逗号分隔')
         return true
       }
     }

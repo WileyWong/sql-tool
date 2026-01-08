@@ -18,7 +18,6 @@ export function setupDatabaseHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.DATABASE_TABLES, async (_, data: { connectionId: string; database: string }) => {
     try {
       const tables = await getTables(data.connectionId, data.database)
-      console.log("*******" + JSON.stringify(tables))
       return { success: true, tables }
     } catch (error: unknown) {
       const err = error as { message?: string }

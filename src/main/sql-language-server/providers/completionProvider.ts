@@ -53,7 +53,7 @@ export class CompletionProvider {
     const offset = this.getOffset(documentText, position)
     const context = this.sqlParser.analyzeCursorContext(documentText, offset)
 
-    console.log('[CompletionProvider] context:', context.type, 'position:', position, 'offset:', offset)
+    // console.log('[CompletionProvider] context:', context.type, 'position:', position, 'offset:', offset)
 
     const suggestions: CompletionItem[] = []
 
@@ -68,10 +68,9 @@ export class CompletionProvider {
 
       case 'FROM_CLAUSE':
       case 'JOIN_CLAUSE':
-        console.log('[CompletionProvider] Adding table/view suggestions')
+        // console.log('[CompletionProvider] Adding table/view suggestions')
         this.addTableSuggestions(suggestions)
         this.addViewSuggestions(suggestions)
-        console.log('[CompletionProvider] Tables count:', this.metadataService.getTables().length)
         break
 
       case 'SELECT_COLUMNS':
@@ -158,7 +157,7 @@ export class CompletionProvider {
   /**
    * 添加表建议
    */
-  private addTableSuggestions(suggestions: CompletionItem[]): void {
+  private addTableSuggestions(suggestions: CompletionItem[]): void {    
     const tables = this.metadataService.getTables()
     for (const table of tables) {
       suggestions.push({
@@ -380,6 +379,6 @@ export class CompletionProvider {
     })
 
     // 限制 20 条
-    return unique.slice(0, 20)
+    return unique
   }
 }

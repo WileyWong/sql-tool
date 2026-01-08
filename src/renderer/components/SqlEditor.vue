@@ -228,7 +228,7 @@ async function updateLanguageServerMetadata() {
       dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
     }
     
-    console.log('[SqlEditor] dbMeta:', dbMeta ? `${dbMeta.tables.length} tables, ${dbMeta.views.length} views` : 'null')
+    // console.log('[SqlEditor] dbMeta:', dbMeta ? `${dbMeta.tables.length} tables, ${dbMeta.views.length} views` : 'null')
     
     if (dbMeta) {
       // 更新表元数据
@@ -244,7 +244,7 @@ async function updateLanguageServerMetadata() {
           isPrimaryKey: c.primaryKey
         }))
       }))
-      console.log('[SqlEditor] Updating tables:', tables.length)
+      // console.log('[SqlEditor] Updating tables:', tables.length)
       await window.api.sqlLanguageServer.updateTables(tables)
 
       // 更新视图元数据
@@ -252,10 +252,10 @@ async function updateLanguageServerMetadata() {
         name: v.name,
         comment: undefined as string | undefined
       }))
-      console.log('[SqlEditor] Updating views:', views.length)
+      // console.log('[SqlEditor] Updating views:', views.length)
       await window.api.sqlLanguageServer.updateViews(views)
       
-      console.log('[SqlEditor] Metadata update complete')
+      // console.log('[SqlEditor] Metadata update complete')
     } else {
       console.log('[SqlEditor] No dbMeta found, clearing metadata')
       await window.api.sqlLanguageServer.clear()
