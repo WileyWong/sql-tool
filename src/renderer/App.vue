@@ -41,11 +41,14 @@
     
     <!-- 连接对话框 -->
     <ConnectionDialog />
+    
+    <!-- 保存确认对话框 -->
+    <SaveConfirmDialog ref="saveConfirmDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted, provide } from 'vue'
 import MenuBar from './components/MenuBar.vue'
 import Toolbar from './components/Toolbar.vue'
 import ConnectionTree from './components/ConnectionTree.vue'
@@ -53,9 +56,69 @@ import SqlEditor from './components/SqlEditor.vue'
 import ResultPanel from './components/ResultPanel.vue'
 import ConnectionDialog from './components/ConnectionDialog.vue'
 import StatusBar from './components/StatusBar.vue'
+import SaveConfirmDialog from './components/SaveConfirmDialog.vue'
+import { useEditorStore } from './stores/editor'
 
+const editorStore = useEditorStore()
 const resultHeight = ref(200)
 const sidebarWidth = ref(260)
+const saveConfirmDialogRef = ref<InstanceType<typeof SaveConfirmDialog> | null>(null)
+
+// 提供保存确认对话框给子组件使用
+provide('saveConfirmDialog', {
+  show: (tabId: string, title: string, filePath?: string) => {
+    return saveConfirmDialogRef.value?.show(tabId, title, filePath)
+  }
+})
+
+// 处理窗口关闭前事件
+async function handleBeforeClose() {
+  const unsavedTabs = editorStore.getUnsavedTabs()
+  
+  if (unsavedTabs.length === 0) {
+    // 没有未保存的内容，直接关闭
+    window.api.window.confirmClose()
+    return
+  }
+  
+  // 逐个提示保存
+  for (const tab of unsavedTabs) {
+    const result = await saveConfirmDialogRef.value?.show(
+      tab.id,
+      tab.title,
+      tab.filePath
+    )
+    
+    if (result === 'save') {
+      // 保存文件
+      const saveResult = await editorStore.saveTabById(tab.id)
+      if (!saveResult.success) {
+        if (saveResult.canceled) {
+          // 用户取消了另存为对话框，中止关闭
+          return
+        }
+        // 保存失败，继续询问下一个
+      }
+    } else if (result === 'cancel') {
+      // 用户取消，中止关闭
+      return
+    }
+    // result === 'dontSave' 时继续下一个
+  }
+  
+  // 所有文件都处理完毕，确认关闭
+  window.api.window.confirmClose()
+}
+
+onMounted(() => {
+  // 监听窗口关闭前事件
+  window.api.window.onBeforeClose(handleBeforeClose)
+})
+
+onUnmounted(() => {
+  // 移除监听器
+  window.api.window.removeBeforeCloseListener()
+})
 
 // 拖拽调整结果面板高度（上下）
 function startResizeV(e: MouseEvent) {

@@ -81,7 +81,34 @@ const api = {
       rows: Record<string, unknown>[],
       format: 'csv' | 'json'
     ): Promise<{ success: boolean; filePath?: string; canceled?: boolean; message?: string }> =>
-      ipcRenderer.invoke(IpcChannels.FILE_EXPORT, { columns, rows, format })
+      ipcRenderer.invoke(IpcChannels.FILE_EXPORT, { columns, rows, format }),
+    
+    // 读取指定路径文件
+    readFile: (filePath: string): Promise<{ success: boolean; content?: string; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.FILE_READ, filePath),
+    
+    // 最近文件操作
+    getRecentFiles: (): Promise<string[]> =>
+      ipcRenderer.invoke(IpcChannels.RECENT_FILES_GET),
+    
+    addRecentFile: (filePath: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannels.RECENT_FILES_ADD, filePath),
+    
+    removeRecentFile: (filePath: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannels.RECENT_FILES_REMOVE, filePath)
+  },
+
+  // 窗口控制
+  window: {
+    confirmClose: (): void => {
+      ipcRenderer.send(IpcChannels.WINDOW_CLOSE_CONFIRMED)
+    },
+    onBeforeClose: (callback: () => void): void => {
+      ipcRenderer.on(IpcChannels.WINDOW_BEFORE_CLOSE, callback)
+    },
+    removeBeforeCloseListener: (): void => {
+      ipcRenderer.removeAllListeners(IpcChannels.WINDOW_BEFORE_CLOSE)
+    }
   },
 
   // SQL Language Server

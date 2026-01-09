@@ -1,17 +1,22 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import { join } from 'path'
 import { setupConnectionHandlers } from './ipc/connection'
 import { setupDatabaseHandlers } from './ipc/database'
 import { setupQueryHandlers } from './ipc/query'
 import { setupFileHandlers } from './ipc/file'
 import { initSqlLanguageServer } from './sql-language-server'
+import { IpcChannels } from '@shared/constants'
 
 // 禁用硬件加速（解决某些系统上的渲染问题）
 app.disableHardwareAcceleration()
 
 let mainWindow: BrowserWindow | null = null
+let forceClose = false
 
 function createWindow() {
+  // 隐藏 Electron 默认菜单
+  Menu.setApplicationMenu(null)
+  
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -38,6 +43,14 @@ function createWindow() {
     mainWindow?.show()
   })
 
+  // 拦截窗口关闭，通知渲染进程检查未保存内容
+  mainWindow.on('close', (e) => {
+    if (!forceClose && mainWindow) {
+      e.preventDefault()
+      mainWindow.webContents.send(IpcChannels.WINDOW_BEFORE_CLOSE)
+    }
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -49,6 +62,12 @@ function setupIpcHandlers() {
   setupDatabaseHandlers(ipcMain)
   setupQueryHandlers(ipcMain)
   setupFileHandlers(ipcMain)
+  
+  // 窗口关闭确认
+  ipcMain.on(IpcChannels.WINDOW_CLOSE_CONFIRMED, () => {
+    forceClose = true
+    mainWindow?.close()
+  })
   
   // 初始化 SQL Language Server
   initSqlLanguageServer()

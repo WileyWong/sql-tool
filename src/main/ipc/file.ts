@@ -1,6 +1,7 @@
 import { IpcMain, dialog } from 'electron'
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { IpcChannels } from '@shared/constants'
+import { recentFilesService } from '../services/recentFilesService'
 
 export function setupFileHandlers(ipcMain: IpcMain): void {
   // 打开文件
@@ -19,8 +20,26 @@ export function setupFileHandlers(ipcMain: IpcMain): void {
     
     const filePath = result.filePaths[0]
     try {
-      const content = readFileSync(filePath, 'utf-8')
+      const content = readFileSync(filePath, 'utf-8')  
+      // 添加到最近文件列表
+      recentFilesService.addRecentFile(filePath)
       return { success: true, filePath, content }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '读取文件失败' }
+    }
+  })
+  
+  // 读取指定路径文件
+  ipcMain.handle(IpcChannels.FILE_READ, async (_, filePath: string) => {
+    try {
+      if (!existsSync(filePath)) {
+        return { success: false, message: '文件不存在' }
+      }
+      const content = readFileSync(filePath, 'utf-8')
+      // 添加到最近文件列表
+      recentFilesService.addRecentFile(filePath)
+      return { success: true, content }
     } catch (error: unknown) {
       const err = error as { message?: string }
       return { success: false, message: err.message || '读取文件失败' }
@@ -31,6 +50,8 @@ export function setupFileHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(IpcChannels.FILE_SAVE, async (_, data: { filePath: string; content: string }) => {
     try {
       writeFileSync(data.filePath, data.content, 'utf-8')
+      // 添加到最近文件列表
+      recentFilesService.addRecentFile(data.filePath)
       return { success: true }
     } catch (error: unknown) {
       const err = error as { message?: string }
@@ -54,6 +75,8 @@ export function setupFileHandlers(ipcMain: IpcMain): void {
     
     try {
       writeFileSync(result.filePath, content, 'utf-8')
+      // 添加到最近文件列表
+      recentFilesService.addRecentFile(result.filePath)
       return { success: true, filePath: result.filePath }
     } catch (error: unknown) {
       const err = error as { message?: string }
@@ -108,5 +131,20 @@ export function setupFileHandlers(ipcMain: IpcMain): void {
       const err = error as { message?: string }
       return { success: false, message: err.message || '导出失败' }
     }
+  })
+  
+  // 获取最近文件列表
+  ipcMain.handle(IpcChannels.RECENT_FILES_GET, () => {
+    return recentFilesService.getRecentFiles()
+  })
+  
+  // 添加到最近文件
+  ipcMain.handle(IpcChannels.RECENT_FILES_ADD, (_, filePath: string) => {
+    recentFilesService.addRecentFile(filePath)
+  })
+  
+  // 移除最近文件
+  ipcMain.handle(IpcChannels.RECENT_FILES_REMOVE, (_, filePath: string) => {
+    recentFilesService.removeRecentFile(filePath)
   })
 }

@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import * as monaco from 'monaco-editor'
 import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
@@ -98,12 +98,17 @@ interface TextEditResult {
 const editorStore = useEditorStore()
 const connectionStore = useConnectionStore()
 
+// 注入保存确认对话框
+const saveConfirmDialog = inject<{ show: (tabId: string, title: string, filePath?: string) => Promise<'save' | 'dontSave' | 'cancel'> }>('saveConfirmDialog')
+
 const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let completionDisposable: monaco.IDisposable | null = null
 let hoverDisposable: monaco.IDisposable | null = null
 let formatDisposable: monaco.IDisposable | null = null
 let validateTimer: ReturnType<typeof setTimeout> | null = null
+// 标志：是否正在程序化设置内容（防止触发 isDirty）
+let isSettingContent = false
 
 const tabs = computed(() => editorStore.tabs)
 const activeTabId = computed({
@@ -139,15 +144,30 @@ watch(() => editorStore.activeTab, (tab) => {
     selectedDatabase.value = tab.databaseName || ''
     maxRowsInput.value = String(tab.maxRows || 5000)
     
-    // 更新编辑器内容
+    // 更新编辑器内容（程序化设置，不触发 isDirty）
     if (editor) {
       const currentValue = editor.getValue()
       if (currentValue !== tab.content) {
+        isSettingContent = true
         editor.setValue(tab.content)
+        isSettingContent = false
       }
     }
   }
 }, { immediate: true })
+
+// 监听内容更新触发器（用于复用空标签页时刷新编辑器）
+watch(() => editorStore.contentUpdateTrigger, () => {
+  const tab = editorStore.activeTab
+  if (tab && editor) {
+    const currentValue = editor.getValue()
+    if (currentValue !== tab.content) {
+      isSettingContent = true
+      editor.setValue(tab.content)
+      isSettingContent = false
+    }
+  }
+})
 
 // 监听当前标签页的连接设置变化（用于响应外部切换，如双击数据库树）
 watch(() => editorStore.activeTab?.connectionId, (newConnectionId) => {
@@ -310,7 +330,11 @@ function initEditor() {
   // 内容变化监听
   editor.onDidChangeModelContent(() => {
     const value = editor?.getValue() || ''
-    editorStore.updateContent(value)
+    
+    // 只有用户手动编辑时才标记为脏
+    if (!isSettingContent) {
+      editorStore.updateContent(value)
+    }
     
     // 延迟验证语法
     scheduleValidation()
@@ -547,9 +571,47 @@ async function formatDocument() {
   }
 }
 
-// 标签页移除
-function handleTabRemove(tabId: string | number) {
-  editorStore.closeTab(String(tabId))
+// 标签页移除（带保存确认）
+async function handleTabRemove(tabId: string | number) {
+  const id = String(tabId)
+  const tab = editorStore.tabs.find(t => t.id === id)
+  
+  if (tab && tab.isDirty) {
+    // 有未保存的更改，弹出确认对话框
+    if (!saveConfirmDialog) {
+      // 降级到 window.confirm
+      const fileName = tab.filePath ? tab.filePath.split(/[/\\]/).pop() : tab.title
+      const result = window.confirm(`文件 "${fileName}" 已修改，是否保存更改？\n\n点击"确定"保存，点击"取消"不保存并关闭。`)
+      
+      if (result) {
+        const saveResult = await editorStore.saveTabById(id)
+        if (!saveResult.success && saveResult.canceled) {
+          return
+        }
+      }
+    } else {
+      const result = await saveConfirmDialog.show(
+        tab.id,
+        tab.title,
+        tab.filePath
+      )
+      
+      if (result === 'save') {
+        // 用户选择保存
+        const saveResult = await editorStore.saveTabById(id)
+        if (!saveResult.success && saveResult.canceled) {
+          // 用户取消了另存为对话框，不关闭标签页
+          return
+        }
+      } else if (result === 'cancel') {
+        // 用户取消，不关闭标签页
+        return
+      }
+      // result === 'dontSave' 时继续关闭
+    }
+  }
+  
+  editorStore.closeTab(id)
 }
 
 // 标签页切换

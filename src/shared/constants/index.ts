@@ -45,5 +45,15 @@ export const IpcChannels = {
   FILE_OPEN: 'file:open',
   FILE_SAVE: 'file:save',
   FILE_SAVE_AS: 'file:saveAs',
-  FILE_EXPORT: 'file:export'
+  FILE_EXPORT: 'file:export',
+  FILE_READ: 'file:read',
+  
+  // 最近文件
+  RECENT_FILES_GET: 'recentFiles:get',
+  RECENT_FILES_ADD: 'recentFiles:add',
+  RECENT_FILES_REMOVE: 'recentFiles:remove',
+  
+  // 窗口控制
+  WINDOW_CLOSE_CONFIRMED: 'window:closeConfirmed',
+  WINDOW_BEFORE_CLOSE: 'window:beforeClose'
 } as const

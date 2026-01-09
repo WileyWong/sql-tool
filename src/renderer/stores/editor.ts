@@ -23,6 +23,9 @@ export const useEditorStore = defineStore('editor', () => {
   // 标签页计数器
   let tabCounter = 0
   
+  // 最近文件列表版本号（用于触发 MenuBar 刷新）
+  const recentFilesVersion = ref(0)
+  
   // 当前标签页
   const activeTab = computed(() => {
     if (!activeTabId.value) return null
@@ -31,6 +34,11 @@ export const useEditorStore = defineStore('editor', () => {
   
   // 当前 SQL 内容
   const currentSql = computed(() => activeTab.value?.content || '')
+  
+  // 判断标签页是否为空（可复用）
+  function isTabEmpty(tab: EditorTab): boolean {
+    return tab.content === '' && !tab.filePath
+  }
   
   // 初始化：创建第一个标签页
   function init() {
@@ -120,13 +128,81 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
   
-  // 打开文件
+  // 打开文件（智能复用空标签页）
   async function openFile() {
     const result = await window.api.file.open()
     if (result.success && result.content !== undefined) {
-      createTab(result.content, result.filePath)
+      openFileInTab(result.content, result.filePath)
     }
     return result
+  }
+  
+  // 智能打开文件（复用空标签页或新建）
+  function openFileInTab(content: string, filePath?: string) {
+    const currentTab = activeTab.value
+    
+    if (currentTab && isTabEmpty(currentTab)) {
+      // 复用当前空标签页
+      currentTab.content = content
+      currentTab.filePath = filePath
+      currentTab.title = filePath ? filePath.split(/[/\\]/).pop()! : `查询${tabCounter}`
+      currentTab.isDirty = false
+      
+      // 触发内容更新事件（用于通知编辑器刷新）
+      contentUpdateTrigger.value++
+    } else {
+      // 新建标签页
+      createTab(content, filePath)
+    }
+  }
+  
+  // 内容更新触发器（用于通知编辑器刷新）
+  const contentUpdateTrigger = ref(0)
+  
+  // 打开最近文件
+  async function openRecentFile(filePath: string): Promise<{ success: boolean; message?: string }> {
+    const result = await window.api.file.readFile(filePath)
+    if (result.success && result.content !== undefined) {
+      openFileInTab(result.content, filePath)
+      return { success: true }
+    } else {
+      // 文件不存在，从列表移除
+      await window.api.file.removeRecentFile(filePath)
+      return { success: false, message: result.message || '文件不存在' }
+    }
+  }
+  
+  // 检查是否有未保存内容
+  function hasUnsavedChanges(): boolean {
+    return tabs.value.some(tab => tab.isDirty)
+  }
+  
+  // 获取所有未保存的标签页
+  function getUnsavedTabs(): EditorTab[] {
+    return tabs.value.filter(tab => tab.isDirty)
+  }
+  
+  // 保存指定标签页
+  async function saveTabById(tabId: string): Promise<{ success: boolean; canceled?: boolean }> {
+    const tab = tabs.value.find(t => t.id === tabId)
+    if (!tab) return { success: false }
+    
+    if (tab.filePath) {
+      const result = await window.api.file.save(tab.filePath, tab.content)
+      if (result.success) {
+        tab.isDirty = false
+      }
+      return result
+    } else {
+      // 无路径，弹出另存为对话框
+      const result = await window.api.file.saveAs(tab.content)
+      if (result.success && result.filePath) {
+        tab.isDirty = false
+        tab.filePath = result.filePath
+        tab.title = result.filePath.split(/[/\\]/).pop()!
+      }
+      return result
+    }
   }
   
   // 保存文件
@@ -137,6 +213,7 @@ export const useEditorStore = defineStore('editor', () => {
       const result = await window.api.file.save(activeTab.value.filePath, activeTab.value.content)
       if (result.success) {
         markSaved()
+        recentFilesVersion.value++ // 触发最近文件列表刷新
       }
       return result
     } else {
@@ -151,6 +228,7 @@ export const useEditorStore = defineStore('editor', () => {
     const result = await window.api.file.saveAs(activeTab.value.content)
     if (result.success && result.filePath) {
       markSaved(result.filePath)
+      recentFilesVersion.value++ // 触发最近文件列表刷新
     }
     return result
   }
@@ -169,6 +247,8 @@ export const useEditorStore = defineStore('editor', () => {
     activeTabId,
     activeTab,
     currentSql,
+    contentUpdateTrigger,
+    recentFilesVersion,
     
     // 方法
     init,
@@ -180,8 +260,13 @@ export const useEditorStore = defineStore('editor', () => {
     updateTabMaxRows,
     markSaved,
     openFile,
+    openRecentFile,
     saveFile,
     saveFileAs,
-    getSelectedSql
+    saveTabById,
+    getSelectedSql,
+    isTabEmpty,
+    hasUnsavedChanges,
+    getUnsavedTabs
   }
 })
