@@ -74,7 +74,6 @@ const connectionStore = useConnectionStore()
 const editingCell = ref<{ rowIndex: number; column: string } | null>(null)
 const editValue = ref<string>('')
 const originalValue = ref<unknown>(null)
-const editInput = ref<HTMLInputElement | null>(null)
 
 // 计算列宽
 function getColumnWidth(name: string): number {

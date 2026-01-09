@@ -19,10 +19,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useConnectionStore } from '../stores/connection'
-import { useEditorStore } from '../stores/editor'
 
 const connectionStore = useConnectionStore()
-const editorStore = useEditorStore()
 
 const connectionStatus = computed(() => {
   const conn = connectionStore.currentConnection

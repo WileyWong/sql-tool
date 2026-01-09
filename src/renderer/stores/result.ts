@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { QueryResult, QueryResultSet, QueryMessage, QueryError, ExplainResult, ExecutionStatus } from '@shared/types'
+import type { QueryResult, QueryResultSet, QueryMessage, ExplainResult, ExecutionStatus } from '@shared/types'
 
 export interface ResultTab {
   id: string

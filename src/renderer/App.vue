@@ -145,7 +145,7 @@ function startResizeV(e: MouseEvent) {
 }
 
 // 拖拽调整侧边栏宽度（左右）
-function startResizeH(e: MouseEvent) {
+function startResizeH(_e: MouseEvent) {
   document.body.style.cursor = 'ew-resize'
   document.body.style.userSelect = 'none'
   

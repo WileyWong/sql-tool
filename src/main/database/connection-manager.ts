@@ -1,5 +1,5 @@
-import mysql, { Connection, PoolConnection } from 'mysql2/promise'
-import type { ConnectionConfig, TestConnectionResult, DatabaseMeta, TableMeta, ColumnMeta, ViewMeta, FunctionMeta } from '@shared/types'
+import mysql, { Connection } from 'mysql2/promise'
+import type { ConnectionConfig, TestConnectionResult, TableMeta, ColumnMeta, ViewMeta, FunctionMeta } from '@shared/types'
 import { Defaults } from '@shared/constants'
 
 // 活跃连接池

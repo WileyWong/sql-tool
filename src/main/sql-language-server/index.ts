@@ -9,7 +9,7 @@ import { DiagnosticProvider } from './providers/diagnosticProvider'
 import { HoverProvider } from './providers/hoverProvider'
 import { FormattingProvider } from './providers/formattingProvider'
 import { MetadataService } from './services/metadataService'
-import type { TableMetadata, ViewMetadata, ColumnMetadata } from './types'
+import type { TableMetadata, ViewMetadata } from './types'
 
 // 服务实例
 let metadataService: MetadataService

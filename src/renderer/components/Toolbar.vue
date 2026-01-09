@@ -76,7 +76,7 @@ async function handleSave() {
   const result = await editorStore.saveFile()
   if (result.success) {
     ElMessage.success('保存成功')
-  } else if (!result.canceled) {
+  } else if (!(result as { canceled?: boolean }).canceled) {
     ElMessage.error(result.message || '保存失败')
   }
 }

@@ -90,7 +90,7 @@ const isEdit = computed(() => !!connectionStore.editingConnection)
 const form = ref({
   name: '',
   host: '',
-  port: Defaults.PORT,
+  port: Defaults.PORT as number,
   username: '',
   password: '',
   database: ''
