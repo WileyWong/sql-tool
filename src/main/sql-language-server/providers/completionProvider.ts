@@ -8,6 +8,7 @@ import {
   InsertTextFormat,
   Position,
 } from 'vscode-languageserver'
+import { parse, cstVisitor } from 'sql-parser-cst'
 import { SqlParserService } from '../services/sqlParserService'
 import { MetadataService } from '../services/metadataService'
 import type { CursorContext, TableRef } from '../types'
@@ -51,6 +52,12 @@ export class CompletionProvider {
     position: Position
   ): CompletionItem[] {
     const offset = this.getOffset(documentText, position)
+
+    // 使用 sql-parser-cst 检查是否应该提供补全
+    if (!this.shouldProvideCompletion(documentText, offset)) {
+      return []
+    }
+
     const context = this.sqlParser.analyzeCursorContext(documentText, offset)
 
     // console.log('[CompletionProvider] context:', context.type, 'position:', position, 'offset:', offset)
@@ -380,5 +387,201 @@ export class CompletionProvider {
 
     // 限制 20 条
     return unique
+  }
+
+  /**
+   * 使用 sql-parser-cst 判断是否应该提供补全
+   * 过滤掉以下情况：
+   * 1. 光标前没有有效内容（空白或空文档）
+   * 2. 光标在注释内
+   * 3. 光标在字符串内
+   * 4. 语句已结束（分号后只有空白）
+   */
+  private shouldProvideCompletion(documentText: string, offset: number): boolean {
+    const textBefore = documentText.substring(0, offset)
+
+    // 如果光标前完全没有内容或只有空白，不补全
+    const trimmedBefore = textBefore.trim()
+    if (!trimmedBefore) {
+      return false
+    }
+
+    // 检查是否在语句结束后（分号后只有空白）
+    const lastSemicolonPos = this.findLastSemicolonPosition(textBefore)
+    if (lastSemicolonPos !== -1) {
+      const afterSemicolon = textBefore.substring(lastSemicolonPos + 1)
+      if (!afterSemicolon.trim()) {
+        return false
+      }
+    }
+
+    // 使用 sql-parser-cst 进行更精确的判断
+    try {
+      const cst = parse(documentText, {
+        dialect: 'mysql',
+        includeRange: true,
+        includeComments: true
+      })
+
+      // 找到光标所在的节点
+      const node = this.findNodeAtOffset(cst, offset)
+
+      if (node) {
+        // 在注释内不补全
+        if (node.type === 'line_comment' || node.type === 'block_comment') {
+          return false
+        }
+
+        // 在字符串内不补全
+        if (node.type === 'string_literal' || node.type === 'string') {
+          return false
+        }
+      }
+
+      return true
+    } catch {
+      // 解析失败时（可能是不完整的 SQL），使用简单的字符检查
+      // 如果最后一个有效字符是分号，不补全
+      if (trimmedBefore.endsWith(';')) {
+        return false
+      }
+
+      // 检查是否在字符串或注释内（简单检查）
+      if (this.isInStringOrComment(textBefore)) {
+        return false
+      }
+
+      // 其他情况允许补全（可能是正在输入的不完整 SQL）
+      return true
+    }
+  }
+
+  /**
+   * 在 CST 中查找包含指定偏移量的节点
+   */
+  private findNodeAtOffset(root: unknown, targetOffset: number): { type: string } | null {
+    let result: { type: string } | null = null
+
+    const visitor = cstVisitor({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      '*': (node: any) => {
+        if (node.range && targetOffset >= node.range[0] && targetOffset <= node.range[1]) {
+          // 找到最深层的匹配节点
+          result = node
+        }
+      }
+    })
+
+    visitor(root)
+    return result
+  }
+
+  /**
+   * 查找最后一个有效分号的位置（排除字符串和注释中的分号）
+   */
+  private findLastSemicolonPosition(text: string): number {
+    let lastSemicolon = -1
+    let inString = false
+    let stringChar = ''
+    let inLineComment = false
+    let inBlockComment = false
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i]
+      const nextChar = text[i + 1]
+
+      if (inLineComment) {
+        if (char === '\n') inLineComment = false
+        continue
+      }
+
+      if (inBlockComment) {
+        if (char === '*' && nextChar === '/') {
+          inBlockComment = false
+          i++
+        }
+        continue
+      }
+
+      if (!inString) {
+        if (char === '-' && nextChar === '-') {
+          inLineComment = true
+          i++
+          continue
+        }
+        if (char === '/' && nextChar === '*') {
+          inBlockComment = true
+          i++
+          continue
+        }
+        if (char === "'" || char === '"' || char === '`') {
+          inString = true
+          stringChar = char
+          continue
+        }
+        if (char === ';') {
+          lastSemicolon = i
+        }
+      } else {
+        if (char === stringChar && text[i - 1] !== '\\') {
+          inString = false
+        }
+      }
+    }
+
+    return lastSemicolon
+  }
+
+  /**
+   * 简单检查是否在字符串或注释内
+   */
+  private isInStringOrComment(text: string): boolean {
+    let inString = false
+    let stringChar = ''
+    let inLineComment = false
+    let inBlockComment = false
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i]
+      const nextChar = text[i + 1]
+
+      if (inLineComment) {
+        if (char === '\n') inLineComment = false
+        continue
+      }
+
+      if (inBlockComment) {
+        if (char === '*' && nextChar === '/') {
+          inBlockComment = false
+          i++
+        }
+        continue
+      }
+
+      if (!inString) {
+        if (char === '-' && nextChar === '-') {
+          inLineComment = true
+          i++
+          continue
+        }
+        if (char === '/' && nextChar === '*') {
+          inBlockComment = true
+          i++
+          continue
+        }
+        if (char === "'" || char === '"' || char === '`') {
+          inString = true
+          stringChar = char
+          continue
+        }
+      } else {
+        if (char === stringChar && text[i - 1] !== '\\') {
+          inString = false
+        }
+      }
+    }
+
+    // 如果遍历结束后仍在字符串、行注释或块注释内，返回 true
+    return inString || inLineComment || inBlockComment
   }
 }
