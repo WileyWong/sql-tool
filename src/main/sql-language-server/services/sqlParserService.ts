@@ -1,9 +1,19 @@
 /**
  * SQL 解析服务
  * 负责解析 SQL 语句并分析光标位置的上下文
+ * 使用 sql-parser-cst 进行精确的 SQL 解析，支持子查询识别
  */
 
+import { parse, cstVisitor } from 'sql-parser-cst'
 import type { CursorContext, TableRef } from '../types'
+
+// CST 节点类型定义
+interface CstNode {
+  type: string
+  range?: [number, number]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any
+}
 
 export class SqlParserService {
   /**
@@ -217,7 +227,7 @@ export class SqlParserService {
   /**
    * 检查是否在 FROM/JOIN 子句中（正在输入表名）
    */
-  private isInFromJoinClause(textBefore: string, fullTextUpper: string): boolean {
+  private isInFromJoinClause(textBefore: string, _fullTextUpper: string): boolean {
     const textBeforeUpper = textBefore.toUpperCase()
     
     // 直接在 FROM/JOIN 后面（紧跟空格）
@@ -361,9 +371,277 @@ export class SqlParserService {
   }
 
   /**
-   * 从 SQL 文本中提取表引用
+   * 从 SQL 文本中提取表引用（使用 CST 解析，支持子查询）
    */
   extractTablesFromSql(sql: string): TableRef[] {
+    try {
+      const cst = parse(sql, {
+        dialect: 'mysql',
+        includeRange: true
+      })
+      return this.extractTablesFromCST(cst)
+    } catch {
+      // CST 解析失败，降级到正则方案
+      return this.extractTablesFromSqlRegex(sql)
+    }
+  }
+
+  /**
+   * 从 CST 中提取表引用（支持子查询）
+   */
+  private extractTablesFromCST(cst: CstNode): TableRef[] {
+    const tables: TableRef[] = []
+    const seen = new Set<string>()
+
+    const visitor = cstVisitor({
+      // 处理 FROM 子句
+      from_clause: (node) => {
+        this.extractTablesFromFromClause(node as unknown as CstNode, tables, seen)
+      },
+      // 处理 JOIN 表达式
+      join_expr: (node) => {
+        this.extractTableFromJoinExpr(node as unknown as CstNode, tables, seen)
+      }
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    visitor(cst as any)
+    return tables
+  }
+
+  /**
+   * 从 FROM 子句中提取表引用
+   */
+  private extractTablesFromFromClause(node: CstNode, tables: TableRef[], seen: Set<string>): void {
+    // FROM 子句的 expr 可能是：
+    // 1. identifier (表名)
+    // 2. alias (表名 AS 别名 或 表名 别名)
+    // 3. paren_expr (子查询)
+    // 4. join_expr (JOIN 表达式)
+    // 5. comma_expr (逗号分隔的多表)
+
+    const expr = node.expr
+    if (!expr) return
+
+    this.extractTableFromExpr(expr, tables, seen)
+  }
+
+  /**
+   * 从表达式中提取表引用
+   */
+  private extractTableFromExpr(expr: CstNode, tables: TableRef[], seen: Set<string>): void {
+    if (!expr) return
+
+    switch (expr.type) {
+      case 'identifier':
+      case 'member_expr':
+        // 普通表引用
+        this.addTableRef(expr, null, tables, seen)
+        break
+
+      case 'alias':
+        // 带别名的表引用或子查询
+        this.extractTableFromAlias(expr, tables, seen)
+        break
+
+      case 'paren_expr':
+        // 括号表达式（可能是子查询）
+        this.extractTableFromParenExpr(expr, null, tables, seen)
+        break
+
+      case 'join_expr':
+        // JOIN 表达式
+        this.extractTableFromJoinExpr(expr, tables, seen)
+        break
+
+      case 'list_expr':
+        // 逗号分隔的多表 (FROM t1, t2)
+        if (expr.items && Array.isArray(expr.items)) {
+          for (const item of expr.items) {
+            this.extractTableFromExpr(item, tables, seen)
+          }
+        }
+        break
+    }
+  }
+
+  /**
+   * 从别名表达式中提取表引用
+   */
+  private extractTableFromAlias(aliasNode: CstNode, tables: TableRef[], seen: Set<string>): void {
+    const innerExpr = aliasNode.expr
+    const aliasExpr = aliasNode.alias
+
+    // 获取别名
+    const alias = this.getIdentifierName(aliasExpr)
+
+    if (innerExpr?.type === 'paren_expr') {
+      // 子查询带别名: (SELECT ...) AS alias
+      this.extractTableFromParenExpr(innerExpr, alias, tables, seen)
+    } else {
+      // 普通表带别名: table_name AS alias
+      this.addTableRef(innerExpr, alias, tables, seen)
+    }
+  }
+
+  /**
+   * 从括号表达式中提取子查询信息
+   */
+  private extractTableFromParenExpr(
+    parenExpr: CstNode,
+    alias: string | null,
+    tables: TableRef[],
+    seen: Set<string>
+  ): void {
+    const innerExpr = parenExpr.expr
+
+    // 检查是否是 SELECT 语句（子查询）
+    if (innerExpr?.type === 'select_stmt') {
+      const subqueryInfo = this.extractSubqueryInfo(innerExpr)
+      
+      const key = (alias || '__subquery__').toLowerCase()
+      if (!seen.has(key)) {
+        seen.add(key)
+        tables.push({
+          name: alias || '__subquery__',
+          alias: alias || undefined,
+          isSubquery: true,
+          subqueryColumns: subqueryInfo.columns,
+          subquerySelectsStar: subqueryInfo.selectsStar,
+          subqueryInnerTables: subqueryInfo.innerTables
+        })
+      }
+    }
+  }
+
+  /**
+   * 从 JOIN 表达式中提取表引用
+   */
+  private extractTableFromJoinExpr(joinExpr: CstNode, tables: TableRef[], seen: Set<string>): void {
+    // JOIN 表达式有 left 和 right 两边
+    if (joinExpr.left) {
+      this.extractTableFromExpr(joinExpr.left, tables, seen)
+    }
+    if (joinExpr.right) {
+      this.extractTableFromExpr(joinExpr.right, tables, seen)
+    }
+  }
+
+  /**
+   * 添加表引用到列表
+   */
+  private addTableRef(
+    expr: CstNode | null,
+    alias: string | null,
+    tables: TableRef[],
+    seen: Set<string>
+  ): void {
+    if (!expr) return
+
+    const name = this.getIdentifierName(expr)
+    if (!name) return
+
+    // 排除关键字
+    const keywords = ['WHERE', 'GROUP', 'ORDER', 'LIMIT', 'HAVING', 'UNION', 'ON', 'AND', 'OR']
+    if (keywords.includes(name.toUpperCase())) return
+
+    const key = (alias || name).toLowerCase()
+    if (!seen.has(key)) {
+      seen.add(key)
+      tables.push({
+        name,
+        alias: alias || undefined
+      })
+    }
+  }
+
+  /**
+   * 从标识符节点获取名称
+   */
+  private getIdentifierName(node: CstNode | null): string | null {
+    if (!node) return null
+
+    if (node.type === 'identifier') {
+      // 处理带反引号的标识符
+      if (node.text) {
+        return node.text.replace(/^`|`$/g, '')
+      }
+      if (node.name) {
+        return node.name.replace(/^`|`$/g, '')
+      }
+    }
+
+    if (node.type === 'member_expr') {
+      // 处理 database.table 形式
+      const object = this.getIdentifierName(node.object)
+      const property = this.getIdentifierName(node.property)
+      return property || object
+    }
+
+    return null
+  }
+
+  /**
+   * 提取子查询信息
+   */
+  private extractSubqueryInfo(selectStmt: CstNode): {
+    columns: string[]
+    selectsStar: boolean
+    innerTables: string[]
+  } {
+    const columns: string[] = []
+    let selectsStar = false
+    const innerTables: string[] = []
+
+    // 提取 SELECT 子句中的列
+    const selectClause = selectStmt.clauses?.find((c: CstNode) => c.type === 'select_clause')
+    if (selectClause?.columns) {
+      const columnItems = selectClause.columns.items || [selectClause.columns]
+      
+      for (const col of columnItems) {
+        if (col.type === 'all_columns') {
+          // SELECT *
+          selectsStar = true
+        } else if (col.type === 'alias') {
+          // SELECT expr AS alias
+          const aliasName = this.getIdentifierName(col.alias)
+          if (aliasName) {
+            columns.push(aliasName)
+          }
+        } else if (col.type === 'identifier') {
+          // SELECT column_name
+          const colName = this.getIdentifierName(col)
+          if (colName) {
+            columns.push(colName)
+          }
+        } else if (col.type === 'member_expr') {
+          // SELECT table.column
+          const colName = this.getIdentifierName(col.property)
+          if (colName) {
+            columns.push(colName)
+          }
+        }
+      }
+    }
+
+    // 提取 FROM 子句中的表名（用于 SELECT * 时获取字段）
+    const fromClause = selectStmt.clauses?.find((c: CstNode) => c.type === 'from_clause')
+    if (fromClause) {
+      const innerTableRefs = this.extractTablesFromCST({ type: 'root', clauses: [fromClause] } as CstNode)
+      for (const ref of innerTableRefs) {
+        if (!ref.isSubquery) {
+          innerTables.push(ref.name)
+        }
+      }
+    }
+
+    return { columns, selectsStar, innerTables }
+  }
+
+  /**
+   * 从 SQL 文本中提取表引用（正则降级方案）
+   */
+  private extractTablesFromSqlRegex(sql: string): TableRef[] {
     const tables: TableRef[] = []
     const seen = new Set<string>()
 

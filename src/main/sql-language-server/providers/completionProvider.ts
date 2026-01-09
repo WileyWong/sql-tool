@@ -8,10 +8,10 @@ import {
   InsertTextFormat,
   Position,
 } from 'vscode-languageserver'
-import { parse, cstVisitor } from 'sql-parser-cst'
+import { parse } from 'sql-parser-cst'
 import { SqlParserService } from '../services/sqlParserService'
 import { MetadataService } from '../services/metadataService'
-import type { CursorContext, TableRef } from '../types'
+import type { TableRef } from '../types'
 
 /**
  * SQL 关键字列表
@@ -105,7 +105,8 @@ export class CompletionProvider {
 
       case 'TABLE_DOT':
         if (context.targetTable) {
-          this.addColumnSuggestionsForTable(suggestions, context.targetTable)
+          // 先检查是否是子查询别名
+          this.addColumnSuggestionsForTableDot(suggestions, context.targetTable, documentText)
         }
         break
 
@@ -213,7 +214,7 @@ export class CompletionProvider {
   }
 
   /**
-   * 为多个表添加字段建议
+   * 为多个表添加字段建议（支持子查询）
    */
   private addColumnSuggestionsForTables(
     suggestions: CompletionItem[],
@@ -223,18 +224,66 @@ export class CompletionProvider {
     const needPrefix = prefixRequired || tables.length > 1
 
     for (const tableRef of tables) {
-      const columns = this.metadataService.getColumns(tableRef.name)
-      const prefix = needPrefix ? `${tableRef.alias || tableRef.name}.` : ''
-      
-      for (const column of columns) {
+      if (tableRef.isSubquery) {
+        // 处理子查询
+        this.addSubqueryColumnSuggestionsFromTableRef(suggestions, tableRef, needPrefix)
+      } else {
+        // 普通表
+        const columns = this.metadataService.getColumns(tableRef.name)
+        const prefix = needPrefix ? `${tableRef.alias || tableRef.name}.` : ''
+        
+        for (const column of columns) {
+          suggestions.push({
+            label: prefix + column.name,
+            kind: CompletionItemKind.Field,
+            insertText: prefix + column.name,
+            detail: `${column.type}${column.nullable ? '' : ' NOT NULL'}`,
+            documentation: column.comment || `来自表 ${tableRef.name}`,
+            sortText: '0_' + column.name // 字段优先
+          })
+        }
+      }
+    }
+  }
+
+  /**
+   * 从子查询 TableRef 添加字段建议
+   */
+  private addSubqueryColumnSuggestionsFromTableRef(
+    suggestions: CompletionItem[],
+    tableRef: TableRef,
+    needPrefix: boolean
+  ): void {
+    const prefix = needPrefix ? `${tableRef.alias || tableRef.name}.` : ''
+
+    // 如果子查询有显式列名
+    if (tableRef.subqueryColumns && tableRef.subqueryColumns.length > 0) {
+      for (const colName of tableRef.subqueryColumns) {
         suggestions.push({
-          label: prefix + column.name,
+          label: prefix + colName,
           kind: CompletionItemKind.Field,
-          insertText: prefix + column.name,
-          detail: `${column.type}${column.nullable ? '' : ' NOT NULL'}`,
-          documentation: column.comment || `来自表 ${tableRef.name}`,
-          sortText: '0_' + column.name // 字段优先
+          insertText: prefix + colName,
+          detail: '子查询字段',
+          documentation: `来自子查询 ${tableRef.alias || ''}`,
+          sortText: '0_' + colName
         })
+      }
+    }
+
+    // 如果子查询使用 SELECT *，从内部表获取字段
+    if (tableRef.subquerySelectsStar && tableRef.subqueryInnerTables) {
+      for (const innerTable of tableRef.subqueryInnerTables) {
+        const columns = this.metadataService.getColumns(innerTable)
+        for (const column of columns) {
+          suggestions.push({
+            label: prefix + column.name,
+            kind: CompletionItemKind.Field,
+            insertText: prefix + column.name,
+            detail: `${column.type}${column.nullable ? '' : ' NOT NULL'}`,
+            documentation: `来自子查询内部表 ${innerTable}`,
+            sortText: '0_' + column.name
+          })
+        }
       }
     }
   }
@@ -256,6 +305,37 @@ export class CompletionProvider {
         documentation: column.comment,
         sortText: '0_' + column.name
       })
+    }
+  }
+
+  /**
+   * 为 TABLE_DOT 场景添加字段建议（支持子查询别名）
+   */
+  private addColumnSuggestionsForTableDot(
+    suggestions: CompletionItem[],
+    targetTable: string,
+    documentText: string
+  ): void {
+    // 先从 SQL 中提取所有表引用
+    const tables = this.sqlParser.extractTablesFromSql(documentText)
+    
+    // 查找匹配的表引用
+    const matchedTable = tables.find(
+      t => t.alias?.toLowerCase() === targetTable.toLowerCase() ||
+           t.name.toLowerCase() === targetTable.toLowerCase()
+    )
+
+    if (matchedTable) {
+      if (matchedTable.isSubquery) {
+        // 子查询别名
+        this.addSubqueryColumnSuggestionsFromTableRef(suggestions, matchedTable, false)
+      } else {
+        // 普通表
+        this.addColumnSuggestionsForTable(suggestions, matchedTable.name)
+      }
+    } else {
+      // 降级：直接使用 targetTable 作为表名查询
+      this.addColumnSuggestionsForTable(suggestions, targetTable)
     }
   }
 
@@ -462,17 +542,28 @@ export class CompletionProvider {
   private findNodeAtOffset(root: unknown, targetOffset: number): { type: string } | null {
     let result: { type: string } | null = null
 
-    const visitor = cstVisitor({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      '*': (node: any) => {
-        if (node.range && targetOffset >= node.range[0] && targetOffset <= node.range[1]) {
-          // 找到最深层的匹配节点
-          result = node
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const visitNode = (node: any): void => {
+      if (!node || typeof node !== 'object') return
+
+      if (node.range && targetOffset >= node.range[0] && targetOffset <= node.range[1]) {
+        result = node
+      }
+
+      // 递归遍历所有属性
+      for (const key of Object.keys(node)) {
+        const value = node[key]
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            visitNode(item)
+          }
+        } else if (value && typeof value === 'object') {
+          visitNode(value)
         }
       }
-    })
+    }
 
-    visitor(root)
+    visitNode(root)
     return result
   }
 

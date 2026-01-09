@@ -282,14 +282,100 @@ export async function initLanguageClient(): Promise<MonacoLanguageClient> {
 | TC04 | JOIN ON | `SELECT * FROM t1 JOIN t2 ON ` | 显示 t1, t2 的字段 |
 | TC05 | 注释内 | `-- SELECT ` | 无建议 |
 | TC06 | 块注释 | `/* SELECT */` | 无建议 |
-| TC07 | 子查询 | `SELECT * FROM (SELECT id FROM users) sub WHERE sub.` | 显示 id |
-| TC08 | 语法错误 | `SELEC * FROM users` | SELEC 下显示红色波浪线 |
-| TC09 | 格式化 | 按 Shift+Alt+F | SQL 代码格式化 |
-| TC10 | 悬浮 | 鼠标悬停在表名上 | 显示表信息 |
+| TC07 | 子查询显式列 | `SELECT * FROM (SELECT id, name FROM users) sub WHERE sub.` | 显示 id, name |
+| TC08 | 子查询 SELECT * | `SELECT * FROM (SELECT * FROM users) a WHERE ` | 显示 users 表的所有字段 |
+| TC09 | 子查询别名. | `SELECT * FROM (SELECT * FROM users) a WHERE a.` | 显示 users 表的所有字段 |
+| TC10 | 外层 SELECT 列 | `SELECT  FROM (SELECT * FROM users) a` | 显示 users 表的字段（光标在 SELECT 后） |
+| TC11 | 语法错误 | `SELEC * FROM users` | SELEC 下显示红色波浪线 |
+| TC12 | 格式化 | 按 Shift+Alt+F | SQL 代码格式化 |
+| TC13 | 悬浮 | 鼠标悬停在表名上 | 显示表信息 |
 
 ---
 
-## 8. 风险与应对
+## 8. 子查询支持实现
+
+### 8.1 技术方案
+
+使用 `sql-parser-cst` 解析 SQL 的 CST（Concrete Syntax Tree），精确识别子查询结构：
+
+```
+select * from (select * from bresume_group) a where
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────┐
+│ select_stmt                                         │
+│ ├── select_clause: [all_columns (*)]               │
+│ ├── from_clause:                                   │
+│ │   └── alias                                      │
+│ │       ├── expr: paren_expr                       │
+│ │       │   └── select_stmt (子查询)               │
+│ │       │       ├── select_clause: [all_columns]   │
+│ │       │       └── from_clause: bresume_group     │
+│ │       └── alias: identifier("a")                 │
+│ └── where_clause: ...                              │
+└─────────────────────────────────────────────────────┘
+```
+
+### 8.2 TableRef 类型扩展
+
+```typescript
+interface TableRef {
+  name: string
+  alias?: string
+  database?: string
+  /** 是否是子查询 */
+  isSubquery?: boolean
+  /** 子查询的列（显式列名或 * 展开后的列） */
+  subqueryColumns?: string[]
+  /** 子查询是否使用 SELECT * */
+  subquerySelectsStar?: boolean
+  /** 子查询内部的表名（用于 SELECT * 时获取字段） */
+  subqueryInnerTables?: string[]
+}
+```
+
+### 8.3 处理流程
+
+1. **CST 解析**：使用 `sql-parser-cst` 解析 SQL
+2. **子查询识别**：在 FROM 子句中识别 `(SELECT ...) alias` 模式
+3. **字段提取**：
+   - 显式列：直接提取 SELECT 子句中的列名
+   - SELECT *：记录内部表名，运行时从 MetadataService 获取字段
+4. **降级方案**：CST 解析失败时，降级到正则匹配
+
+### 8.4 关键代码
+
+```typescript
+// SqlParserService.extractTablesFromSql
+extractTablesFromSql(sql: string): TableRef[] {
+  try {
+    const cst = parse(sql, { dialect: 'mysql', includeRange: true })
+    return this.extractTablesFromCST(cst)
+  } catch {
+    // CST 解析失败，降级到正则方案
+    return this.extractTablesFromSqlRegex(sql)
+  }
+}
+
+// CompletionProvider.addColumnSuggestionsForTables
+if (tableRef.isSubquery) {
+  // 处理子查询
+  if (tableRef.subqueryColumns?.length > 0) {
+    // 使用显式列名
+  }
+  if (tableRef.subquerySelectsStar && tableRef.subqueryInnerTables) {
+    // 从内部表获取字段
+    for (const innerTable of tableRef.subqueryInnerTables) {
+      const columns = metadataService.getColumns(innerTable)
+      // 添加字段建议
+    }
+  }
+}
+```
+
+---
+
+## 9. 风险与应对
 
 | 风险 | 影响 | 应对措施 |
 |------|------|----------|
@@ -300,7 +386,7 @@ export async function initLanguageClient(): Promise<MonacoLanguageClient> {
 
 ---
 
-## 9. 参考资料
+## 10. 参考资料
 
 - [Language Server Protocol 规范](https://microsoft.github.io/language-server-protocol/)
 - [monaco-languageclient 文档](https://github.com/TypeFox/monaco-languageclient)

@@ -36,6 +36,14 @@ export interface TableRef {
   name: string
   alias?: string
   database?: string
+  /** 是否是子查询 */
+  isSubquery?: boolean
+  /** 子查询的列（显式列名或 * 展开后的列） */
+  subqueryColumns?: string[]
+  /** 子查询是否使用 SELECT * */
+  subquerySelectsStar?: boolean
+  /** 子查询内部的表名（用于 SELECT * 时获取字段） */
+  subqueryInnerTables?: string[]
 }
 
 /**
