@@ -702,38 +702,4 @@ export class SqlParserService {
     }
   }
 
-  /**
-   * 提取子查询的列
-   */
-  extractSubqueryColumns(sql: string, offset: number): string[] {
-    // 查找光标位置之前最近的子查询
-    const textBefore = sql.substring(0, offset)
-    const subqueryMatch = textBefore.match(/\(\s*SELECT\s+(.+?)\s+FROM\s+/gi)
-    
-    if (!subqueryMatch) return []
-    
-    // 取最后一个子查询
-    const lastSubquery = subqueryMatch[subqueryMatch.length - 1]
-    const columnsMatch = lastSubquery.match(/SELECT\s+(.+?)\s+FROM/i)
-    
-    if (!columnsMatch) return []
-    
-    const columnsStr = columnsMatch[1]
-    const columns: string[] = []
-    
-    // 解析列（简单处理，不考虑复杂表达式）
-    const parts = columnsStr.split(',')
-    for (const part of parts) {
-      const trimmed = part.trim()
-      if (trimmed === '*') continue
-      
-      // 处理别名: expr AS alias 或 expr alias
-      const aliasMatch = trimmed.match(/(?:AS\s+)?(\w+)\s*$/i)
-      if (aliasMatch) {
-        columns.push(aliasMatch[1])
-      }
-    }
-    
-    return columns
-  }
 }
