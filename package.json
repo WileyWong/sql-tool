@@ -8,7 +8,14 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "pack:win": "npm run build && electron-builder --win",
-    "pack:mac": "npm run build && electron-builder --mac"
+    "pack:win:x64": "npm run build && electron-builder --win --x64",
+    "pack:win:arm64": "npm run build && electron-builder --win --arm64",
+    "pack:mac": "npm run build && electron-builder --mac",
+    "pack:mac:x64": "npm run build && electron-builder --mac --x64",
+    "pack:mac:arm64": "npm run build && electron-builder --mac --arm64",
+    "pack:linux": "npm run build && electron-builder --linux",
+    "pack:linux:x64": "npm run build && electron-builder --linux --x64",
+    "pack:linux:arm64": "npm run build && electron-builder --linux --arm64"
   },
   "dependencies": {
     "crypto-js": "^4.2.0",
@@ -50,14 +57,46 @@
         {
           "target": "portable",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
           ]
         }
       ]
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ]
     }
   }
