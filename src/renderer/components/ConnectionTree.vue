@@ -264,7 +264,10 @@ const contextMenuItems = computed(() => {
     case 'functions':
       return [{ key: 'refresh', label: '刷新' }]
     case 'table':
-      return [{ key: 'query100', label: '查询前100行' }]
+      return [
+        { key: 'query100', label: '查询前100行' },
+        { key: 'manage', label: '管理' }
+      ]
     default:
       return []
   }
@@ -402,6 +405,10 @@ async function handleMenuClick(key: string) {
     case 'query100':
       const sql = `SELECT * FROM \`${node.databaseName}\`.\`${node.label}\` LIMIT 100`
       editorStore.createTab(sql)
+      break
+    case 'manage':
+      // 打开表管理对话框
+      connectionStore.openTableManageDialog(node.connectionId!, node.databaseName!, node.label)
       break
   }
 }

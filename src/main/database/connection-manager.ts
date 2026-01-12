@@ -1,5 +1,5 @@
 import mysql, { Connection } from 'mysql2/promise'
-import type { ConnectionConfig, TestConnectionResult, TableMeta, ColumnMeta, ViewMeta, FunctionMeta } from '@shared/types'
+import type { ConnectionConfig, TestConnectionResult, TableMeta, ColumnMeta, ViewMeta, FunctionMeta, IndexMeta, IndexColumnMeta } from '@shared/types'
 import { Defaults } from '@shared/constants'
 
 // 活跃连接池
@@ -140,7 +140,17 @@ export async function getColumns(connectionId: string, database: string, table: 
   }
   
   const [rows] = await connection.query(
-    `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, COLUMN_COMMENT
+    `SELECT 
+      COLUMN_NAME, 
+      DATA_TYPE, 
+      COLUMN_TYPE,
+      IS_NULLABLE, 
+      COLUMN_KEY, 
+      COLUMN_DEFAULT, 
+      EXTRA,
+      CHARACTER_SET_NAME,
+      COLLATION_NAME,
+      COLUMN_COMMENT
      FROM information_schema.COLUMNS
      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
      ORDER BY ORDINAL_POSITION`,
@@ -150,18 +160,113 @@ export async function getColumns(connectionId: string, database: string, table: 
   return (rows as {
     COLUMN_NAME: string
     DATA_TYPE: string
+    COLUMN_TYPE: string
     IS_NULLABLE: string
     COLUMN_KEY: string
     COLUMN_DEFAULT: string | null
+    EXTRA: string
+    CHARACTER_SET_NAME: string | null
+    COLLATION_NAME: string | null
     COLUMN_COMMENT: string
   }[]).map(r => ({
     name: r.COLUMN_NAME,
     type: r.DATA_TYPE,
+    columnType: r.COLUMN_TYPE,
     nullable: r.IS_NULLABLE === 'YES',
     primaryKey: r.COLUMN_KEY === 'PRI',
+    autoIncrement: r.EXTRA.includes('auto_increment'),
     defaultValue: r.COLUMN_DEFAULT || undefined,
+    characterSet: r.CHARACTER_SET_NAME || undefined,
+    collation: r.COLLATION_NAME || undefined,
     comment: r.COLUMN_COMMENT || undefined
   }))
+}
+
+/**
+ * 获取表的建表语句
+ */
+export async function getTableCreateSql(connectionId: string, database: string, table: string): Promise<string> {
+  const connection = getConnection(connectionId)
+  if (!connection) {
+    throw new Error('连接不存在')
+  }
+  
+  const [rows] = await connection.query(
+    `SHOW CREATE TABLE \`${database}\`.\`${table}\``
+  )
+  
+  const result = rows as { Table: string; 'Create Table': string }[]
+  return result[0]?.['Create Table'] || ''
+}
+
+/**
+ * 获取表的索引信息
+ */
+export async function getIndexes(connectionId: string, database: string, table: string): Promise<IndexMeta[]> {
+  const connection = getConnection(connectionId)
+  if (!connection) {
+    throw new Error('连接不存在')
+  }
+  
+  const [rows] = await connection.query(
+    `SHOW INDEX FROM \`${database}\`.\`${table}\``
+  )
+  
+  const indexRows = rows as {
+    Key_name: string
+    Seq_in_index: number
+    Column_name: string
+    Collation: string | null
+    Cardinality: number | null
+    Sub_part: number | null
+    Non_unique: number
+    Index_type: string
+  }[]
+  
+  // 按索引名分组
+  const indexMap = new Map<string, IndexMeta>()
+  
+  for (const row of indexRows) {
+    const indexName = row.Key_name
+    
+    if (!indexMap.has(indexName)) {
+      // 确定索引类型
+      let indexType: IndexMeta['type'] = 'INDEX'
+      if (indexName === 'PRIMARY') {
+        indexType = 'PRIMARY'
+      } else if (row.Non_unique === 0) {
+        indexType = 'UNIQUE'
+      } else if (row.Index_type === 'FULLTEXT') {
+        indexType = 'FULLTEXT'
+      } else if (row.Index_type === 'SPATIAL') {
+        indexType = 'SPATIAL'
+      }
+      
+      indexMap.set(indexName, {
+        name: indexName,
+        type: indexType,
+        columns: []
+      })
+    }
+    
+    const index = indexMap.get(indexName)!
+    const columnMeta: IndexColumnMeta = {
+      columnName: row.Column_name,
+      seqInIndex: row.Seq_in_index,
+      order: row.Collation === 'D' ? 'DESC' : 'ASC',
+      cardinality: row.Cardinality ?? undefined,
+      subPart: row.Sub_part ?? undefined
+    }
+    
+    index.columns.push(columnMeta)
+  }
+  
+  // 对每个索引的列按序号排序
+  for (const index of indexMap.values()) {
+    index.columns.sort((a, b) => a.seqInIndex - b.seqInIndex)
+  }
+  
+  return Array.from(indexMap.values())
 }
 
 /**

@@ -22,11 +22,35 @@ export interface TableMeta {
  */
 export interface ColumnMeta {
   name: string
-  type: string
+  type: string           // 数据类型 (如 varchar)
+  columnType: string     // 完整类型 (如 varchar(255))
   nullable: boolean
   primaryKey: boolean
+  autoIncrement: boolean // 是否自增
   defaultValue?: string
+  characterSet?: string  // 字符编码
+  collation?: string     // 排序规则
   comment?: string
+}
+
+/**
+ * 索引列元数据
+ */
+export interface IndexColumnMeta {
+  columnName: string
+  seqInIndex: number      // 列在索引中的序号
+  order: 'ASC' | 'DESC'   // 排序方向
+  cardinality?: number    // 基数
+  subPart?: number        // 前缀长度 (用于部分索引)
+}
+
+/**
+ * 索引元数据
+ */
+export interface IndexMeta {
+  name: string
+  type: 'PRIMARY' | 'UNIQUE' | 'INDEX' | 'FULLTEXT' | 'SPATIAL'
+  columns: IndexColumnMeta[]
 }
 
 /**

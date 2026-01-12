@@ -42,6 +42,9 @@
     <!-- 连接对话框 -->
     <ConnectionDialog />
     
+    <!-- 表管理对话框 -->
+    <TableManageDialog />
+    
     <!-- 保存确认对话框 -->
     <SaveConfirmDialog ref="saveConfirmDialogRef" />
   </div>
@@ -55,6 +58,7 @@ import ConnectionTree from './components/ConnectionTree.vue'
 import SqlEditor from './components/SqlEditor.vue'
 import ResultPanel from './components/ResultPanel.vue'
 import ConnectionDialog from './components/ConnectionDialog.vue'
+import TableManageDialog from './components/TableManageDialog.vue'
 import StatusBar from './components/StatusBar.vue'
 import SaveConfirmDialog from './components/SaveConfirmDialog.vue'
 import { useEditorStore } from './stores/editor'

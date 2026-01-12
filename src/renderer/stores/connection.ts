@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ConnectionConfig, ConnectionInfo, ConnectionStatus, DatabaseMeta, TableMeta, ColumnMeta, ViewMeta, FunctionMeta } from '@shared/types'
+import type { ConnectionConfig, ConnectionInfo, ConnectionStatus, DatabaseMeta, TableMeta, ColumnMeta, ViewMeta, FunctionMeta, IndexMeta } from '@shared/types'
 
 export const useConnectionStore = defineStore('connection', () => {
   // 连接列表
@@ -15,9 +15,17 @@ export const useConnectionStore = defineStore('connection', () => {
   // 数据库结构缓存 Map<connectionId, Map<database, DatabaseMeta>>
   const databaseCache = ref<Map<string, Map<string, DatabaseMeta>>>(new Map())
   
-  // 对话框状态
+  // 连接对话框状态
   const dialogVisible = ref(false)
   const editingConnection = ref<ConnectionConfig | null>(null)
+  
+  // 表管理对话框状态
+  const tableManageDialogVisible = ref(false)
+  const tableManageInfo = ref<{
+    connectionId: string
+    database: string
+    table: string
+  } | null>(null)
   
   // 当前连接
   const currentConnection = computed(() => {
@@ -224,6 +232,28 @@ export const useConnectionStore = defineStore('connection', () => {
     editingConnection.value = null
   }
   
+  // 打开表管理对话框
+  function openTableManageDialog(connectionId: string, database: string, table: string) {
+    tableManageInfo.value = { connectionId, database, table }
+    tableManageDialogVisible.value = true
+  }
+  
+  // 关闭表管理对话框
+  function closeTableManageDialog() {
+    tableManageDialogVisible.value = false
+    tableManageInfo.value = null
+  }
+  
+  // 获取表的建表语句
+  async function getTableCreateSql(connectionId: string, database: string, table: string): Promise<{ success: boolean; sql?: string; message?: string }> {
+    return window.api.database.tableCreateSql(connectionId, database, table)
+  }
+  
+  // 获取表的索引信息
+  async function getTableIndexes(connectionId: string, database: string, table: string): Promise<{ success: boolean; indexes?: IndexMeta[]; message?: string }> {
+    return window.api.database.indexes(connectionId, database, table)
+  }
+  
   // 设置当前连接
   function setCurrentConnection(connectionId: string) {
     currentConnectionId.value = connectionId
@@ -243,6 +273,8 @@ export const useConnectionStore = defineStore('connection', () => {
     databaseCache,
     dialogVisible,
     editingConnection,
+    tableManageDialogVisible,
+    tableManageInfo,
     
     // 方法
     loadConnections,
@@ -261,6 +293,10 @@ export const useConnectionStore = defineStore('connection', () => {
     openNewConnectionDialog,
     openEditConnectionDialog,
     closeDialog,
+    openTableManageDialog,
+    closeTableManageDialog,
+    getTableCreateSql,
+    getTableIndexes,
     setCurrentConnection,
     setCurrentDatabase
   }

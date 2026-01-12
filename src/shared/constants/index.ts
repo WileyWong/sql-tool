@@ -34,6 +34,8 @@ export const IpcChannels = {
   DATABASE_COLUMNS: 'database:columns',
   DATABASE_VIEWS: 'database:views',
   DATABASE_FUNCTIONS: 'database:functions',
+  DATABASE_TABLE_CREATE_SQL: 'database:tableCreateSql',
+  DATABASE_INDEXES: 'database:indexes',
   
   // 查询执行
   QUERY_EXECUTE: 'query:execute',

@@ -1,6 +1,6 @@
 import { IpcMain } from 'electron'
 import { IpcChannels } from '@shared/constants'
-import { getDatabases, getTables, getColumns, getViews, getFunctions } from '../database/connection-manager'
+import { getDatabases, getTables, getColumns, getViews, getFunctions, getTableCreateSql, getIndexes } from '../database/connection-manager'
 
 export function setupDatabaseHandlers(ipcMain: IpcMain): void {
   // 获取数据库列表
@@ -55,6 +55,28 @@ export function setupDatabaseHandlers(ipcMain: IpcMain): void {
     } catch (error: unknown) {
       const err = error as { message?: string }
       return { success: false, message: err.message || '获取函数列表失败' }
+    }
+  })
+  
+  // 获取表的建表语句
+  ipcMain.handle(IpcChannels.DATABASE_TABLE_CREATE_SQL, async (_, data: { connectionId: string; database: string; table: string }) => {
+    try {
+      const sql = await getTableCreateSql(data.connectionId, data.database, data.table)
+      return { success: true, sql }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '获取建表语句失败' }
+    }
+  })
+  
+  // 获取表的索引信息
+  ipcMain.handle(IpcChannels.DATABASE_INDEXES, async (_, data: { connectionId: string; database: string; table: string }) => {
+    try {
+      const indexes = await getIndexes(data.connectionId, data.database, data.table)
+      return { success: true, indexes }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '获取索引信息失败' }
     }
   })
 }

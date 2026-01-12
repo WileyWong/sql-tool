@@ -40,7 +40,13 @@ const api = {
       ipcRenderer.invoke(IpcChannels.DATABASE_VIEWS, { connectionId, database }),
     
     functions: (connectionId: string, database: string) =>
-      ipcRenderer.invoke(IpcChannels.DATABASE_FUNCTIONS, { connectionId, database })
+      ipcRenderer.invoke(IpcChannels.DATABASE_FUNCTIONS, { connectionId, database }),
+    
+    tableCreateSql: (connectionId: string, database: string, table: string): Promise<{ success: boolean; sql?: string; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_TABLE_CREATE_SQL, { connectionId, database, table }),
+    
+    indexes: (connectionId: string, database: string, table: string) =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_INDEXES, { connectionId, database, table })
   },
   
   // 查询执行
