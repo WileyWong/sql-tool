@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import type { QueryResult, QueryResultSet, QueryMessage, ExplainResult, ExecutionStatus } from '@shared/types'
 
 export interface ResultTab {
@@ -9,34 +9,76 @@ export interface ResultTab {
   data: QueryResultSet | QueryMessage | ExplainResult
 }
 
+// 每个编辑器标签页的结果状态
+interface TabResultState {
+  tabs: ResultTab[]
+  messages: { type: 'info' | 'success' | 'warning' | 'error'; text: string; time: Date }[]
+  activeTabId: string
+  executionStatus: ExecutionStatus
+}
+
 export const useResultStore = defineStore('result', () => {
-  // 结果标签页列表
-  const tabs = ref<ResultTab[]>([])
+  // 所有编辑器标签页的结果数据（按 editorTabId 存储）
+  const tabResults = reactive<Map<string, TabResultState>>(new Map())
   
-  // 消息列表
-  const messages = ref<{ type: 'info' | 'success' | 'warning' | 'error'; text: string; time: Date }[]>([])
+  // 当前编辑器标签页 ID
+  const currentEditorTabId = ref<string | null>(null)
   
-  // 当前激活的标签页
-  const activeTabId = ref<string>('message')
+  // 获取或创建标签页的结果状态
+  function getOrCreateTabState(editorTabId: string): TabResultState {
+    if (!tabResults.has(editorTabId)) {
+      tabResults.set(editorTabId, {
+        tabs: [],
+        messages: [],
+        activeTabId: 'message',
+        executionStatus: 'idle'
+      })
+    }
+    return tabResults.get(editorTabId)!
+  }
+  
+  // 当前标签页的结果状态
+  const currentState = computed((): TabResultState | null => {
+    if (!currentEditorTabId.value) return null
+    return tabResults.get(currentEditorTabId.value) || null
+  })
+  
+  // 结果标签页列表（当前编辑器标签页的）
+  const tabs = computed(() => currentState.value?.tabs || [])
+  
+  // 消息列表（当前编辑器标签页的）
+  const messages = computed(() => currentState.value?.messages || [])
+  
+  // 当前激活的结果标签页
+  const activeTabId = computed(() => currentState.value?.activeTabId || 'message')
   
   // 执行状态
-  const executionStatus = ref<ExecutionStatus>('idle')
+  const executionStatus = computed(() => currentState.value?.executionStatus || 'idle')
   
-  // 当前标签页
+  // 当前结果标签页
   const activeTab = computed(() => {
     return tabs.value.find(t => t.id === activeTabId.value)
   })
   
-  // 清空结果
+  // 切换到指定编辑器标签页的结果
+  function switchToEditorTab(editorTabId: string | null) {
+    currentEditorTabId.value = editorTabId
+  }
+  
+  // 清空当前标签页的结果
   function clearResults() {
-    tabs.value = []
-    messages.value = []
-    activeTabId.value = 'message'
+    if (!currentEditorTabId.value) return
+    const state = getOrCreateTabState(currentEditorTabId.value)
+    state.tabs = []
+    state.messages = []
+    state.activeTabId = 'message'
   }
   
   // 添加消息
   function addMessage(type: 'info' | 'success' | 'warning' | 'error', text: string) {
-    messages.value.push({
+    if (!currentEditorTabId.value) return
+    const state = getOrCreateTabState(currentEditorTabId.value)
+    state.messages.push({
       type,
       text,
       time: new Date()
@@ -45,13 +87,18 @@ export const useResultStore = defineStore('result', () => {
   
   // 设置执行状态
   function setExecutionStatus(status: ExecutionStatus) {
-    executionStatus.value = status
+    if (!currentEditorTabId.value) return
+    const state = getOrCreateTabState(currentEditorTabId.value)
+    state.executionStatus = status
   }
   
   // 处理查询结果
   function handleQueryResults(results: QueryResult[]) {
+    if (!currentEditorTabId.value) return
+    const state = getOrCreateTabState(currentEditorTabId.value)
+    
     // 清空之前的结果
-    tabs.value = []
+    state.tabs = []
     
     let resultCount = 0
     
@@ -64,31 +111,46 @@ export const useResultStore = defineStore('result', () => {
           type: 'resultset',
           data: result
         }
-        tabs.value.push(tab)
+        state.tabs.push(tab)
         
         // 添加消息
-        addMessage('success', `查询返回 ${result.rowCount} 行，耗时 ${result.executionTime}ms`)
+        state.messages.push({
+          type: 'success',
+          text: `查询返回 ${result.rowCount} 行，耗时 ${result.executionTime}ms`,
+          time: new Date()
+        })
       } else if (result.type === 'message') {
         // 非查询结果添加到消息
-        addMessage('success', `${result.message}，耗时 ${result.executionTime}ms`)
+        state.messages.push({
+          type: 'success',
+          text: `${result.message}，耗时 ${result.executionTime}ms`,
+          time: new Date()
+        })
       } else if (result.type === 'error') {
         // 错误消息
-        addMessage('error', `[${result.code}] ${result.message}`)
+        state.messages.push({
+          type: 'error',
+          text: `[${result.code}] ${result.message}`,
+          time: new Date()
+        })
       }
     }
     
     // 如果有结果集，切换到第一个结果标签页
-    if (tabs.value.length > 0) {
-      activeTabId.value = tabs.value[0].id
+    if (state.tabs.length > 0) {
+      state.activeTabId = state.tabs[0].id
     } else {
-      activeTabId.value = 'message'
+      state.activeTabId = 'message'
     }
   }
   
   // 处理执行计划结果
   function handleExplainResult(explain: ExplainResult) {
+    if (!currentEditorTabId.value) return
+    const state = getOrCreateTabState(currentEditorTabId.value)
+    
     // 添加执行计划标签页
-    const existingIndex = tabs.value.findIndex(t => t.id === 'explain')
+    const existingIndex = state.tabs.findIndex(t => t.id === 'explain')
     const tab: ResultTab = {
       id: 'explain',
       title: '执行计划',
@@ -97,18 +159,31 @@ export const useResultStore = defineStore('result', () => {
     }
     
     if (existingIndex >= 0) {
-      tabs.value[existingIndex] = tab
+      state.tabs[existingIndex] = tab
     } else {
-      tabs.value.push(tab)
+      state.tabs.push(tab)
     }
     
-    activeTabId.value = 'explain'
-    addMessage('info', `执行计划已生成`)
+    state.activeTabId = 'explain'
+    state.messages.push({
+      type: 'info',
+      text: '执行计划已生成',
+      time: new Date()
+    })
   }
   
-  // 切换标签页
+  // 切换结果标签页
   function switchTab(tabId: string) {
-    activeTabId.value = tabId
+    if (!currentEditorTabId.value) return
+    const state = tabResults.get(currentEditorTabId.value)
+    if (state) {
+      state.activeTabId = tabId
+    }
+  }
+  
+  // 清理指定编辑器标签页的结果（标签页关闭时调用）
+  function cleanupEditorTab(editorTabId: string) {
+    tabResults.delete(editorTabId)
   }
   
   return {
@@ -118,6 +193,7 @@ export const useResultStore = defineStore('result', () => {
     activeTabId,
     activeTab,
     executionStatus,
+    currentEditorTabId,
     
     // 方法
     clearResults,
@@ -125,6 +201,8 @@ export const useResultStore = defineStore('result', () => {
     setExecutionStatus,
     handleQueryResults,
     handleExplainResult,
-    switchTab
+    switchTab,
+    switchToEditorTab,
+    cleanupEditorTab
   }
 })

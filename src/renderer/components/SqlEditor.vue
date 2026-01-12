@@ -70,6 +70,7 @@ import { ref, computed, watch, onMounted, onUnmounted, inject, nextTick } from '
 import * as monaco from 'monaco-editor'
 import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
+import { useResultStore } from '../stores/result'
 
 // 补全项类型
 interface CompletionItemResult {
@@ -97,6 +98,7 @@ interface TextEditResult {
 
 const editorStore = useEditorStore()
 const connectionStore = useConnectionStore()
+const resultStore = useResultStore()
 
 // 注入保存确认对话框
 const saveConfirmDialog = inject<{ show: (tabId: string, title: string, filePath?: string) => Promise<'save' | 'dontSave' | 'cancel'> }>('saveConfirmDialog')
@@ -143,6 +145,9 @@ const databases = computed(() => {
 // 监听标签页切换，恢复该标签页的连接设置
 watch(() => editorStore.activeTab, async (tab) => {
   if (tab) {
+    // 切换结果面板到对应的编辑器标签页
+    resultStore.switchToEditorTab(tab.id)
+    
     // 设置标志，防止 watch 触发时覆盖 databaseName
     isRestoringTabSettings = true
     selectedConnectionId.value = tab.connectionId || ''
@@ -615,6 +620,8 @@ async function handleTabRemove(tabId: string | number) {
     }
   }
   
+  // 清理该标签页的结果数据
+  resultStore.cleanupEditorTab(id)
   editorStore.closeTab(id)
 }
 
