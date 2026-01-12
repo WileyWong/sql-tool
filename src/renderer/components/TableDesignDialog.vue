@@ -300,8 +300,21 @@ const dataTypeGroups = {
   '其他': MySQLDataTypes.OTHER
 }
 
+// 用于生成唯一 key
+let columnKeyCounter = 0
+let indexKeyCounter = 0
+
+function generateColumnKey(): string {
+  return `col_${++columnKeyCounter}_${Date.now()}`
+}
+
+function generateIndexKey(): string {
+  return `idx_${++indexKeyCounter}_${Date.now()}`
+}
+
 // 列表单项类型
 interface ColumnFormItem {
+  _key: string  // 唯一标识，用于跟踪列的变化
   name: string
   type: string
   length?: number
@@ -316,6 +329,7 @@ interface ColumnFormItem {
 
 // 索引表单项类型
 interface IndexFormItem {
+  _key: string  // 唯一标识，用于跟踪索引的变化
   name: string
   type: 'PRIMARY' | 'UNIQUE' | 'INDEX' | 'FULLTEXT'
   columnNames: string[]
@@ -358,6 +372,25 @@ watch(() => connectionStore.tableDesignDialogVisible, async (newVal) => {
     await initDialog()
   }
 })
+
+// 监听表单变化，自动刷新 SQL 预览
+watch(
+  () => [
+    tableForm.name,
+    tableForm.engine,
+    tableForm.charset,
+    tableForm.collation,
+    tableForm.comment,
+    JSON.stringify(tableForm.columns),
+    JSON.stringify(tableForm.indexes)
+  ],
+  () => {
+    if (!loading.value) {
+      refreshPreview()
+    }
+  },
+  { deep: false }
+)
 
 // 初始化对话框
 async function initDialog() {
@@ -453,7 +486,9 @@ async function loadExistingTable(connectionId: string, database: string, table: 
       const decimals = typeMatch && typeMatch[3] ? parseInt(typeMatch[3]) : undefined
       const unsigned = col.columnType.toLowerCase().includes('unsigned')
       
+      const key = generateColumnKey()
       return {
+        _key: key,
         name: col.name,
         type: baseType,
         length,
@@ -468,7 +503,7 @@ async function loadExistingTable(connectionId: string, database: string, table: 
     })
     
     tableForm.columns = parsedColumns
-    // 深拷贝保存原始列结构
+    // 深拷贝保存原始列结构（保留 _key 用于匹配）
     originalColumns.value = JSON.parse(JSON.stringify(parsedColumns))
   }
   
@@ -477,14 +512,18 @@ async function loadExistingTable(connectionId: string, database: string, table: 
   if (indexesResult.success && indexesResult.indexes) {
     const parsedIndexes = indexesResult.indexes
       .filter(idx => idx.type !== 'SPATIAL') // 暂不支持 SPATIAL
-      .map(idx => ({
-        name: idx.name,
-        type: idx.type as 'PRIMARY' | 'UNIQUE' | 'INDEX' | 'FULLTEXT',
-        columnNames: idx.columns.map(c => c.columnName)
-      }))
+      .map(idx => {
+        const key = generateIndexKey()
+        return {
+          _key: key,
+          name: idx.name,
+          type: idx.type as 'PRIMARY' | 'UNIQUE' | 'INDEX' | 'FULLTEXT',
+          columnNames: idx.columns.map(c => c.columnName)
+        }
+      })
     
     tableForm.indexes = parsedIndexes
-    // 深拷贝保存原始索引结构
+    // 深拷贝保存原始索引结构（保留 _key 用于匹配）
     originalIndexes.value = JSON.parse(JSON.stringify(parsedIndexes))
   }
 }
@@ -492,6 +531,7 @@ async function loadExistingTable(connectionId: string, database: string, table: 
 // 添加列
 function addColumn() {
   tableForm.columns.push({
+    _key: generateColumnKey(),
     name: '',
     type: 'VARCHAR',
     length: 255,
@@ -553,6 +593,7 @@ function handlePrimaryKeyChange(row: ColumnFormItem) {
 // 添加索引
 function addIndex() {
   tableForm.indexes.push({
+    _key: generateIndexKey(),
     name: `idx_${tableForm.indexes.length + 1}`,
     type: 'INDEX',
     columnNames: []
@@ -717,48 +758,48 @@ function generateAlterSQL(database: string): string {
   // 使用新表名（如果改名了）
   const targetTable = `\`${database}\`.\`${tableForm.name}\``
   
-  // 2. 对比列变化
-  const originalColMap = new Map(originalColumns.value.map(c => [c.name, c]))
-  const newColMap = new Map(tableForm.columns.filter(c => c.name).map(c => [c.name, c]))
+  // 2. 对比列变化 - 基于 _key 跟踪
+  const newColumns = tableForm.columns.filter(c => c.name)
+  const originalColMap = new Map(originalColumns.value.map(c => [c._key, c]))
+  const newColMap = new Map(newColumns.map(c => [c._key, c]))
   
-  // 2.1 删除的列
+  // 2.1 删除的列（原始列中存在但新列中不存在的）
   for (const origCol of originalColumns.value) {
-    if (!newColMap.has(origCol.name)) {
+    if (!newColMap.has(origCol._key)) {
       statements.push(`ALTER TABLE ${targetTable} DROP COLUMN \`${origCol.name}\`;`)
     }
   }
   
-  // 2.2 新增的列
+  // 2.2 修改的列（使用 CHANGE COLUMN 支持重命名）
+  for (const newCol of newColumns) {
+    const origCol = originalColMap.get(newCol._key)
+    if (origCol) {
+      // 原始列存在，检查是否有变化
+      if (origCol.name !== newCol.name || isColumnChanged(origCol, newCol)) {
+        const colDef = buildColumnDefinition(newCol)
+        statements.push(`ALTER TABLE ${targetTable} CHANGE COLUMN \`${origCol.name}\` ${colDef};`)
+      }
+    }
+  }
+  
+  // 2.3 新增的列（新列中存在但原始列中不存在的）
   let prevColName: string | null = null
-  for (const col of tableForm.columns) {
-    if (!col.name) continue
-    
-    if (!originalColMap.has(col.name)) {
-      const colDef = buildColumnDefinition(col)
+  for (const newCol of newColumns) {
+    if (!originalColMap.has(newCol._key)) {
+      const colDef = buildColumnDefinition(newCol)
       const position = prevColName ? `AFTER \`${prevColName}\`` : 'FIRST'
       statements.push(`ALTER TABLE ${targetTable} ADD COLUMN ${colDef} ${position};`)
     }
-    prevColName = col.name
+    prevColName = newCol.name
   }
   
-  // 2.3 修改的列
-  for (const col of tableForm.columns) {
-    if (!col.name) continue
-    
-    const origCol = originalColMap.get(col.name)
-    if (origCol && isColumnChanged(origCol, col)) {
-      const colDef = buildColumnDefinition(col)
-      statements.push(`ALTER TABLE ${targetTable} MODIFY COLUMN ${colDef};`)
-    }
-  }
-  
-  // 3. 对比索引变化
-  const originalIdxMap = new Map(originalIndexes.value.map(i => [i.name, i]))
-  const newIdxMap = new Map(tableForm.indexes.filter(i => i.columnNames.length > 0).map(i => [i.name, i]))
+  // 3. 对比索引变化 - 基于 _key 跟踪
+  const originalIdxMap = new Map(originalIndexes.value.map(i => [i._key, i]))
+  const newIdxMap = new Map(tableForm.indexes.filter(i => i.columnNames.length > 0).map(i => [i._key, i]))
   
   // 3.1 删除的索引
   for (const origIdx of originalIndexes.value) {
-    if (!newIdxMap.has(origIdx.name)) {
+    if (!newIdxMap.has(origIdx._key)) {
       if (origIdx.type === 'PRIMARY') {
         statements.push(`ALTER TABLE ${targetTable} DROP PRIMARY KEY;`)
       } else {
@@ -771,7 +812,7 @@ function generateAlterSQL(database: string): string {
   for (const idx of tableForm.indexes) {
     if (idx.columnNames.length === 0) continue
     
-    const origIdx = originalIdxMap.get(idx.name)
+    const origIdx = originalIdxMap.get(idx._key)
     if (!origIdx) {
       // 新增索引
       statements.push(buildAddIndexStatement(targetTable, idx))
