@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 
 export interface EditorTab {
   id: string
@@ -66,6 +66,12 @@ export const useEditorStore = defineStore('editor', () => {
     
     tabs.value.push(tab)
     activeTabId.value = id
+    // 如果是新建标签页且有内容，使用 nextTick 确保响应式更新完成
+    if (content) {
+      nextTick(() => {
+        contentUpdateTrigger.value++
+      })
+    }
     
     return tab
   }
@@ -148,8 +154,10 @@ export const useEditorStore = defineStore('editor', () => {
       currentTab.title = filePath ? filePath.split(/[/\\]/).pop()! : `查询${tabCounter}`
       currentTab.isDirty = false
       
-      // 触发内容更新事件（用于通知编辑器刷新）
-      contentUpdateTrigger.value++
+      // 使用 nextTick 确保响应式更新完成后再触发编辑器刷新
+      nextTick(() => {
+        contentUpdateTrigger.value++
+      })
     } else {
       // 新建标签页
       createTab(content, filePath)
