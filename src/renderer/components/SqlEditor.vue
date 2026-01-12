@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, inject, nextTick } from 'vue'
 import * as monaco from 'monaco-editor'
 import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
@@ -122,6 +122,9 @@ const selectedConnectionId = ref('')
 const selectedDatabase = ref('')
 const maxRowsInput = ref('5000')
 
+// 标志：是否正在恢复标签页设置（防止 watch 触发时覆盖数据）
+let isRestoringTabSettings = false
+
 // 当前用户
 const currentUser = computed(() => {
   if (!selectedConnectionId.value) return '-'
@@ -138,11 +141,17 @@ const databases = computed(() => {
 })
 
 // 监听标签页切换，恢复该标签页的连接设置
-watch(() => editorStore.activeTab, (tab) => {
+watch(() => editorStore.activeTab, async (tab) => {
   if (tab) {
+    // 设置标志，防止 watch 触发时覆盖 databaseName
+    isRestoringTabSettings = true
     selectedConnectionId.value = tab.connectionId || ''
     selectedDatabase.value = tab.databaseName || ''
     maxRowsInput.value = String(tab.maxRows || 5000)
+    
+    // 等待 watch 回调执行完成后再重置标志
+    await nextTick()
+    isRestoringTabSettings = false
     
     // 更新编辑器内容（程序化设置，不触发 isDirty）
     if (editor) {
@@ -171,12 +180,16 @@ watch(() => editorStore.contentUpdateTrigger, () => {
 
 // 监听当前标签页的连接设置变化（用于响应外部切换，如双击数据库树）
 watch(() => editorStore.activeTab?.connectionId, (newConnectionId) => {
+  // 恢复标签页设置时跳过
+  if (isRestoringTabSettings) return
   if (newConnectionId !== undefined && newConnectionId !== selectedConnectionId.value) {
     selectedConnectionId.value = newConnectionId || ''
   }
 })
 
 watch(() => editorStore.activeTab?.databaseName, (newDatabaseName) => {
+  // 恢复标签页设置时跳过
+  if (isRestoringTabSettings) return
   if (newDatabaseName !== undefined && newDatabaseName !== selectedDatabase.value) {
     selectedDatabase.value = newDatabaseName || ''
   }
@@ -191,8 +204,11 @@ watch(selectedConnectionId, async (newId) => {
     }
     connectionStore.setCurrentConnection(newId)
   }
-  // 保存到当前标签页
-  editorStore.updateTabConnection(newId || undefined, selectedDatabase.value || undefined)
+  
+  // 恢复标签页设置时不更新（避免覆盖 databaseName）
+  if (!isRestoringTabSettings) {
+    editorStore.updateTabConnection(newId || undefined, selectedDatabase.value || undefined)
+  }
   
   // 更新 Language Server 上下文
   updateLanguageServerContext()
@@ -201,7 +217,11 @@ watch(selectedConnectionId, async (newId) => {
 // 监听数据库选择变化
 watch(selectedDatabase, async (newDb) => {
   console.log('[SqlEditor] selectedDatabase changed:', newDb)
-  editorStore.updateTabConnection(selectedConnectionId.value || undefined, newDb || undefined)
+  
+  // 恢复标签页设置时不更新
+  if (!isRestoringTabSettings) {
+    editorStore.updateTabConnection(selectedConnectionId.value || undefined, newDb || undefined)
+  }
   
   // 更新 Language Server 元数据
   await updateLanguageServerMetadata()

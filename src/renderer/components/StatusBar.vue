@@ -19,11 +19,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useConnectionStore } from '../stores/connection'
+import { useEditorStore } from '../stores/editor'
 
 const connectionStore = useConnectionStore()
+const editorStore = useEditorStore()
+
+// 获取当前标签页的连接
+const currentTabConnection = computed(() => {
+  const tab = editorStore.activeTab
+  if (!tab?.connectionId) return null
+  return connectionStore.connections.find(c => c.id === tab.connectionId) || null
+})
 
 const connectionStatus = computed(() => {
-  const conn = connectionStore.currentConnection
+  const conn = currentTabConnection.value
   if (!conn) return '🔴 未连接'
   switch (conn.status) {
     case 'connected': return '🟢 已连接'
@@ -34,7 +43,7 @@ const connectionStatus = computed(() => {
 })
 
 const serverVersion = computed(() => {
-  const conn = connectionStore.currentConnection
+  const conn = currentTabConnection.value
   if (conn?.status === 'connected') {
     return 'MySQL 8.0'
   }

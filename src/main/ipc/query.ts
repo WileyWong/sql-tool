@@ -16,8 +16,8 @@ export function setupQueryHandlers(ipcMain: IpcMain): void {
   })
   
   // 获取执行计划
-  ipcMain.handle(IpcChannels.QUERY_EXPLAIN, async (_, data: { connectionId: string; sql: string }) => {
-    const result = await explainQuery(data.connectionId, data.sql)
+  ipcMain.handle(IpcChannels.QUERY_EXPLAIN, async (_, data: { connectionId: string; sql: string; database?: string }) => {
+    const result = await explainQuery(data.connectionId, data.sql, data.database)
     if ('type' in result && result.type === 'error') {
       return { success: false, error: result }
     }

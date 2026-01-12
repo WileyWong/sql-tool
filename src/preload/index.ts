@@ -72,8 +72,8 @@ const api = {
     cancel: (connectionId: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke(IpcChannels.QUERY_CANCEL, connectionId),
     
-    explain: (connectionId: string, sql: string): Promise<{ success: boolean; explain?: ExplainResult; error?: unknown }> =>
-      ipcRenderer.invoke(IpcChannels.QUERY_EXPLAIN, { connectionId, sql }),
+    explain: (connectionId: string, sql: string, database?: string): Promise<{ success: boolean; explain?: ExplainResult; error?: unknown }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_EXPLAIN, { connectionId, sql, database }),
     
     updateCell: (
       connectionId: string,

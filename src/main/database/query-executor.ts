@@ -93,6 +93,20 @@ export async function executeQuery(
     }]
   }
   
+  // 如果指定了数据库，先切换到该数据库
+  if (currentDatabase) {
+    try {
+      await connection.query(`USE \`${currentDatabase}\``)
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string }
+      return [{
+        type: 'error',
+        code: err.code || 'E4003',
+        message: `切换数据库失败: ${err.message || currentDatabase}`
+      }]
+    }
+  }
+  
   // 记录查询开始
   const queryId = `${connectionId}-${Date.now()}`
   const threadId = (connection as unknown as { threadId: number }).threadId
@@ -212,7 +226,7 @@ export async function cancelQuery(connectionId: string): Promise<boolean> {
 /**
  * 获取执行计划
  */
-export async function explainQuery(connectionId: string, sql: string): Promise<ExplainResult | QueryError> {
+export async function explainQuery(connectionId: string, sql: string, currentDatabase?: string): Promise<ExplainResult | QueryError> {
   const connection = getConnection(connectionId)
   if (!connection) {
     return {
@@ -228,6 +242,20 @@ export async function explainQuery(connectionId: string, sql: string): Promise<E
       type: 'error',
       code: 'E4004',
       message: '执行计划仅支持 SELECT 语句'
+    }
+  }
+  
+  // 如果指定了数据库，先切换到该数据库
+  if (currentDatabase) {
+    try {
+      await connection.query(`USE \`${currentDatabase}\``)
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string }
+      return {
+        type: 'error',
+        code: err.code || 'E4003',
+        message: `切换数据库失败: ${err.message || currentDatabase}`
+      }
     }
   }
   

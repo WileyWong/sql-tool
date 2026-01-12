@@ -63,12 +63,14 @@ import { ref, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { QueryResultSet } from '@shared/types'
 import { useConnectionStore } from '../stores/connection'
+import { useEditorStore } from '../stores/editor'
 
 const props = defineProps<{
   data: QueryResultSet
 }>()
 
 const connectionStore = useConnectionStore()
+const editorStore = useEditorStore()
 
 // 编辑状态
 const editingCell = ref<{ rowIndex: number; column: string } | null>(null)
@@ -147,9 +149,18 @@ async function confirmEdit() {
     value: row[pk]
   }))
   
-  const connectionId = connectionStore.currentConnectionId
+  // 使用当前标签页的连接ID
+  const connectionId = editorStore.activeTab?.connectionId
   if (!connectionId || !props.data.databaseName || !props.data.tableName) {
     ElMessage.error('无法获取连接信息')
+    cancelEdit()
+    return
+  }
+  
+  // 检查连接是否有效
+  const conn = connectionStore.connections.find(c => c.id === connectionId)
+  if (!conn || conn.status !== 'connected') {
+    ElMessage.error('连接已断开')
     cancelEdit()
     return
   }

@@ -52,8 +52,15 @@ const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
 const resultStore = useResultStore()
 
-const currentConnection = computed(() => connectionStore.currentConnection)
-const canExecute = computed(() => !!currentConnection.value && currentConnection.value.status === 'connected')
+// 获取当前标签页的连接（每个标签页独立的连接）
+const currentTabConnection = computed(() => {
+  const tab = editorStore.activeTab
+  if (!tab?.connectionId) return null
+  const conn = connectionStore.connections.find(c => c.id === tab.connectionId)
+  return conn && conn.status === 'connected' ? conn : null
+})
+
+const canExecute = computed(() => !!currentTabConnection.value)
 const isRunning = computed(() => resultStore.executionStatus === 'running')
 
 // 新建连接
@@ -83,7 +90,7 @@ async function handleSave() {
 
 // 执行
 async function handleExecute() {
-  if (!currentConnection.value) {
+  if (!currentTabConnection.value) {
     ElMessage.warning('请先连接数据库')
     return
   }
@@ -101,7 +108,7 @@ async function handleExecute() {
   try {
     const maxRows = editorStore.activeTab?.maxRows || 5000
     const database = editorStore.activeTab?.databaseName
-    const result = await window.api.query.execute(currentConnection.value.id, sql, maxRows, database)
+    const result = await window.api.query.execute(currentTabConnection.value.id, sql, maxRows, database)
     if (result.success && result.results) {
       resultStore.handleQueryResults(result.results)
       resultStore.setExecutionStatus('success')
@@ -116,9 +123,9 @@ async function handleExecute() {
 
 // 停止
 async function handleStop() {
-  if (!currentConnection.value) return
+  if (!currentTabConnection.value) return
   
-  const result = await window.api.query.cancel(currentConnection.value.id)
+  const result = await window.api.query.cancel(currentTabConnection.value.id)
   if (result.success) {
     resultStore.addMessage('warning', '查询已取消')
     resultStore.setExecutionStatus('cancelled')
@@ -127,7 +134,7 @@ async function handleStop() {
 
 // 执行计划
 async function handleExplain() {
-  if (!currentConnection.value) {
+  if (!currentTabConnection.value) {
     ElMessage.warning('请先连接数据库')
     return
   }
@@ -141,7 +148,8 @@ async function handleExplain() {
   resultStore.setExecutionStatus('running')
   
   try {
-    const result = await window.api.query.explain(currentConnection.value.id, sql)
+    const database = editorStore.activeTab?.databaseName
+    const result = await window.api.query.explain(currentTabConnection.value.id, sql, database)
     if (result.success && result.explain) {
       resultStore.handleExplainResult(result.explain)
       resultStore.setExecutionStatus('success')
