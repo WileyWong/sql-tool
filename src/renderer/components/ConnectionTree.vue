@@ -259,14 +259,20 @@ const contextMenuItems = computed(() => {
             { key: 'delete', label: '删除连接' }
           ]
     case 'database':
-    case 'tables':
     case 'views':
     case 'functions':
       return [{ key: 'refresh', label: '刷新' }]
+    case 'tables':
+      return [
+        { key: 'createTable', label: '创建表' },
+        { key: 'refresh', label: '刷新' }
+      ]
     case 'table':
       return [
         { key: 'query100', label: '查询前100行' },
-        { key: 'manage', label: '管理' }
+        { key: 'manage', label: '管理' },
+        { key: 'editTable', label: '修改表' },
+        { key: 'dropTable', label: '删除表' }
       ]
     default:
       return []
@@ -410,12 +416,65 @@ async function handleMenuClick(key: string) {
       // 打开表管理对话框
       connectionStore.openTableManageDialog(node.connectionId!, node.databaseName!, node.label)
       break
+    case 'createTable':
+      // 打开创建表对话框
+      connectionStore.openCreateTableDialog(node.connectionId!, node.databaseName!)
+      break
+    case 'editTable':
+      // 打开修改表对话框
+      connectionStore.openEditTableDialog(node.connectionId!, node.databaseName!, node.label)
+      break
+    case 'dropTable':
+      // 删除表
+      handleDropTable(node)
+      break
   }
 }
 
 // 点击其他地方关闭菜单
 function closeContextMenu() {
   contextMenu.value.visible = false
+}
+
+// 删除表
+async function handleDropTable(node: TreeNode) {
+  const sql = `DROP TABLE \`${node.databaseName}\`.\`${node.label}\`;`
+  
+  try {
+    await ElMessageBox.confirm(
+      `<div>
+        <p style="margin-bottom: 12px;">确定要删除表 <strong>${node.databaseName}.${node.label}</strong> 吗？</p>
+        <p style="color: #f56c6c; margin-bottom: 12px;">此操作不可恢复！</p>
+        <pre style="background: #1e1e1e; padding: 12px; border-radius: 4px; color: #d4d4d4; font-size: 12px;">${sql}</pre>
+      </div>`,
+      '删除表',
+      {
+        confirmButtonText: '执行删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true
+      }
+    )
+    
+    const result = await connectionStore.executeDDL(node.connectionId!, sql)
+    
+    if (result.success) {
+      ElMessage.success('表已删除')
+      // 刷新表列表
+      await connectionStore.loadTables(node.connectionId!, node.databaseName!)
+      // 刷新树节点
+      const tablesNodeId = `${node.connectionId}-${node.databaseName}-tables`
+      const treeNode = treeRef.value?.getNode(tablesNodeId)
+      if (treeNode) {
+        treeNode.loaded = false
+        treeNode.expand()
+      }
+    } else {
+      ElMessage.error(result.message || '删除失败')
+    }
+  } catch {
+    // 用户取消
+  }
 }
 
 onMounted(async () => {

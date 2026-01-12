@@ -1,6 +1,6 @@
 import { IpcMain } from 'electron'
 import { IpcChannels } from '@shared/constants'
-import { getDatabases, getTables, getColumns, getViews, getFunctions, getTableCreateSql, getIndexes } from '../database/connection-manager'
+import { getDatabases, getTables, getColumns, getViews, getFunctions, getTableCreateSql, getIndexes, getCharsets, getCollations, getEngines, getDefaultCharset, executeDDL } from '../database/connection-manager'
 
 export function setupDatabaseHandlers(ipcMain: IpcMain): void {
   // 获取数据库列表
@@ -77,6 +77,61 @@ export function setupDatabaseHandlers(ipcMain: IpcMain): void {
     } catch (error: unknown) {
       const err = error as { message?: string }
       return { success: false, message: err.message || '获取索引信息失败' }
+    }
+  })
+  
+  // 获取字符集列表
+  ipcMain.handle(IpcChannels.DATABASE_CHARSETS, async (_, connectionId: string) => {
+    try {
+      const charsets = await getCharsets(connectionId)
+      return { success: true, charsets }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '获取字符集列表失败' }
+    }
+  })
+  
+  // 获取排序规则列表
+  ipcMain.handle(IpcChannels.DATABASE_COLLATIONS, async (_, data: { connectionId: string; charset?: string }) => {
+    try {
+      const collations = await getCollations(data.connectionId, data.charset)
+      return { success: true, collations }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '获取排序规则列表失败' }
+    }
+  })
+  
+  // 获取存储引擎列表
+  ipcMain.handle(IpcChannels.DATABASE_ENGINES, async (_, connectionId: string) => {
+    try {
+      const engines = await getEngines(connectionId)
+      return { success: true, engines }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '获取存储引擎列表失败' }
+    }
+  })
+  
+  // 获取数据库默认字符集
+  ipcMain.handle(IpcChannels.DATABASE_DEFAULT_CHARSET, async (_, data: { connectionId: string; database: string }) => {
+    try {
+      const result = await getDefaultCharset(data.connectionId, data.database)
+      return { success: true, ...result }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '获取默认字符集失败' }
+    }
+  })
+  
+  // 执行 DDL 语句
+  ipcMain.handle(IpcChannels.DDL_EXECUTE, async (_, data: { connectionId: string; sql: string }) => {
+    try {
+      const result = await executeDDL(data.connectionId, data.sql)
+      return result
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '执行 DDL 失败' }
     }
   })
 }

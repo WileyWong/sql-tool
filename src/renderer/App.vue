@@ -45,6 +45,9 @@
     <!-- 表管理对话框 -->
     <TableManageDialog />
     
+    <!-- 表设计对话框（创建/修改表） -->
+    <TableDesignDialog />
+    
     <!-- 保存确认对话框 -->
     <SaveConfirmDialog ref="saveConfirmDialogRef" />
   </div>
@@ -59,6 +62,7 @@ import SqlEditor from './components/SqlEditor.vue'
 import ResultPanel from './components/ResultPanel.vue'
 import ConnectionDialog from './components/ConnectionDialog.vue'
 import TableManageDialog from './components/TableManageDialog.vue'
+import TableDesignDialog from './components/TableDesignDialog.vue'
 import StatusBar from './components/StatusBar.vue'
 import SaveConfirmDialog from './components/SaveConfirmDialog.vue'
 import { useEditorStore } from './stores/editor'

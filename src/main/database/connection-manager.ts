@@ -314,6 +314,119 @@ export async function getFunctions(connectionId: string, database: string): Prom
 }
 
 /**
+ * 获取可用的字符集列表
+ */
+export async function getCharsets(connectionId: string): Promise<{ charset: string; defaultCollation: string; description: string }[]> {
+  const connection = getConnection(connectionId)
+  if (!connection) {
+    throw new Error('连接不存在')
+  }
+  
+  const [rows] = await connection.query('SHOW CHARACTER SET')
+  
+  return (rows as { Charset: string; 'Default collation': string; Description: string }[]).map(r => ({
+    charset: r.Charset,
+    defaultCollation: r['Default collation'],
+    description: r.Description
+  }))
+}
+
+/**
+ * 获取可用的排序规则列表
+ */
+export async function getCollations(connectionId: string, charset?: string): Promise<{ collation: string; charset: string; isDefault: boolean }[]> {
+  const connection = getConnection(connectionId)
+  if (!connection) {
+    throw new Error('连接不存在')
+  }
+  
+  let sql = 'SHOW COLLATION'
+  const params: string[] = []
+  
+  if (charset) {
+    sql += ' WHERE Charset = ?'
+    params.push(charset)
+  }
+  
+  const [rows] = await connection.query(sql, params)
+  
+  return (rows as { Collation: string; Charset: string; Default: string }[]).map(r => ({
+    collation: r.Collation,
+    charset: r.Charset,
+    isDefault: r.Default === 'Yes'
+  }))
+}
+
+/**
+ * 获取可用的存储引擎列表
+ */
+export async function getEngines(connectionId: string): Promise<{ engine: string; support: string; comment: string; isDefault: boolean }[]> {
+  const connection = getConnection(connectionId)
+  if (!connection) {
+    throw new Error('连接不存在')
+  }
+  
+  const [rows] = await connection.query('SHOW ENGINES')
+  
+  return (rows as { Engine: string; Support: string; Comment: string }[])
+    .filter(r => r.Support !== 'NO')
+    .map(r => ({
+      engine: r.Engine,
+      support: r.Support,
+      comment: r.Comment,
+      isDefault: r.Support === 'DEFAULT'
+    }))
+}
+
+/**
+ * 获取数据库默认字符集
+ */
+export async function getDefaultCharset(connectionId: string, database: string): Promise<{ charset: string; collation: string }> {
+  const connection = getConnection(connectionId)
+  if (!connection) {
+    throw new Error('连接不存在')
+  }
+  
+  const [rows] = await connection.query(
+    `SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME 
+     FROM information_schema.SCHEMATA 
+     WHERE SCHEMA_NAME = ?`,
+    [database]
+  )
+  
+  const result = rows as { DEFAULT_CHARACTER_SET_NAME: string; DEFAULT_COLLATION_NAME: string }[]
+  if (result.length === 0) {
+    return { charset: 'utf8mb4', collation: 'utf8mb4_general_ci' }
+  }
+  
+  return {
+    charset: result[0].DEFAULT_CHARACTER_SET_NAME,
+    collation: result[0].DEFAULT_COLLATION_NAME
+  }
+}
+
+/**
+ * 执行 DDL 语句
+ */
+export async function executeDDL(connectionId: string, sql: string): Promise<{ success: boolean; message?: string }> {
+  const connection = getConnection(connectionId)
+  if (!connection) {
+    throw new Error('连接不存在')
+  }
+  
+  try {
+    await connection.query(sql)
+    return { success: true }
+  } catch (error: unknown) {
+    const err = error as { message?: string; code?: string }
+    return { 
+      success: false, 
+      message: err.message || '执行失败'
+    }
+  }
+}
+
+/**
  * 断开所有连接
  */
 export async function disconnectAll(): Promise<void> {

@@ -46,7 +46,22 @@ const api = {
       ipcRenderer.invoke(IpcChannels.DATABASE_TABLE_CREATE_SQL, { connectionId, database, table }),
     
     indexes: (connectionId: string, database: string, table: string) =>
-      ipcRenderer.invoke(IpcChannels.DATABASE_INDEXES, { connectionId, database, table })
+      ipcRenderer.invoke(IpcChannels.DATABASE_INDEXES, { connectionId, database, table }),
+    
+    charsets: (connectionId: string): Promise<{ success: boolean; charsets?: { charset: string; defaultCollation: string; description: string }[]; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_CHARSETS, connectionId),
+    
+    collations: (connectionId: string, charset?: string): Promise<{ success: boolean; collations?: { collation: string; charset: string; isDefault: boolean }[]; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_COLLATIONS, { connectionId, charset }),
+    
+    engines: (connectionId: string): Promise<{ success: boolean; engines?: { engine: string; support: string; comment: string; isDefault: boolean }[]; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_ENGINES, connectionId),
+    
+    defaultCharset: (connectionId: string, database: string): Promise<{ success: boolean; charset?: string; collation?: string; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_DEFAULT_CHARSET, { connectionId, database }),
+    
+    executeDDL: (connectionId: string, sql: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DDL_EXECUTE, { connectionId, sql })
   },
   
   // 查询执行

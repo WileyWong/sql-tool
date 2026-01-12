@@ -27,6 +27,15 @@ export const useConnectionStore = defineStore('connection', () => {
     table: string
   } | null>(null)
   
+  // 表设计对话框状态（创建/修改表）
+  const tableDesignDialogVisible = ref(false)
+  const tableDesignMode = ref<'create' | 'edit'>('create')
+  const tableDesignInfo = ref<{
+    connectionId: string
+    database: string
+    table?: string  // 修改模式时有值
+  } | null>(null)
+  
   // 当前连接
   const currentConnection = computed(() => {
     if (!currentConnectionId.value) return null
@@ -254,6 +263,51 @@ export const useConnectionStore = defineStore('connection', () => {
     return window.api.database.indexes(connectionId, database, table)
   }
   
+  // 打开创建表对话框
+  function openCreateTableDialog(connectionId: string, database: string) {
+    tableDesignMode.value = 'create'
+    tableDesignInfo.value = { connectionId, database }
+    tableDesignDialogVisible.value = true
+  }
+  
+  // 打开修改表对话框
+  function openEditTableDialog(connectionId: string, database: string, table: string) {
+    tableDesignMode.value = 'edit'
+    tableDesignInfo.value = { connectionId, database, table }
+    tableDesignDialogVisible.value = true
+  }
+  
+  // 关闭表设计对话框
+  function closeTableDesignDialog() {
+    tableDesignDialogVisible.value = false
+    tableDesignInfo.value = null
+  }
+  
+  // 获取字符集列表
+  async function getCharsets(connectionId: string) {
+    return window.api.database.charsets(connectionId)
+  }
+  
+  // 获取排序规则列表
+  async function getCollations(connectionId: string, charset?: string) {
+    return window.api.database.collations(connectionId, charset)
+  }
+  
+  // 获取存储引擎列表
+  async function getEngines(connectionId: string) {
+    return window.api.database.engines(connectionId)
+  }
+  
+  // 获取数据库默认字符集
+  async function getDefaultCharset(connectionId: string, database: string) {
+    return window.api.database.defaultCharset(connectionId, database)
+  }
+  
+  // 执行 DDL 语句
+  async function executeDDL(connectionId: string, sql: string) {
+    return window.api.database.executeDDL(connectionId, sql)
+  }
+  
   // 设置当前连接
   function setCurrentConnection(connectionId: string) {
     currentConnectionId.value = connectionId
@@ -275,6 +329,9 @@ export const useConnectionStore = defineStore('connection', () => {
     editingConnection,
     tableManageDialogVisible,
     tableManageInfo,
+    tableDesignDialogVisible,
+    tableDesignMode,
+    tableDesignInfo,
     
     // 方法
     loadConnections,
@@ -297,6 +354,14 @@ export const useConnectionStore = defineStore('connection', () => {
     closeTableManageDialog,
     getTableCreateSql,
     getTableIndexes,
+    openCreateTableDialog,
+    openEditTableDialog,
+    closeTableDesignDialog,
+    getCharsets,
+    getCollations,
+    getEngines,
+    getDefaultCharset,
+    executeDDL,
     setCurrentConnection,
     setCurrentDatabase
   }
