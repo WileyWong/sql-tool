@@ -216,8 +216,6 @@ watch(selectedConnectionId, async (newId) => {
 
 // 监听数据库选择变化
 watch(selectedDatabase, async (newDb) => {
-  console.log('[SqlEditor] selectedDatabase changed:', newDb)
-  
   // 恢复标签页设置时不更新
   if (!isRestoringTabSettings) {
     editorStore.updateTabConnection(selectedConnectionId.value || undefined, newDb || undefined)
@@ -245,13 +243,7 @@ async function updateLanguageServerContext() {
  * 更新 Language Server 元数据
  */
 async function updateLanguageServerMetadata() {
-  console.log('[SqlEditor] updateLanguageServerMetadata called', {
-    connectionId: selectedConnectionId.value,
-    database: selectedDatabase.value
-  })
-  
   if (!selectedConnectionId.value || !selectedDatabase.value) {
-    console.log('[SqlEditor] No connection or database selected, clearing metadata')
     await window.api.sqlLanguageServer.clear()
     return
   }
@@ -262,14 +254,12 @@ async function updateLanguageServerMetadata() {
     
     // 如果没有表数据，主动加载
     if (!dbMeta || dbMeta.tables.length === 0) {
-      console.log('[SqlEditor] No tables cached, loading...')
       await connectionStore.loadTables(selectedConnectionId.value, selectedDatabase.value)
       await connectionStore.loadViews(selectedConnectionId.value, selectedDatabase.value)
       dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
       
       // 加载所有表的列信息
       if (dbMeta && dbMeta.tables.length > 0) {
-        console.log('[SqlEditor] Loading columns for', dbMeta.tables.length, 'tables...')
         await Promise.all(
           dbMeta.tables.map(table => 
             connectionStore.loadColumns(selectedConnectionId.value!, selectedDatabase.value!, table.name)
@@ -279,8 +269,6 @@ async function updateLanguageServerMetadata() {
         dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
       }
     }
-    
-    // console.log('[SqlEditor] dbMeta:', dbMeta ? `${dbMeta.tables.length} tables, ${dbMeta.views.length} views` : 'null')
     
     if (dbMeta) {
       // 更新表元数据
@@ -304,12 +292,8 @@ async function updateLanguageServerMetadata() {
         name: v.name,
         comment: undefined as string | undefined
       }))
-      // console.log('[SqlEditor] Updating views:', views.length)
       await window.api.sqlLanguageServer.updateViews(views)
-      
-      // console.log('[SqlEditor] Metadata update complete')
     } else {
-      console.log('[SqlEditor] No dbMeta found, clearing metadata')
       await window.api.sqlLanguageServer.clear()
     }
   } catch (error) {
