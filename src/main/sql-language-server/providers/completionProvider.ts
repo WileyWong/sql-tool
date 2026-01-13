@@ -9,7 +9,7 @@ import {
   Position,
 } from 'vscode-languageserver'
 import { parse } from 'sql-parser-cst'
-import { SqlParserService } from '../services/sqlParserService'
+import { SqlParserService, isInStringOrComment, findLastSemicolonPosition } from '../services/sqlParserService'
 import { MetadataService } from '../services/metadataService'
 import type { TableRef } from '../types'
 
@@ -487,7 +487,7 @@ export class CompletionProvider {
     }
 
     // 检查是否在语句结束后（分号后只有空白）
-    const lastSemicolonPos = this.findLastSemicolonPosition(textBefore)
+    const lastSemicolonPos = findLastSemicolonPosition(textBefore)
     if (lastSemicolonPos !== -1) {
       const afterSemicolon = textBefore.substring(lastSemicolonPos + 1)
       if (!afterSemicolon.trim()) {
@@ -527,7 +527,7 @@ export class CompletionProvider {
       }
 
       // 检查是否在字符串或注释内（简单检查）
-      if (this.isInStringOrComment(textBefore)) {
+      if (isInStringOrComment(textBefore)) {
         return false
       }
 
@@ -565,114 +565,5 @@ export class CompletionProvider {
 
     visitNode(root)
     return result
-  }
-
-  /**
-   * 查找最后一个有效分号的位置（排除字符串和注释中的分号）
-   */
-  private findLastSemicolonPosition(text: string): number {
-    let lastSemicolon = -1
-    let inString = false
-    let stringChar = ''
-    let inLineComment = false
-    let inBlockComment = false
-
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i]
-      const nextChar = text[i + 1]
-
-      if (inLineComment) {
-        if (char === '\n') inLineComment = false
-        continue
-      }
-
-      if (inBlockComment) {
-        if (char === '*' && nextChar === '/') {
-          inBlockComment = false
-          i++
-        }
-        continue
-      }
-
-      if (!inString) {
-        if (char === '-' && nextChar === '-') {
-          inLineComment = true
-          i++
-          continue
-        }
-        if (char === '/' && nextChar === '*') {
-          inBlockComment = true
-          i++
-          continue
-        }
-        if (char === "'" || char === '"' || char === '`') {
-          inString = true
-          stringChar = char
-          continue
-        }
-        if (char === ';') {
-          lastSemicolon = i
-        }
-      } else {
-        if (char === stringChar && text[i - 1] !== '\\') {
-          inString = false
-        }
-      }
-    }
-
-    return lastSemicolon
-  }
-
-  /**
-   * 简单检查是否在字符串或注释内
-   */
-  private isInStringOrComment(text: string): boolean {
-    let inString = false
-    let stringChar = ''
-    let inLineComment = false
-    let inBlockComment = false
-
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i]
-      const nextChar = text[i + 1]
-
-      if (inLineComment) {
-        if (char === '\n') inLineComment = false
-        continue
-      }
-
-      if (inBlockComment) {
-        if (char === '*' && nextChar === '/') {
-          inBlockComment = false
-          i++
-        }
-        continue
-      }
-
-      if (!inString) {
-        if (char === '-' && nextChar === '-') {
-          inLineComment = true
-          i++
-          continue
-        }
-        if (char === '/' && nextChar === '*') {
-          inBlockComment = true
-          i++
-          continue
-        }
-        if (char === "'" || char === '"' || char === '`') {
-          inString = true
-          stringChar = char
-          continue
-        }
-      } else {
-        if (char === stringChar && text[i - 1] !== '\\') {
-          inString = false
-        }
-      }
-    }
-
-    // 如果遍历结束后仍在字符串、行注释或块注释内，返回 true
-    return inString || inLineComment || inBlockComment
   }
 }

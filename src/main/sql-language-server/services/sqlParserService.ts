@@ -800,3 +800,129 @@ export function splitStatementsToTexts(sql: string): string[] {
     .map(stmt => stmt.text.trim())
     .filter(text => text.length > 0)
 }
+
+/**
+ * SQL 文本位置状态
+ */
+export interface SqlPositionState {
+  inString: boolean
+  inLineComment: boolean
+  inBlockComment: boolean
+}
+
+/**
+ * 检查给定文本结尾处的状态（是否在字符串、行注释或块注释内）
+ * 统一的状态检测函数，供多个模块使用
+ */
+export function getSqlPositionState(text: string): SqlPositionState {
+  let inString = false
+  let stringChar = ''
+  let inLineComment = false
+  let inBlockComment = false
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+    const nextChar = text[i + 1]
+
+    if (inLineComment) {
+      if (char === '\n') inLineComment = false
+      continue
+    }
+
+    if (inBlockComment) {
+      if (char === '*' && nextChar === '/') {
+        inBlockComment = false
+        i++
+      }
+      continue
+    }
+
+    if (!inString) {
+      if (char === '-' && nextChar === '-') {
+        inLineComment = true
+        i++
+        continue
+      }
+      if (char === '/' && nextChar === '*') {
+        inBlockComment = true
+        i++
+        continue
+      }
+      if (char === "'" || char === '"' || char === '`') {
+        inString = true
+        stringChar = char
+        continue
+      }
+    } else {
+      if (char === stringChar && text[i - 1] !== '\\') {
+        inString = false
+      }
+    }
+  }
+
+  return { inString, inLineComment, inBlockComment }
+}
+
+/**
+ * 检查文本结尾是否在字符串或注释内
+ */
+export function isInStringOrComment(text: string): boolean {
+  const state = getSqlPositionState(text)
+  return state.inString || state.inLineComment || state.inBlockComment
+}
+
+/**
+ * 查找最后一个有效分号的位置（排除字符串和注释中的分号）
+ */
+export function findLastSemicolonPosition(text: string): number {
+  let lastSemicolon = -1
+  let inString = false
+  let stringChar = ''
+  let inLineComment = false
+  let inBlockComment = false
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+    const nextChar = text[i + 1]
+
+    if (inLineComment) {
+      if (char === '\n') inLineComment = false
+      continue
+    }
+
+    if (inBlockComment) {
+      if (char === '*' && nextChar === '/') {
+        inBlockComment = false
+        i++
+      }
+      continue
+    }
+
+    if (!inString) {
+      if (char === '-' && nextChar === '-') {
+        inLineComment = true
+        i++
+        continue
+      }
+      if (char === '/' && nextChar === '*') {
+        inBlockComment = true
+        i++
+        continue
+      }
+      if (char === "'" || char === '"' || char === '`') {
+        inString = true
+        stringChar = char
+        continue
+      }
+      if (char === ';') {
+        lastSemicolon = i
+      }
+    } else {
+      if (char === stringChar && text[i - 1] !== '\\') {
+        inString = false
+      }
+    }
+  }
+
+  return lastSemicolon
+}
