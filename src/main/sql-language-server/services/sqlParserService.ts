@@ -703,3 +703,100 @@ export class SqlParserService {
   }
 
 }
+
+/**
+ * SQL 语句信息
+ */
+export interface SqlStatement {
+  text: string
+  start: number
+  end: number
+}
+
+/**
+ * 分割多条 SQL 语句（处理字符串、注释中的分号）
+ * 统一的 SQL 语句分割函数，供多个模块使用
+ */
+export function splitStatements(sql: string): SqlStatement[] {
+  const statements: SqlStatement[] = []
+  let start = 0
+  let inString = false
+  let stringChar = ''
+  let inComment = false
+  let blockComment = false
+
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i]
+    const nextChar = sql[i + 1]
+    const prevChar = sql[i - 1]
+
+    // 处理注释
+    if (!inString && !inComment) {
+      if (char === '-' && nextChar === '-') {
+        inComment = true
+        blockComment = false
+        continue
+      }
+      if (char === '/' && nextChar === '*') {
+        inComment = true
+        blockComment = true
+        i++
+        continue
+      }
+    }
+
+    if (inComment) {
+      if (blockComment && char === '*' && nextChar === '/') {
+        inComment = false
+        i++
+        continue
+      }
+      if (!blockComment && char === '\n') {
+        inComment = false
+      }
+      continue
+    }
+
+    // 处理字符串
+    if (!inString && (char === "'" || char === '"' || char === '`')) {
+      inString = true
+      stringChar = char
+    } else if (inString && char === stringChar && prevChar !== '\\') {
+      inString = false
+    }
+
+    // 分号分割
+    if (!inString && !inComment && char === ';') {
+      statements.push({
+        text: sql.substring(start, i + 1),
+        start,
+        end: i + 1
+      })
+      start = i + 1
+    }
+  }
+
+  // 最后一条语句
+  if (start < sql.length) {
+    const remaining = sql.substring(start).trim()
+    if (remaining) {
+      statements.push({
+        text: sql.substring(start),
+        start,
+        end: sql.length
+      })
+    }
+  }
+
+  return statements
+}
+
+/**
+ * 分割多条 SQL 语句，只返回语句文本数组
+ * 简化版本，用于只需要语句文本的场景
+ */
+export function splitStatementsToTexts(sql: string): string[] {
+  return splitStatements(sql)
+    .map(stmt => stmt.text.trim())
+    .filter(text => text.length > 0)
+}

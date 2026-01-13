@@ -1,6 +1,7 @@
 import type { QueryResult, QueryResultSet, QueryMessage, QueryError, ExplainResult, ExplainNode } from '@shared/types'
 import { getConnection } from './connection-manager'
 import { Defaults } from '@shared/constants'
+import { splitStatementsToTexts } from '../sql-language-server/services/sqlParserService'
 
 // 正在执行的查询（用于取消）
 const runningQueries = new Map<string, { connectionId: string; threadId: number }>()
@@ -116,7 +117,7 @@ export async function executeQuery(
   
   try {
     // 分割多条 SQL 语句
-    const statements = splitStatements(trimmedSql)
+    const statements = splitStatementsToTexts(trimmedSql)
     
     for (const statement of statements) {
       if (!statement.trim()) continue
@@ -290,77 +291,6 @@ export async function explainQuery(connectionId: string, sql: string, currentDat
       message: err.message || '获取执行计划失败'
     }
   }
-}
-
-/**
- * 分割多条 SQL 语句
- */
-function splitStatements(sql: string): string[] {
-  const statements: string[] = []
-  let current = ''
-  let inString = false
-  let stringChar = ''
-  let inComment = false
-  let commentType = ''
-  
-  for (let i = 0; i < sql.length; i++) {
-    const char = sql[i]
-    const nextChar = sql[i + 1]
-    
-    // 处理注释
-    if (!inString) {
-      if (!inComment && char === '-' && nextChar === '-') {
-        inComment = true
-        commentType = 'line'
-        current += char
-        continue
-      }
-      if (!inComment && char === '/' && nextChar === '*') {
-        inComment = true
-        commentType = 'block'
-        current += char
-        continue
-      }
-      if (inComment && commentType === 'line' && char === '\n') {
-        inComment = false
-        current += char
-        continue
-      }
-      if (inComment && commentType === 'block' && char === '*' && nextChar === '/') {
-        inComment = false
-        current += char + nextChar
-        i++
-        continue
-      }
-    }
-    
-    // 处理字符串
-    if (!inComment) {
-      if (!inString && (char === "'" || char === '"')) {
-        inString = true
-        stringChar = char
-      } else if (inString && char === stringChar && sql[i - 1] !== '\\') {
-        inString = false
-      }
-    }
-    
-    // 分割语句
-    if (!inString && !inComment && char === ';') {
-      if (current.trim()) {
-        statements.push(current.trim())
-      }
-      current = ''
-    } else {
-      current += char
-    }
-  }
-  
-  // 最后一条语句
-  if (current.trim()) {
-    statements.push(current.trim())
-  }
-  
-  return statements
 }
 
 /**
