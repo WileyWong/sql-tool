@@ -64,6 +64,7 @@ import { ElMessage } from 'element-plus'
 import type { QueryResultSet } from '@shared/types'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
+import { useResultStore } from '../stores/result'
 
 const props = defineProps<{
   data: QueryResultSet
@@ -71,6 +72,7 @@ const props = defineProps<{
 
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
+const resultStore = useResultStore()
 
 // 编辑状态
 const editingCell = ref<{ rowIndex: number; column: string } | null>(null)
@@ -178,6 +180,12 @@ async function confirmEdit() {
   if (result.success) {
     // 更新本地数据
     row[column] = newValue
+    
+    // 生成行的唯一标识（使用主键值）
+    const rowKey = props.data.primaryKeys!.map(pk => `${pk}:${row[pk]}`).join('|')
+    // 标记结果有修改
+    resultStore.markAsModified(rowKey, { ...row })
+    
     ElMessage.success('更新成功')
   } else {
     ElMessage.error(result.message || '更新失败')

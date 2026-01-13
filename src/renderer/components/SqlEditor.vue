@@ -105,6 +105,25 @@ const saveConfirmDialog = inject<{ show: (tabId: string, title: string, filePath
 
 const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
+
+// 获取选中的文本（如果有选中则返回选中内容，否则返回全部）
+function getSelectedText(): string {
+  if (!editor) return editorStore.currentSql
+  
+  const selection = editor.getSelection()
+  if (selection && !selection.isEmpty()) {
+    const selectedText = editor.getModel()?.getValueInRange(selection)
+    if (selectedText && selectedText.trim()) {
+      return selectedText.trim()
+    }
+  }
+  return editorStore.currentSql
+}
+
+// 暴露方法给父组件
+defineExpose({
+  getSelectedText
+})
 let completionDisposable: monaco.IDisposable | null = null
 let hoverDisposable: monaco.IDisposable | null = null
 let formatDisposable: monaco.IDisposable | null = null

@@ -23,7 +23,7 @@
       <section class="content">
         <!-- SQL 编辑器 -->
         <div class="editor-area">
-          <SqlEditor />
+          <SqlEditor ref="sqlEditorRef" />
         </div>
         
         <!-- 上下分隔条 -->
@@ -50,6 +50,9 @@
     
     <!-- 保存确认对话框 -->
     <SaveConfirmDialog ref="saveConfirmDialogRef" />
+    
+    <!-- 结果覆盖确认对话框 -->
+    <ResultOverwriteDialog ref="resultOverwriteDialogRef" />
   </div>
 </template>
 
@@ -65,17 +68,34 @@ import TableManageDialog from './components/TableManageDialog.vue'
 import TableDesignDialog from './components/TableDesignDialog.vue'
 import StatusBar from './components/StatusBar.vue'
 import SaveConfirmDialog from './components/SaveConfirmDialog.vue'
+import ResultOverwriteDialog from './components/ResultOverwriteDialog.vue'
 import { useEditorStore } from './stores/editor'
 
 const editorStore = useEditorStore()
 const resultHeight = ref(200)
 const sidebarWidth = ref(260)
 const saveConfirmDialogRef = ref<InstanceType<typeof SaveConfirmDialog> | null>(null)
+const resultOverwriteDialogRef = ref<InstanceType<typeof ResultOverwriteDialog> | null>(null)
+const sqlEditorRef = ref<InstanceType<typeof SqlEditor> | null>(null)
 
 // 提供保存确认对话框给子组件使用
 provide('saveConfirmDialog', {
   show: (tabId: string, title: string, filePath?: string) => {
     return saveConfirmDialogRef.value?.show(tabId, title, filePath)
+  }
+})
+
+// 提供结果覆盖确认对话框给子组件使用
+provide('resultOverwriteDialog', {
+  show: () => {
+    return resultOverwriteDialogRef.value?.show()
+  }
+})
+
+// 提供获取选中 SQL 的方法给子组件使用
+provide('sqlEditor', {
+  getSelectedText: () => {
+    return sqlEditorRef.value?.getSelectedText() || ''
   }
 })
 

@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
@@ -51,6 +51,12 @@ import { useResultStore } from '../stores/result'
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
 const resultStore = useResultStore()
+
+// 注入结果覆盖确认对话框
+const resultOverwriteDialog = inject<{ show: () => Promise<'submit' | 'discard' | 'cancel'> }>('resultOverwriteDialog')
+
+// 注入 SQL 编辑器（获取选中文本）
+const sqlEditor = inject<{ getSelectedText: () => string }>('sqlEditor')
 
 // 获取当前标签页的连接（每个标签页独立的连接）
 const currentTabConnection = computed(() => {
@@ -95,10 +101,34 @@ async function handleExecute() {
     return
   }
   
-  const sql = editorStore.currentSql
+  // 获取选中的 SQL（如果有选中则执行选中部分，否则执行全部）
+  const sql = sqlEditor?.getSelectedText() || editorStore.currentSql
   if (!sql.trim()) {
     ElMessage.warning('请输入 SQL 语句')
     return
+  }
+  
+  // 检查是否有未保存的修改
+  if (resultStore.hasUnsavedChanges()) {
+    if (!resultOverwriteDialog) {
+      // 降级到 confirm
+      const confirmed = window.confirm('当前查询结果有未保存的修改，是否继续执行新的查询？\n\n点击"确定"放弃修改并执行，点击"取消"取消执行。')
+      if (!confirmed) {
+        return
+      }
+    } else {
+      const result = await resultOverwriteDialog.show()
+      if (result === 'cancel') {
+        return
+      }
+      if (result === 'submit') {
+        // 用户选择提交，但当前修改已经即时保存到数据库，所以直接继续
+        // 注意：当前实现中，编辑单元格后会立即 UPDATE 到数据库
+        // 所以"提交"在这里只是清除修改标记
+        resultStore.clearModifiedMark()
+      }
+      // result === 'discard' 时直接继续执行，不需要额外操作
+    }
   }
   
   resultStore.setExecutionStatus('running')
@@ -139,7 +169,8 @@ async function handleExplain() {
     return
   }
   
-  const sql = editorStore.currentSql
+  // 获取选中的 SQL（如果有选中则执行选中部分，否则执行全部）
+  const sql = sqlEditor?.getSelectedText() || editorStore.currentSql
   if (!sql.trim()) {
     ElMessage.warning('请输入 SQL 语句')
     return

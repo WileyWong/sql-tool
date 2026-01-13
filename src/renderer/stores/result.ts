@@ -7,6 +7,9 @@ export interface ResultTab {
   title: string
   type: 'resultset' | 'message' | 'explain'
   data: QueryResultSet | QueryMessage | ExplainResult
+  // 追踪修改状态
+  hasModifiedData?: boolean
+  modifiedRows?: Map<string, Record<string, unknown>>  // rowKey -> modified row data
 }
 
 // 每个编辑器标签页的结果状态
@@ -92,26 +95,34 @@ export const useResultStore = defineStore('result', () => {
     state.executionStatus = status
   }
   
-  // 处理查询结果
+  // 处理查询结果 - 单一结果页签模式
   function handleQueryResults(results: QueryResult[]) {
     if (!currentEditorTabId.value) return
     const state = getOrCreateTabState(currentEditorTabId.value)
     
-    // 清空之前的结果
-    state.tabs = []
+    // 查找或创建唯一的结果页签
+    let resultTab = state.tabs.find(t => t.id === 'result' && t.type === 'resultset')
     
-    let resultCount = 0
-    
+    // 处理结果集
     for (const result of results) {
       if (result.type === 'resultset') {
-        resultCount++
-        const tab: ResultTab = {
-          id: `result-${resultCount}`,
-          title: `结果${resultCount}`,
-          type: 'resultset',
-          data: result
+        if (resultTab) {
+          // 覆盖现有结果
+          resultTab.data = result
+          resultTab.hasModifiedData = false
+          resultTab.modifiedRows = new Map()
+        } else {
+          // 创建新的结果页签
+          resultTab = {
+            id: 'result',
+            title: '结果',
+            type: 'resultset',
+            data: result,
+            hasModifiedData: false,
+            modifiedRows: new Map()
+          }
+          state.tabs.push(resultTab)
         }
-        state.tabs.push(tab)
         
         // 添加消息
         state.messages.push({
@@ -136,9 +147,9 @@ export const useResultStore = defineStore('result', () => {
       }
     }
     
-    // 如果有结果集，切换到第一个结果标签页
-    if (state.tabs.length > 0) {
-      state.activeTabId = state.tabs[0].id
+    // 如果有结果集，切换到结果标签页
+    if (resultTab) {
+      state.activeTabId = 'result'
     } else {
       state.activeTabId = 'message'
     }
@@ -186,6 +197,55 @@ export const useResultStore = defineStore('result', () => {
     tabResults.delete(editorTabId)
   }
   
+  // 检查当前编辑器标签页是否有未保存的修改
+  function hasUnsavedChanges(): boolean {
+    if (!currentEditorTabId.value) return false
+    const state = tabResults.get(currentEditorTabId.value)
+    if (!state) return false
+    
+    const resultTab = state.tabs.find(t => t.id === 'result' && t.type === 'resultset')
+    return resultTab?.hasModifiedData === true
+  }
+  
+  // 标记结果有修改
+  function markAsModified(rowKey: string, rowData: Record<string, unknown>) {
+    if (!currentEditorTabId.value) return
+    const state = tabResults.get(currentEditorTabId.value)
+    if (!state) return
+    
+    const resultTab = state.tabs.find(t => t.id === 'result' && t.type === 'resultset')
+    if (resultTab) {
+      resultTab.hasModifiedData = true
+      if (!resultTab.modifiedRows) {
+        resultTab.modifiedRows = new Map()
+      }
+      resultTab.modifiedRows.set(rowKey, rowData)
+    }
+  }
+  
+  // 清除修改标记（提交后调用）
+  function clearModifiedMark() {
+    if (!currentEditorTabId.value) return
+    const state = tabResults.get(currentEditorTabId.value)
+    if (!state) return
+    
+    const resultTab = state.tabs.find(t => t.id === 'result' && t.type === 'resultset')
+    if (resultTab) {
+      resultTab.hasModifiedData = false
+      resultTab.modifiedRows = new Map()
+    }
+  }
+  
+  // 获取所有修改的行数据
+  function getModifiedRows(): Map<string, Record<string, unknown>> {
+    if (!currentEditorTabId.value) return new Map()
+    const state = tabResults.get(currentEditorTabId.value)
+    if (!state) return new Map()
+    
+    const resultTab = state.tabs.find(t => t.id === 'result' && t.type === 'resultset')
+    return resultTab?.modifiedRows || new Map()
+  }
+  
   return {
     // 状态
     tabs,
@@ -203,6 +263,10 @@ export const useResultStore = defineStore('result', () => {
     handleExplainResult,
     switchTab,
     switchToEditorTab,
-    cleanupEditorTab
+    cleanupEditorTab,
+    hasUnsavedChanges,
+    markAsModified,
+    clearModifiedMark,
+    getModifiedRows
   }
 })
