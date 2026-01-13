@@ -1,5 +1,5 @@
 import type { QueryResult, QueryResultSet, QueryMessage, QueryError, ExplainResult, ExplainNode } from '@shared/types'
-import { getConnection } from './connection-manager'
+import { getConnectionWithReconnect } from './connection-manager'
 import { Defaults } from '@shared/constants'
 import { splitStatementsToTexts } from '../sql-language-server/services/sqlParserService'
 
@@ -51,10 +51,10 @@ async function getTablePrimaryKeys(
   database: string,
   table: string
 ): Promise<string[]> {
-  const connection = getConnection(connectionId)
-  if (!connection) return []
-  
   try {
+    const connection = await getConnectionWithReconnect(connectionId)
+    if (!connection) return []
+    
     const [rows] = await connection.query(
       `SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE 
        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = 'PRIMARY'
@@ -76,7 +76,18 @@ export async function executeQuery(
   maxRows: number = Defaults.MAX_ROWS,
   currentDatabase?: string
 ): Promise<QueryResult[]> {
-  const connection = getConnection(connectionId)
+  let connection
+  try {
+    connection = await getConnectionWithReconnect(connectionId)
+  } catch (error: unknown) {
+    const err = error as { message?: string }
+    return [{
+      type: 'error',
+      code: 'E4001',
+      message: err.message || '数据库连接已断开，重连失败'
+    }]
+  }
+  
   if (!connection) {
     return [{
       type: 'error',
@@ -203,22 +214,26 @@ export async function executeQuery(
  * 取消正在执行的查询
  */
 export async function cancelQuery(connectionId: string): Promise<boolean> {
-  const connection = getConnection(connectionId)
-  if (!connection) {
-    return false
-  }
-  
-  // 找到该连接的正在执行的查询
-  for (const [queryId, info] of runningQueries) {
-    if (info.connectionId === connectionId) {
-      try {
-        await connection.query(`KILL QUERY ${info.threadId}`)
-        runningQueries.delete(queryId)
-        return true
-      } catch {
-        return false
+  try {
+    const connection = await getConnectionWithReconnect(connectionId)
+    if (!connection) {
+      return false
+    }
+    
+    // 找到该连接的正在执行的查询
+    for (const [queryId, info] of runningQueries) {
+      if (info.connectionId === connectionId) {
+        try {
+          await connection.query(`KILL QUERY ${info.threadId}`)
+          runningQueries.delete(queryId)
+          return true
+        } catch {
+          return false
+        }
       }
     }
+  } catch {
+    return false
   }
   
   return false
@@ -228,7 +243,18 @@ export async function cancelQuery(connectionId: string): Promise<boolean> {
  * 获取执行计划
  */
 export async function explainQuery(connectionId: string, sql: string, currentDatabase?: string): Promise<ExplainResult | QueryError> {
-  const connection = getConnection(connectionId)
+  let connection
+  try {
+    connection = await getConnectionWithReconnect(connectionId)
+  } catch (error: unknown) {
+    const err = error as { message?: string }
+    return {
+      type: 'error',
+      code: 'E4001',
+      message: err.message || '数据库连接已断开，重连失败'
+    }
+  }
+  
   if (!connection) {
     return {
       type: 'error',
@@ -341,7 +367,14 @@ export async function updateCell(
   column: string,
   newValue: unknown
 ): Promise<{ success: boolean; message?: string }> {
-  const connection = getConnection(connectionId)
+  let connection
+  try {
+    connection = await getConnectionWithReconnect(connectionId)
+  } catch (error: unknown) {
+    const err = error as { message?: string }
+    return { success: false, message: err.message || '数据库连接已断开，重连失败' }
+  }
+  
   if (!connection) {
     return { success: false, message: '连接不存在' }
   }

@@ -2,8 +2,14 @@ import mysql, { Connection } from 'mysql2/promise'
 import type { ConnectionConfig, TestConnectionResult, TableMeta, ColumnMeta, ViewMeta, FunctionMeta, IndexMeta, IndexColumnMeta } from '@shared/types'
 import { Defaults } from '@shared/constants'
 
+// 连接信息（包含连接对象和配置）
+interface ConnectionInfo {
+  connection: Connection
+  config: ConnectionConfig
+}
+
 // 活跃连接池
-const activeConnections = new Map<string, Connection>()
+const activeConnections = new Map<string, ConnectionInfo>()
 
 /**
  * 测试数据库连接
@@ -55,15 +61,10 @@ export async function testConnection(config: ConnectionConfig): Promise<TestConn
 }
 
 /**
- * 建立数据库连接
+ * 创建 MySQL 连接
  */
-export async function connect(config: ConnectionConfig): Promise<void> {
-  // 如果已有连接，先断开
-  if (activeConnections.has(config.id)) {
-    await disconnect(config.id)
-  }
-  
-  const connection = await mysql.createConnection({
+async function createConnection(config: ConnectionConfig): Promise<Connection> {
+  return await mysql.createConnection({
     host: config.host,
     port: config.port,
     user: config.username,
@@ -72,33 +73,107 @@ export async function connect(config: ConnectionConfig): Promise<void> {
     connectTimeout: Defaults.CONNECTION_TIMEOUT,
     multipleStatements: true
   })
+}
+
+/**
+ * 建立数据库连接
+ */
+export async function connect(config: ConnectionConfig): Promise<void> {
+  // 如果已有连接，先断开
+  if (activeConnections.has(config.id)) {
+    await disconnect(config.id)
+  }
   
-  activeConnections.set(config.id, connection)
+  const connection = await createConnection(config)
+  
+  activeConnections.set(config.id, { connection, config })
 }
 
 /**
  * 断开数据库连接
  */
 export async function disconnect(connectionId: string): Promise<void> {
-  const connection = activeConnections.get(connectionId)
-  if (connection) {
-    await connection.end()
+  const info = activeConnections.get(connectionId)
+  if (info) {
+    try {
+      await info.connection.end()
+    } catch {
+      // 忽略断开连接时的错误
+    }
     activeConnections.delete(connectionId)
   }
 }
 
 /**
- * 获取活跃连接
+ * 检查连接是否有效
+ */
+async function isConnectionAlive(connection: Connection): Promise<boolean> {
+  try {
+    await connection.ping()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 获取活跃连接（带自动重连）
+ * 如果连接已断开，会自动尝试重连
+ */
+export async function getConnectionWithReconnect(connectionId: string): Promise<Connection | undefined> {
+  const info = activeConnections.get(connectionId)
+  if (!info) {
+    return undefined
+  }
+  
+  // 检查连接是否有效
+  const isAlive = await isConnectionAlive(info.connection)
+  
+  if (isAlive) {
+    return info.connection
+  }
+  
+  // 连接已断开，尝试重连
+  console.log(`[ConnectionManager] 连接 ${connectionId} 已断开，尝试重连...`)
+  
+  try {
+    // 尝试关闭旧连接（忽略错误）
+    try {
+      await info.connection.end()
+    } catch {
+      // 忽略
+    }
+    
+    // 创建新连接
+    const newConnection = await createConnection(info.config)
+    
+    // 更新连接池
+    activeConnections.set(connectionId, { connection: newConnection, config: info.config })
+    
+    console.log(`[ConnectionManager] 连接 ${connectionId} 重连成功`)
+    return newConnection
+  } catch (error: unknown) {
+    const err = error as { message?: string }
+    console.error(`[ConnectionManager] 连接 ${connectionId} 重连失败:`, err.message)
+    // 重连失败，从连接池中移除
+    activeConnections.delete(connectionId)
+    throw new Error(`数据库连接已断开，重连失败: ${err.message || '未知错误'}`)
+  }
+}
+
+/**
+ * 获取活跃连接（不检查连接状态，用于向后兼容）
  */
 export function getConnection(connectionId: string): Connection | undefined {
-  return activeConnections.get(connectionId)
+  const info = activeConnections.get(connectionId)
+  return info?.connection
 }
 
 /**
  * 获取数据库列表
  */
 export async function getDatabases(connectionId: string): Promise<string[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -111,7 +186,7 @@ export async function getDatabases(connectionId: string): Promise<string[]> {
  * 获取表列表
  */
 export async function getTables(connectionId: string, database: string): Promise<TableMeta[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -134,7 +209,7 @@ export async function getTables(connectionId: string, database: string): Promise
  * 获取表的列信息
  */
 export async function getColumns(connectionId: string, database: string, table: string): Promise<ColumnMeta[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -186,7 +261,7 @@ export async function getColumns(connectionId: string, database: string, table: 
  * 获取表的建表语句
  */
 export async function getTableCreateSql(connectionId: string, database: string, table: string): Promise<string> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -203,7 +278,7 @@ export async function getTableCreateSql(connectionId: string, database: string, 
  * 获取表的索引信息
  */
 export async function getIndexes(connectionId: string, database: string, table: string): Promise<IndexMeta[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -273,7 +348,7 @@ export async function getIndexes(connectionId: string, database: string, table: 
  * 获取视图列表
  */
 export async function getViews(connectionId: string, database: string): Promise<ViewMeta[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -295,7 +370,7 @@ export async function getViews(connectionId: string, database: string): Promise<
  * 获取函数和存储过程列表
  */
 export async function getFunctions(connectionId: string, database: string): Promise<FunctionMeta[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -317,7 +392,7 @@ export async function getFunctions(connectionId: string, database: string): Prom
  * 获取可用的字符集列表
  */
 export async function getCharsets(connectionId: string): Promise<{ charset: string; defaultCollation: string; description: string }[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -335,7 +410,7 @@ export async function getCharsets(connectionId: string): Promise<{ charset: stri
  * 获取可用的排序规则列表
  */
 export async function getCollations(connectionId: string, charset?: string): Promise<{ collation: string; charset: string; isDefault: boolean }[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -361,7 +436,7 @@ export async function getCollations(connectionId: string, charset?: string): Pro
  * 获取可用的存储引擎列表
  */
 export async function getEngines(connectionId: string): Promise<{ engine: string; support: string; comment: string; isDefault: boolean }[]> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -382,7 +457,7 @@ export async function getEngines(connectionId: string): Promise<{ engine: string
  * 获取数据库默认字符集
  */
 export async function getDefaultCharset(connectionId: string, database: string): Promise<{ charset: string; collation: string }> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
@@ -409,7 +484,7 @@ export async function getDefaultCharset(connectionId: string, database: string):
  * 执行 DDL 语句
  */
 export async function executeDDL(connectionId: string, sql: string): Promise<{ success: boolean; message?: string }> {
-  const connection = getConnection(connectionId)
+  const connection = await getConnectionWithReconnect(connectionId)
   if (!connection) {
     throw new Error('连接不存在')
   }
