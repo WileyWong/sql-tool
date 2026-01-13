@@ -182,3 +182,85 @@ body {
   align-items: center;
   gap: 4px;
 }
+
+/* el-select 深色主题 */
+.el-select .el-input__wrapper {
+  background: #3c3c3c !important;
+  box-shadow: 0 0 0 1px #555 inset !important;
+}
+
+.el-select .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px #0e639c inset !important;
+}
+
+.el-select .el-input.is-focus .el-input__wrapper {
+  box-shadow: 0 0 0 1px #0e639c inset !important;
+}
+
+.el-select .el-input__inner {
+  color: #d4d4d4 !important;
+  background: transparent !important;
+}
+
+.el-select .el-input__inner::placeholder {
+  color: #888 !important;
+}
+
+/* el-select 下拉菜单深色主题 */
+.el-select-dropdown {
+  background: #2d2d2d !important;
+  border: 1px solid #555 !important;
+}
+
+.el-select-dropdown__item {
+  color: #d4d4d4 !important;
+  font-size: 12px !important;
+}
+
+.el-select-dropdown__item:hover,
+.el-select-dropdown__item.hover {
+  background: #3c3c3c !important;
+}
+
+.el-select-dropdown__item.is-selected {
+  color: #4ec9b0 !important;
+  font-weight: 500 !important;
+}
+
+.el-select-dropdown__empty {
+  color: #888 !important;
+  font-size: 12px !important;
+}
+
+.el-popper.is-light {
+  background: #2d2d2d !important;
+  border: 1px solid #555 !important;
+}
+
+.el-popper.is-light .el-popper__arrow::before {
+  background: #2d2d2d !important;
+  border-color: #555 !important;
+}
+
+/* el-select 下拉菜单中的搜索输入框深色主题 */
+.el-select-dropdown__wrap {
+  background: #2d2d2d !important;
+}
+
+.el-select-dropdown .el-scrollbar {
+  background: #2d2d2d !important;
+}
+
+.el-select-dropdown .el-input__wrapper {
+  background: #3c3c3c !important;
+  box-shadow: 0 0 0 1px #555 inset !important;
+}
+
+.el-select-dropdown .el-input__inner {
+  color: #d4d4d4 !important;
+  background: transparent !important;
+}
+
+.el-select-dropdown .el-input__inner::placeholder {
+  color: #888 !important;
+}

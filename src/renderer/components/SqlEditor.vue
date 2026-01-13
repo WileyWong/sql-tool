@@ -20,29 +20,41 @@
     <div class="connection-info">
       <div class="info-item">
         <span class="label">服务器:</span>
-        <select v-model="selectedConnectionId" class="info-select">
-          <option value="">请选择连接</option>
-          <option 
-            v-for="conn in connections" 
+        <el-select 
+          v-model="selectedConnectionId" 
+          class="info-select"
+          filterable
+          clearable
+          placeholder="请选择连接"
+          :filter-method="filterConnections"
+          @visible-change="handleConnectionDropdownVisibleChange"
+        >
+          <el-option 
+            v-for="conn in filteredConnections" 
             :key="conn.id" 
             :value="conn.id"
-          >
-            {{ conn.name }}
-          </option>
-        </select>
+            :label="conn.name"
+          />
+        </el-select>
       </div>
       <div class="info-item">
         <span class="label">数据库:</span>
-        <select v-model="selectedDatabase" class="info-select">
-          <option value="">请选择数据库</option>
-          <option 
-            v-for="db in databases" 
+        <el-select 
+          v-model="selectedDatabase" 
+          class="info-select"
+          filterable
+          clearable
+          placeholder="请选择数据库"
+          :filter-method="filterDatabases"
+          @visible-change="handleDatabaseDropdownVisibleChange"
+        >
+          <el-option 
+            v-for="db in filteredDatabases" 
             :key="db" 
             :value="db"
-          >
-            {{ db }}
-          </option>
-        </select>
+            :label="db"
+          />
+        </el-select>
       </div>
       <div class="info-item">
         <span class="label">用户:</span>
@@ -143,6 +155,61 @@ const selectedConnectionId = ref('')
 const selectedDatabase = ref('')
 const maxRowsInput = ref('5000')
 
+// 过滤相关
+const connectionFilterText = ref('')
+const databaseFilterText = ref('')
+
+// 过滤后的连接列表
+const filteredConnections = computed(() => {
+  if (!connectionFilterText.value) {
+    return connections.value
+  }
+  const keyword = connectionFilterText.value.toLowerCase()
+  return connections.value.filter(conn => 
+    conn.name.toLowerCase().includes(keyword)
+  )
+})
+
+// 过滤后的数据库列表
+const filteredDatabases = computed(() => {
+  if (!selectedConnectionId.value) return []
+  const conn = connections.value.find(c => c.id === selectedConnectionId.value)
+  if (!conn || conn.status !== 'connected') return []
+  const allDatabases = connectionStore.getDatabaseNames(selectedConnectionId.value)
+  
+  if (!databaseFilterText.value) {
+    return allDatabases
+  }
+  const keyword = databaseFilterText.value.toLowerCase()
+  return allDatabases.filter(db => 
+    db.toLowerCase().includes(keyword)
+  )
+})
+
+// 连接过滤方法
+const filterConnections = (query: string) => {
+  connectionFilterText.value = query
+}
+
+// 数据库过滤方法
+const filterDatabases = (query: string) => {
+  databaseFilterText.value = query
+}
+
+// 连接下拉框显示/隐藏时重置过滤
+const handleConnectionDropdownVisibleChange = (visible: boolean) => {
+  if (!visible) {
+    connectionFilterText.value = ''
+  }
+}
+
+// 数据库下拉框显示/隐藏时重置过滤
+const handleDatabaseDropdownVisibleChange = (visible: boolean) => {
+  if (!visible) {
+    databaseFilterText.value = ''
+  }
+}
+
 // 标志：是否正在恢复标签页设置（防止 watch 触发时覆盖数据）
 let isRestoringTabSettings = false
 
@@ -153,7 +220,7 @@ const currentUser = computed(() => {
   return conn?.username || '-'
 })
 
-// 数据库列表
+// 数据库列表（保留用于向后兼容）
 const databases = computed(() => {
   if (!selectedConnectionId.value) return []
   const conn = connections.value.find(c => c.id === selectedConnectionId.value)
@@ -754,33 +821,48 @@ onUnmounted(() => {
 }
 
 .info-select {
-  background: #3c3c3c;
-  color: #4ec9b0;
-  border: 1px solid #555;
+  width: 180px;
+}
+
+.info-select :deep(.el-select__wrapper) {
+  background-color: #3c3c3c;
+  color:white;
+}
+
+.info-select :deep(.el-input__wrapper) {
+  background-color: #3c3c3c;
+  box-shadow: 0 0 0 1px #555 inset;
   border-radius: 4px;
-  padding: 4px 24px 4px 8px;
+  padding: 0 8px;
+  height: 28px;
+}
+
+.info-select :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #0e639c inset;
+}
+
+.info-select :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #0e639c inset;
+}
+
+.info-select :deep(.el-input__inner) {
+  color: #4ec9b0;
   font-size: 12px;
   font-weight: 500;
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M3 4.5L6 8l3-3.5H3z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
+  height: 28px;
+  line-height: 28px;
 }
 
-.info-select:hover {
-  border-color: #0e639c;
+.info-select :deep(.el-input__inner::placeholder) {
+  color: #888;
 }
 
-.info-select:focus {
-  border-color: #0e639c;
-  box-shadow: 0 0 0 1px #0e639c;
+.info-select :deep(.el-select__caret) {
+  color: #888;
 }
 
-.info-select option {
-  background: #2d2d2d;
-  color: #d4d4d4;
+.info-select :deep(.el-select__suffix) {
+  color: #888;
 }
 
 .max-rows-input {
