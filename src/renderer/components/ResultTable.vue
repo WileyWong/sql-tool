@@ -119,7 +119,14 @@ function handleCellDblClick(row: Record<string, unknown>, column: { property: st
   // 进入编辑模式
   editingCell.value = { rowIndex, column: column.property }
   originalValue.value = row[column.property]
-  editValue.value = row[column.property] === null ? '' : String(row[column.property])
+  // 对于对象类型，使用 JSON.stringify 格式化，保持与显示一致
+  if (row[column.property] === null) {
+    editValue.value = ''
+  } else if (typeof row[column.property] === 'object') {
+    editValue.value = JSON.stringify(row[column.property])
+  } else {
+    editValue.value = String(row[column.property])
+  }
   
   // 聚焦输入框
   nextTick(() => {
@@ -139,10 +146,31 @@ async function confirmEdit() {
   const row = props.data.rows[rowIndex]
   
   // 值没变化，直接取消
-  const newValue = editValue.value === '' ? null : editValue.value
-  if (newValue === originalValue.value || (newValue === null && originalValue.value === null)) {
-    cancelEdit()
-    return
+  let newValue: unknown = editValue.value === '' ? null : editValue.value
+  
+  // 如果原始值是对象类型，说明这是一个 JSON 字段
+  if (originalValue.value !== null && typeof originalValue.value === 'object' && newValue !== null) {
+    // 对于 JSON 字段，我们需要传递字符串给数据库
+    // 首先验证是否是有效的 JSON
+    try {
+      const parsedValue = JSON.parse(newValue as string)
+      // 如果解析成功，比较解析后的值与原始值
+      if (JSON.stringify(parsedValue) === JSON.stringify(originalValue.value)) {
+        cancelEdit()
+        return
+      }
+      // 对于 JSON 字段，传递字符串给数据库
+      newValue = newValue as string
+    } catch (error) {
+      // JSON 解析失败，保持字符串形式，让数据库来验证
+      // 这里不做前端验证，按需求文档要求依赖数据库错误反馈
+    }
+  } else {
+    // 非 JSON 字段的常规比较
+    if (newValue === originalValue.value || (newValue === null && originalValue.value === null)) {
+      cancelEdit()
+      return
+    }
   }
   
   // 构建主键条件
