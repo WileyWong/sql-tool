@@ -83,6 +83,7 @@ import * as monaco from 'monaco-editor'
 import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
 import { useResultStore } from '../stores/result'
+import { eventBus, type EventBusEvents } from '../utils/eventBus'
 
 // 补全项类型
 interface CompletionItemResult {
@@ -333,7 +334,7 @@ async function updateLanguageServerContext() {
 /**
  * 更新 Language Server 元数据
  */
-async function updateLanguageServerMetadata() {
+async function updateLanguageServerMetadata(forceRefresh = false) {
   if (!selectedConnectionId.value || !selectedDatabase.value) {
     await window.api.sqlLanguageServer.clear()
     return
@@ -344,7 +345,7 @@ async function updateLanguageServerMetadata() {
     let dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
     
     // 如果没有表数据，主动加载
-    if (!dbMeta || dbMeta.tables.length === 0) {
+    if (forceRefresh || !dbMeta || dbMeta.tables.length === 0) {
       await connectionStore.loadTables(selectedConnectionId.value, selectedDatabase.value)
       await connectionStore.loadViews(selectedConnectionId.value, selectedDatabase.value)
       dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
@@ -727,11 +728,28 @@ async function handleSaveShortcut(e: KeyboardEvent) {
   }
 }
 
+/**
+ * 处理连接树刷新事件
+ */
+function handleConnectionTreeRefresh(payload: EventBusEvents['connectionTree:refresh']) {
+  // 检查是否是当前编辑器使用的连接和数据库
+  if (
+    payload.connectionId === selectedConnectionId.value &&
+    (!payload.databaseName || payload.databaseName === selectedDatabase.value)
+  ) {
+    // 强制刷新 Language Server 元数据
+    updateLanguageServerMetadata(true)
+  }
+}
+
 onMounted(async () => {
   editorStore.init()
   initEditor()
   // 添加键盘快捷键监听
   window.addEventListener('keydown', handleSaveShortcut)
+  
+  // 监听连接树刷新事件
+  eventBus.on('connectionTree:refresh', handleConnectionTreeRefresh)
   
   // 初始化 Language Server 元数据
   await updateLanguageServerMetadata()
@@ -751,6 +769,9 @@ onUnmounted(() => {
   editor?.dispose()
   // 移除键盘快捷键监听
   window.removeEventListener('keydown', handleSaveShortcut)
+  
+  // 移除事件总线监听
+  eventBus.off('connectionTree:refresh', handleConnectionTreeRefresh)
 })
 </script>
 

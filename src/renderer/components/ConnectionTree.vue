@@ -98,6 +98,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, FolderOpened, Connection, Coin, Grid, View, Operation, Folder } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
+import { eventBus } from '../utils/eventBus'
 import type { TreeNode, TreeNodeType } from '@shared/types'
 import type Node from 'element-plus/es/components/tree/src/model/node'
 
@@ -602,6 +603,11 @@ async function handleMenuClick(key: string) {
         treeNode.loaded = false
         treeNode.expand()
       }
+      // 发送刷新事件通知
+      eventBus.emit('connectionTree:refresh', {
+        connectionId: node.connectionId!,
+        databaseName: node.databaseName
+      })
       break
     case 'query100':
       const sql = `SELECT * FROM \`${node.databaseName}\`.\`${node.label}\` LIMIT 100`
