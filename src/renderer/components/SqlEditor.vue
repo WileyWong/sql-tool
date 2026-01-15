@@ -26,6 +26,7 @@
           filterable
           clearable
           placeholder="请选择连接"
+          popper-class="info-select-dropdown"
           :filter-method="filterConnections"
           @visible-change="handleConnectionDropdownVisibleChange"
         >
@@ -45,6 +46,7 @@
           filterable
           clearable
           placeholder="请选择数据库"
+          popper-class="info-select-dropdown"
           :filter-method="filterDatabases"
           @visible-change="handleDatabaseDropdownVisibleChange"
         >
@@ -839,6 +841,15 @@ onUnmounted(() => {
 
 .info-select :deep(.el-select__wrapper) {
   background-color: #3c3c3c;
+  box-shadow: 0 0 0 1px #555 inset;
+}
+
+.info-select :deep(.el-select__wrapper:hover) {
+  box-shadow: 0 0 0 1px #0e639c inset;
+}
+
+.info-select :deep(.el-select__wrapper.is-focused) {
+  box-shadow: 0 0 0 1px #0e639c inset;
 }
 
 .info-select :deep(.el-select__selected-item) {
@@ -910,5 +921,20 @@ onUnmounted(() => {
 .editor-container {
   flex: 1;
   min-height: 0;
+}
+</style>
+
+<!-- 全局样式：下拉框样式 -->
+<style>
+.info-select-dropdown .el-select-dropdown__item {
+  background-color: transparent !important;
+}
+
+.info-select-dropdown .el-select-dropdown__item:hover {
+  background-color: #3c3c3c !important;
+}
+
+.info-select-dropdown .el-select-dropdown__item.is-hovering {
+  background-color: #3c3c3c !important;
 }
 </style>
