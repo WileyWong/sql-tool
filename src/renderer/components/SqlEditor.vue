@@ -221,14 +221,6 @@ const currentUser = computed(() => {
   return conn?.username || '-'
 })
 
-// 数据库列表（保留用于向后兼容）
-const databases = computed(() => {
-  if (!selectedConnectionId.value) return []
-  const conn = connections.value.find(c => c.id === selectedConnectionId.value)
-  if (!conn || conn.status !== 'connected') return []
-  return connectionStore.getDatabaseNames(selectedConnectionId.value)
-})
-
 // 监听标签页切换，恢复该标签页的连接设置
 watch(() => editorStore.activeTab, async (tab) => {
   if (tab) {

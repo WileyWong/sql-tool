@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, FolderOpened, Connection, Coin, Grid, View, Operation, Folder } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
@@ -463,8 +463,8 @@ function hasActiveFilter(data: TreeNode) {
 }
 
 // 设置过滤输入框引用
-function setFilterInputRef(data: TreeNode, el: HTMLInputElement | null) {
-  filterInputRefs.value.set(data.id, el)
+function setFilterInputRef(data: TreeNode, el: Element | ComponentPublicInstance | null) {
+  filterInputRefs.value.set(data.id, el as HTMLInputElement | null)
 }
 
 // 进入过滤模式
