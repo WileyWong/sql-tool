@@ -839,7 +839,14 @@ onUnmounted(() => {
 
 .info-select :deep(.el-select__wrapper) {
   background-color: #3c3c3c;
-  color:white;
+}
+
+.info-select :deep(.el-select__selected-item) {
+  color: #4ec9b0 !important;
+}
+
+.info-select :deep(.el-select__placeholder span) {
+  color: #4ec9b0 !important;
 }
 
 .info-select :deep(.el-input__wrapper) {
