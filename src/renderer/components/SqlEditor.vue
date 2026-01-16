@@ -86,6 +86,7 @@ import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
 import { useResultStore } from '../stores/result'
 import { eventBus, type EventBusEvents } from '../utils/eventBus'
+import { registerSqlDarkTheme, getDefaultTheme } from '../config/monaco-theme'
 
 // 补全项类型
 interface CompletionItemResult {
@@ -402,10 +403,13 @@ function handleMaxRowsChange() {
 function initEditor() {
   if (!editorContainer.value) return
   
+  // 注册自定义主题
+  registerSqlDarkTheme()
+  
   editor = monaco.editor.create(editorContainer.value, {
     value: editorStore.currentSql,
     language: 'sql',
-    theme: 'vs-dark',
+    theme: getDefaultTheme(),
     automaticLayout: true,
     minimap: { enabled: false },
     fontSize: 14,

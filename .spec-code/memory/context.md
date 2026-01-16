@@ -61,6 +61,7 @@ sql-tool-v2/
     ├── preload/             # 预加载脚本
     ├── renderer/            # 渲染进程 (Vue 应用)
     │   ├── components/      # 公共组件
+    │   ├── config/          # 配置模块 (主题等)
     │   ├── stores/          # Pinia 状态
     │   ├── utils/           # 工具函数
     │   └── styles/          # 样式文件
@@ -102,6 +103,7 @@ sql-tool-v2/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-01-16 | RC-007-1: Monaco Editor 主题模块化，新增 `src/renderer/config/monaco-theme.ts`，字符串颜色改为橙色 `#f5b801` |
 | 2025-12-19 | 创建项目需求文档 |
 | 2025-12-19 | 完成 UI 原型设计 |
 | 2025-12-19 | 完成需求澄清和审查 |
