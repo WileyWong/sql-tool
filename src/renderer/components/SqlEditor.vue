@@ -80,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, inject, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import * as monaco from 'monaco-editor'
 import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
@@ -122,6 +122,9 @@ const saveConfirmDialog = inject<{ show: (tabId: string, title: string, filePath
 const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 
+// 每个标签页的 Monaco Model 缓存
+const modelCache = new Map<string, monaco.editor.ITextModel>()
+
 // 获取选中的文本（如果有选中则返回选中内容，否则返回全部）
 function getSelectedText(): string {
   if (!editor) return editorStore.currentSql
@@ -146,6 +149,9 @@ let formatDisposable: monaco.IDisposable | null = null
 let validateTimer: ReturnType<typeof setTimeout> | null = null
 // 标志：是否正在程序化设置内容（防止触发 isDirty）
 let isSettingContent = false
+// 上一次的连接和数据库（用于避免重复更新 Language Server）
+let lastConnectionId: string | undefined
+let lastDatabaseName: string | undefined
 
 const tabs = computed(() => editorStore.tabs)
 const activeTabId = computed({
@@ -225,7 +231,7 @@ const currentUser = computed(() => {
 })
 
 // 监听标签页切换，恢复该标签页的连接设置
-watch(() => editorStore.activeTab, async (tab) => {
+watch(() => editorStore.activeTab, (tab, oldTab) => {
   if (tab) {
     // 切换结果面板到对应的编辑器标签页
     resultStore.switchToEditorTab(tab.id)
@@ -236,18 +242,26 @@ watch(() => editorStore.activeTab, async (tab) => {
     selectedDatabase.value = tab.databaseName || ''
     maxRowsInput.value = String(tab.maxRows || 5000)
     
-    // 等待 watch 回调执行完成后再重置标志
-    await nextTick()
+    // 同步重置标志（不需要等待 nextTick）
     isRestoringTabSettings = false
     
-    // 更新编辑器内容（程序化设置，不触发 isDirty）
+    // 切换 Monaco Model（高性能方案）
     if (editor) {
-      const currentValue = editor.getValue()
-      if (currentValue !== tab.content) {
-        isSettingContent = true
-        editor.setValue(tab.content)
-        isSettingContent = false
-      }
+      switchToTabModel(tab.id, tab.content)
+    }
+    
+    // 仅在连接或数据库变化时更新 Language Server
+    const connectionChanged = tab.connectionId !== oldTab?.connectionId
+    const databaseChanged = tab.databaseName !== oldTab?.databaseName
+    
+    if (connectionChanged || databaseChanged) {
+      // 延迟更新，避免阻塞切换
+      queueMicrotask(() => {
+        updateLanguageServerContext()
+        if (databaseChanged) {
+          updateLanguageServerMetadata()
+        }
+      })
     }
   }
 }, { immediate: true })
@@ -256,12 +270,8 @@ watch(() => editorStore.activeTab, async (tab) => {
 watch(() => editorStore.contentUpdateTrigger, () => {
   const tab = editorStore.activeTab
   if (tab && editor) {
-    const currentValue = editor.getValue()
-    if (currentValue !== tab.content) {
-      isSettingContent = true
-      editor.setValue(tab.content)
-      isSettingContent = false
-    }
+    // 使用 Model 切换方式
+    switchToTabModel(tab.id, tab.content)
   }
 })
 
@@ -297,8 +307,11 @@ watch(selectedConnectionId, async (newId) => {
     editorStore.updateTabConnection(newId || undefined, selectedDatabase.value || undefined)
   }
   
-  // 更新 Language Server 上下文
-  updateLanguageServerContext()
+  // 仅在连接真正变化时更新 Language Server 上下文
+  if (newId !== lastConnectionId) {
+    lastConnectionId = newId
+    updateLanguageServerContext()
+  }
 })
 
 // 监听数据库选择变化
@@ -308,8 +321,11 @@ watch(selectedDatabase, async (newDb) => {
     editorStore.updateTabConnection(selectedConnectionId.value || undefined, newDb || undefined)
   }
   
-  // 更新 Language Server 元数据
-  await updateLanguageServerMetadata()
+  // 仅在数据库真正变化时更新 Language Server 元数据
+  if (newDb !== lastDatabaseName) {
+    lastDatabaseName = newDb
+    await updateLanguageServerMetadata()
+  }
 })
 
 /**
@@ -399,6 +415,66 @@ function handleMaxRowsChange() {
   editorStore.updateTabMaxRows(maxRows)
 }
 
+/**
+ * 获取或创建标签页的 Monaco Model
+ */
+function getOrCreateModel(tabId: string, content: string): monaco.editor.ITextModel {
+  let model = modelCache.get(tabId)
+  
+  if (!model || model.isDisposed()) {
+    // 创建新的 Model
+    const uri = monaco.Uri.parse(`sql://tab/${tabId}.sql`)
+    model = monaco.editor.createModel(content, 'sql', uri)
+    modelCache.set(tabId, model)
+    
+    // 监听 Model 内容变化
+    model.onDidChangeContent(() => {
+      if (!isSettingContent) {
+        const value = model!.getValue()
+        editorStore.updateContent(value)
+      }
+      // 延迟验证语法
+      scheduleValidation()
+    })
+  }
+  
+  return model
+}
+
+/**
+ * 切换到指定标签页的 Model
+ */
+function switchToTabModel(tabId: string, content: string) {
+  if (!editor) return
+  
+  const model = getOrCreateModel(tabId, content)
+  const currentModel = editor.getModel()
+  
+  // 如果已经是当前 Model，检查内容是否需要更新
+  if (currentModel === model) {
+    if (model.getValue() !== content) {
+      isSettingContent = true
+      model.setValue(content)
+      isSettingContent = false
+    }
+    return
+  }
+  
+  // 切换 Model（比 setValue 快得多）
+  editor.setModel(model)
+}
+
+/**
+ * 清理标签页的 Model
+ */
+function disposeTabModel(tabId: string) {
+  const model = modelCache.get(tabId)
+  if (model && !model.isDisposed()) {
+    model.dispose()
+  }
+  modelCache.delete(tabId)
+}
+
 // 初始化编辑器
 function initEditor() {
   if (!editorContainer.value) return
@@ -406,8 +482,14 @@ function initEditor() {
   // 注册自定义主题
   registerSqlDarkTheme()
   
+  // 获取当前标签页的 Model
+  const currentTab = editorStore.activeTab
+  const initialModel = currentTab 
+    ? getOrCreateModel(currentTab.id, currentTab.content)
+    : null
+  
   editor = monaco.editor.create(editorContainer.value, {
-    value: editorStore.currentSql,
+    model: initialModel,  // 直接使用 Model
     language: 'sql',
     theme: getDefaultTheme(),
     automaticLayout: true,
@@ -419,19 +501,6 @@ function initEditor() {
     tabSize: 2,
     suggestOnTriggerCharacters: true,
     quickSuggestions: true
-  })
-  
-  // 内容变化监听
-  editor.onDidChangeModelContent(() => {
-    const value = editor?.getValue() || ''
-    
-    // 只有用户手动编辑时才标记为脏
-    if (!isSettingContent) {
-      editorStore.updateContent(value)
-    }
-    
-    // 延迟验证语法
-    scheduleValidation()
   })
   
   // 注册 Language Server 提供者
@@ -707,6 +776,8 @@ async function handleTabRemove(tabId: string | number) {
   
   // 清理该标签页的结果数据
   resultStore.cleanupEditorTab(id)
+  // 清理该标签页的 Monaco Model
+  disposeTabModel(id)
   editorStore.closeTab(id)
 }
 
@@ -763,6 +834,12 @@ onUnmounted(() => {
   completionDisposable?.dispose()
   hoverDisposable?.dispose()
   formatDisposable?.dispose()
+  
+  // 清理所有 Model
+  for (const [tabId] of modelCache) {
+    disposeTabModel(tabId)
+  }
+  modelCache.clear()
   
   editor?.dispose()
   // 移除键盘快捷键监听
