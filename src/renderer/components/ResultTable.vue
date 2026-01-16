@@ -1,5 +1,5 @@
 <template>
-  <div class="result-table">
+  <div class="result-table" @contextmenu.prevent>
     <el-table
       :data="data.rows"
       border
@@ -8,6 +8,7 @@
       height="100%"
       :empty-text="'查询返回 0 行'"
       @cell-dblclick="handleCellDblClick"
+      @cell-contextmenu="handleCellContextMenu"
     >
       <el-table-column
         v-for="col in data.columns"
@@ -55,11 +56,45 @@
       <span>耗时 {{ data.executionTime }}ms</span>
       <span v-if="data.editable" class="editable-hint">可编辑</span>
     </div>
+    
+    <!-- 右键菜单 -->
+    <div
+      v-if="contextMenu.visible"
+      class="context-menu"
+      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+    >
+      <div class="context-menu-item" @click="handleViewCell">查看</div>
+    </div>
+    
+    <!-- 查看弹出层 -->
+    <el-dialog
+      v-model="viewDialog.visible"
+      title="查看内容"
+      width="600px"
+      :close-on-press-escape="true"
+      @close="closeViewDialog"
+    >
+      <div class="view-dialog-content">
+        <div class="view-format-tabs">
+          <el-radio-group v-model="viewDialog.format" size="small">
+            <el-radio-button value="raw">原始值</el-radio-button>
+            <el-radio-button value="json">JSON</el-radio-button>
+            <el-radio-button value="xml">XML</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div class="view-content-wrapper">
+          <pre class="view-content">{{ formattedViewContent }}</pre>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="closeViewDialog">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { QueryResultSet } from '@shared/types'
 import { useConnectionStore } from '../stores/connection'
@@ -78,6 +113,142 @@ const resultStore = useResultStore()
 const editingCell = ref<{ rowIndex: number; column: string } | null>(null)
 const editValue = ref<string>('')
 const originalValue = ref<unknown>(null)
+
+// 右键菜单状态
+const contextMenu = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  cellValue: null as unknown
+})
+
+// 查看弹出层状态
+const viewDialog = ref({
+  visible: false,
+  value: null as unknown,
+  format: 'raw' as 'raw' | 'json' | 'xml'
+})
+
+// 格式化查看内容
+const formattedViewContent = computed(() => {
+  const value = viewDialog.value.value
+  if (value === null) return 'NULL'
+  if (value === undefined) return ''
+  
+  const strValue = typeof value === 'object' ? JSON.stringify(value) : String(value)
+  
+  switch (viewDialog.value.format) {
+    case 'json':
+      return formatAsJson(strValue)
+    case 'xml':
+      return formatAsXml(strValue)
+    default:
+      return strValue
+  }
+})
+
+// 格式化为 JSON
+function formatAsJson(value: string): string {
+  try {
+    const parsed = JSON.parse(value)
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    return `无法解析为 JSON:\n${value}`
+  }
+}
+
+// 格式化为 XML
+function formatAsXml(value: string): string {
+  try {
+    // 简单的 XML 格式化
+    let formatted = ''
+    let indent = 0
+    const xmlStr = value.trim()
+    
+    // 检查是否是有效的 XML
+    if (!xmlStr.startsWith('<')) {
+      return `无法解析为 XML:\n${value}`
+    }
+    
+    // 使用正则分割 XML 标签
+    const tokens = xmlStr.split(/(<[^>]+>)/g).filter(t => t.trim())
+    
+    for (const token of tokens) {
+      if (token.startsWith('</')) {
+        // 结束标签
+        indent--
+        formatted += '  '.repeat(Math.max(0, indent)) + token + '\n'
+      } else if (token.startsWith('<') && token.endsWith('/>')) {
+        // 自闭合标签
+        formatted += '  '.repeat(indent) + token + '\n'
+      } else if (token.startsWith('<')) {
+        // 开始标签
+        formatted += '  '.repeat(indent) + token + '\n'
+        indent++
+      } else {
+        // 文本内容
+        const trimmed = token.trim()
+        if (trimmed) {
+          formatted += '  '.repeat(indent) + trimmed + '\n'
+        }
+      }
+    }
+    
+    return formatted.trim() || value
+  } catch {
+    return `无法解析为 XML:\n${value}`
+  }
+}
+
+// 处理右键菜单
+function handleCellContextMenu(row: Record<string, unknown>, column: { property: string }, _cell: HTMLElement, event: MouseEvent) {
+  event.preventDefault()
+  
+  const value = row[column.property]
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    cellValue: value
+  }
+}
+
+// 查看单元格内容
+function handleViewCell() {
+  viewDialog.value = {
+    visible: true,
+    value: contextMenu.value.cellValue,
+    format: 'raw'
+  }
+  contextMenu.value.visible = false
+}
+
+// 关闭查看弹出层
+function closeViewDialog() {
+  viewDialog.value.visible = false
+}
+
+// 关闭右键菜单
+function closeContextMenu() {
+  contextMenu.value.visible = false
+}
+
+// 点击其他地方关闭右键菜单
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.context-menu')) {
+    closeContextMenu()
+  }
+}
+
+// 监听点击事件关闭右键菜单
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 // 计算列宽
 function getColumnWidth(name: string): number {
@@ -430,5 +601,99 @@ function cancelEdit() {
 
 .edit-input:focus {
   background: #2d2d2d;
+}
+
+/* 右键菜单样式 */
+.context-menu {
+  position: fixed;
+  background: #2d2d2d;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 100px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+}
+
+.context-menu-item {
+  padding: 6px 16px;
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.context-menu-item:hover {
+  background: #094771;
+}
+
+/* 查看弹出层样式 */
+.view-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.view-format-tabs {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.view-content-wrapper {
+  max-height: 400px;
+  overflow: auto;
+  background: #1e1e1e;
+  border: 1px solid #555;
+  border-radius: 4px;
+}
+
+.view-content {
+  margin: 0;
+  padding: 12px;
+  color: #d4d4d4;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 覆盖 el-dialog 样式 */
+:deep(.el-dialog) {
+  background: #2d2d2d;
+  border: 1px solid #555;
+}
+
+:deep(.el-dialog__header) {
+  background: #2d2d2d;
+  border-bottom: 1px solid #555;
+  padding: 12px 16px;
+}
+
+:deep(.el-dialog__title) {
+  color: #d4d4d4;
+}
+
+:deep(.el-dialog__body) {
+  background: #2d2d2d;
+  color: #d4d4d4;
+  padding: 16px;
+}
+
+:deep(.el-dialog__footer) {
+  background: #2d2d2d;
+  border-top: 1px solid #555;
+  padding: 12px 16px;
+}
+
+:deep(.el-radio-button__inner) {
+  background: #3c3c3c;
+  border-color: #555;
+  color: #d4d4d4;
+}
+
+:deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: #094771;
+  border-color: #094771;
+  color: #fff;
 }
 </style>
