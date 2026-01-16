@@ -53,6 +53,12 @@
     "directories": {
       "output": "release"
     },
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources"
+      }
+    ],
     "win": {
       "target": [
         {
