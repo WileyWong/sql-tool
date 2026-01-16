@@ -87,43 +87,23 @@ import { useConnectionStore } from '../stores/connection'
 import { useResultStore } from '../stores/result'
 import { eventBus, type EventBusEvents } from '../utils/eventBus'
 import { registerSqlDarkTheme, getDefaultTheme } from '../config/monaco-theme'
-
-// 补全项类型
-interface CompletionItemResult {
-  label: string
-  kind: number
-  insertText: string
-  insertTextFormat?: number
-  detail?: string
-  documentation?: string
-  sortText?: string
-}
-
-// 诊断结果类型
-interface DiagnosticResult {
-  range: { start: { line: number; character: number }; end: { line: number; character: number } }
-  message: string
-  severity: number
-}
-
-// 编辑结果类型
-interface TextEditResult {
-  range: { start: { line: number; character: number }; end: { line: number; character: number } }
-  newText: string
-}
+import { useLanguageServer } from '../composables/useLanguageServer'
+import { useEditorModel } from '../composables/useEditorModel'
+import { DEFAULT_MAX_ROWS } from '../constants/layout'
 
 const editorStore = useEditorStore()
 const connectionStore = useConnectionStore()
 const resultStore = useResultStore()
+
+// 使用 Composables
+const languageServer = useLanguageServer()
+const editorModelManager = useEditorModel()
 
 // 注入保存确认对话框
 const saveConfirmDialog = inject<{ show: (tabId: string, title: string, filePath?: string) => Promise<'save' | 'dontSave' | 'cancel'> }>('saveConfirmDialog')
 
 const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
-
-// 每个标签页的 Monaco Model 缓存
-const modelCache = new Map<string, monaco.editor.ITextModel>()
 
 // 获取选中的文本（如果有选中则返回选中内容，否则返回全部）
 function getSelectedText(): string {
@@ -143,15 +123,6 @@ function getSelectedText(): string {
 defineExpose({
   getSelectedText
 })
-let completionDisposable: monaco.IDisposable | null = null
-let hoverDisposable: monaco.IDisposable | null = null
-let formatDisposable: monaco.IDisposable | null = null
-let validateTimer: ReturnType<typeof setTimeout> | null = null
-// 标志：是否正在程序化设置内容（防止触发 isDirty）
-let isSettingContent = false
-// 上一次的连接和数据库（用于避免重复更新 Language Server）
-let lastConnectionId: string | undefined
-let lastDatabaseName: string | undefined
 
 const tabs = computed(() => editorStore.tabs)
 const activeTabId = computed({
@@ -163,7 +134,7 @@ const activeTabId = computed({
 const connections = computed(() => connectionStore.connections)
 const selectedConnectionId = ref('')
 const selectedDatabase = ref('')
-const maxRowsInput = ref('5000')
+const maxRowsInput = ref(String(DEFAULT_MAX_ROWS))
 
 // 过滤相关
 const connectionFilterText = ref('')
@@ -230,6 +201,18 @@ const currentUser = computed(() => {
   return conn?.username || '-'
 })
 
+// 语法验证回调
+function scheduleValidation() {
+  languageServer.scheduleValidation(() => {
+    languageServer.validateDocument(editor?.getModel() ?? null)
+  })
+}
+
+// 切换 Model 封装
+function switchToTabModel(tabId: string, content: string) {
+  editorModelManager.switchToTabModel(editor, tabId, content, scheduleValidation)
+}
+
 // 监听标签页切换，恢复该标签页的连接设置
 watch(() => editorStore.activeTab, (tab, oldTab) => {
   if (tab) {
@@ -240,7 +223,7 @@ watch(() => editorStore.activeTab, (tab, oldTab) => {
     isRestoringTabSettings = true
     selectedConnectionId.value = tab.connectionId || ''
     selectedDatabase.value = tab.databaseName || ''
-    maxRowsInput.value = String(tab.maxRows || 5000)
+    maxRowsInput.value = String(tab.maxRows || DEFAULT_MAX_ROWS)
     
     // 同步重置标志（不需要等待 nextTick）
     isRestoringTabSettings = false
@@ -257,9 +240,9 @@ watch(() => editorStore.activeTab, (tab, oldTab) => {
     if (connectionChanged || databaseChanged) {
       // 延迟更新，避免阻塞切换
       queueMicrotask(() => {
-        updateLanguageServerContext()
+        languageServer.checkAndUpdateContext(selectedConnectionId.value, selectedDatabase.value)
         if (databaseChanged) {
-          updateLanguageServerMetadata()
+          languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value)
         }
       })
     }
@@ -307,11 +290,8 @@ watch(selectedConnectionId, async (newId) => {
     editorStore.updateTabConnection(newId || undefined, selectedDatabase.value || undefined)
   }
   
-  // 仅在连接真正变化时更新 Language Server 上下文
-  if (newId !== lastConnectionId) {
-    lastConnectionId = newId
-    updateLanguageServerContext()
-  }
+  // 使用 Composable 更新上下文
+  await languageServer.checkAndUpdateContext(newId, selectedDatabase.value)
 })
 
 // 监听数据库选择变化
@@ -321,88 +301,9 @@ watch(selectedDatabase, async (newDb) => {
     editorStore.updateTabConnection(selectedConnectionId.value || undefined, newDb || undefined)
   }
   
-  // 仅在数据库真正变化时更新 Language Server 元数据
-  if (newDb !== lastDatabaseName) {
-    lastDatabaseName = newDb
-    await updateLanguageServerMetadata()
-  }
+  // 使用 Composable 更新元数据
+  await languageServer.checkAndUpdateMetadata(selectedConnectionId.value, newDb)
 })
-
-/**
- * 更新 Language Server 上下文
- */
-async function updateLanguageServerContext() {
-  try {
-    await window.api.sqlLanguageServer.setContext(
-      selectedConnectionId.value || null,
-      selectedDatabase.value || null
-    )
-  } catch (error) {
-    console.error('更新 Language Server 上下文失败:', error)
-  }
-}
-
-/**
- * 更新 Language Server 元数据
- */
-async function updateLanguageServerMetadata(forceRefresh = false) {
-  if (!selectedConnectionId.value || !selectedDatabase.value) {
-    await window.api.sqlLanguageServer.clear()
-    return
-  }
-
-  try {
-    // 先检查是否已有元数据
-    let dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
-    
-    // 如果没有表数据，主动加载
-    if (forceRefresh || !dbMeta || dbMeta.tables.length === 0) {
-      await connectionStore.loadTables(selectedConnectionId.value, selectedDatabase.value)
-      await connectionStore.loadViews(selectedConnectionId.value, selectedDatabase.value)
-      dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
-      
-      // 加载所有表的列信息
-      if (dbMeta && dbMeta.tables.length > 0) {
-        await Promise.all(
-          dbMeta.tables.map(table => 
-            connectionStore.loadColumns(selectedConnectionId.value!, selectedDatabase.value!, table.name)
-          )
-        )
-        // 重新获取更新后的元数据
-        dbMeta = connectionStore.getDatabaseMeta(selectedConnectionId.value, selectedDatabase.value)
-      }
-    }
-    
-    if (dbMeta) {
-      // 更新表元数据
-      const tables = dbMeta.tables.map(t => ({
-        name: t.name,
-        comment: t.comment,
-        columns: t.columns.map(c => ({
-          name: c.name,
-          type: c.type,
-          nullable: c.nullable !== false,
-          defaultValue: c.defaultValue,
-          comment: c.comment,
-          isPrimaryKey: c.primaryKey
-        }))
-      }))
-      // console.log('[SqlEditor] Updating tables:', tables.length)
-      await window.api.sqlLanguageServer.updateTables(tables)
-
-      // 更新视图元数据
-      const views = dbMeta.views.map(v => ({
-        name: v.name,
-        comment: undefined as string | undefined
-      }))
-      await window.api.sqlLanguageServer.updateViews(views)
-    } else {
-      await window.api.sqlLanguageServer.clear()
-    }
-  } catch (error) {
-    console.error('更新 Language Server 元数据失败:', error)
-  }
-}
 
 function handleMaxRowsInput(e: Event) {
   const target = e.target as HTMLInputElement
@@ -411,68 +312,8 @@ function handleMaxRowsInput(e: Event) {
 }
 
 function handleMaxRowsChange() {
-  const maxRows = parseInt(maxRowsInput.value) || 5000
+  const maxRows = parseInt(maxRowsInput.value) || DEFAULT_MAX_ROWS
   editorStore.updateTabMaxRows(maxRows)
-}
-
-/**
- * 获取或创建标签页的 Monaco Model
- */
-function getOrCreateModel(tabId: string, content: string): monaco.editor.ITextModel {
-  let model = modelCache.get(tabId)
-  
-  if (!model || model.isDisposed()) {
-    // 创建新的 Model
-    const uri = monaco.Uri.parse(`sql://tab/${tabId}.sql`)
-    model = monaco.editor.createModel(content, 'sql', uri)
-    modelCache.set(tabId, model)
-    
-    // 监听 Model 内容变化
-    model.onDidChangeContent(() => {
-      if (!isSettingContent) {
-        const value = model!.getValue()
-        editorStore.updateContent(value)
-      }
-      // 延迟验证语法
-      scheduleValidation()
-    })
-  }
-  
-  return model
-}
-
-/**
- * 切换到指定标签页的 Model
- */
-function switchToTabModel(tabId: string, content: string) {
-  if (!editor) return
-  
-  const model = getOrCreateModel(tabId, content)
-  const currentModel = editor.getModel()
-  
-  // 如果已经是当前 Model，检查内容是否需要更新
-  if (currentModel === model) {
-    if (model.getValue() !== content) {
-      isSettingContent = true
-      model.setValue(content)
-      isSettingContent = false
-    }
-    return
-  }
-  
-  // 切换 Model（比 setValue 快得多）
-  editor.setModel(model)
-}
-
-/**
- * 清理标签页的 Model
- */
-function disposeTabModel(tabId: string) {
-  const model = modelCache.get(tabId)
-  if (model && !model.isDisposed()) {
-    model.dispose()
-  }
-  modelCache.delete(tabId)
 }
 
 // 初始化编辑器
@@ -485,7 +326,7 @@ function initEditor() {
   // 获取当前标签页的 Model
   const currentTab = editorStore.activeTab
   const initialModel = currentTab 
-    ? getOrCreateModel(currentTab.id, currentTab.content)
+    ? editorModelManager.getOrCreateModel(currentTab.id, currentTab.content, scheduleValidation)
     : null
   
   editor = monaco.editor.create(editorContainer.value, {
@@ -504,7 +345,7 @@ function initEditor() {
   })
   
   // 注册 Language Server 提供者
-  registerLanguageServerProviders()
+  languageServer.registerProviders()
   
   // 注册格式化快捷键
   editor.addAction({
@@ -513,225 +354,8 @@ function initEditor() {
     keybindings: [
       monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF
     ],
-    run: formatDocument
+    run: () => languageServer.formatDocument(editor)
   })
-}
-
-/**
- * 注册 Language Server 提供者
- */
-function registerLanguageServerProviders() {
-  // 自动补全
-  completionDisposable = monaco.languages.registerCompletionItemProvider('sql', {
-    triggerCharacters: ['.', ' ', '\n'],
-    provideCompletionItems: async (model, position) => {
-      const documentText = model.getValue()
-      const line = position.lineNumber - 1 // Monaco 是 1-based，LSP 是 0-based
-      const character = position.column - 1
-
-      try {
-        const result = await window.api.sqlLanguageServer.completion(documentText, line, character)
-        
-        if (!result.success || !result.items.length) {
-          return { suggestions: [] }
-        }
-
-        const word = model.getWordUntilPosition(position)
-        const range = {
-          startLineNumber: position.lineNumber,
-          endLineNumber: position.lineNumber,
-          startColumn: word.startColumn,
-          endColumn: word.endColumn
-        }
-
-        const suggestions: monaco.languages.CompletionItem[] = result.items.map((item: CompletionItemResult) => ({
-          label: item.label,
-          kind: convertCompletionItemKind(item.kind),
-          insertText: item.insertText,
-          insertTextRules: item.insertTextFormat === 2 
-            ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet 
-            : undefined,
-          detail: item.detail,
-          documentation: item.documentation,
-          sortText: item.sortText,
-          range
-        }))
-
-        return { suggestions }
-      } catch (error) {
-        console.error('补全请求失败:', error)
-        return { suggestions: [] }
-      }
-    }
-  })
-
-  // 悬浮提示
-  hoverDisposable = monaco.languages.registerHoverProvider('sql', {
-    provideHover: async (model, position) => {
-      const documentText = model.getValue()
-      const line = position.lineNumber - 1
-      const character = position.column - 1
-
-      try {
-        const result = await window.api.sqlLanguageServer.hover(documentText, line, character)
-        
-        if (!result.success || !result.hover) {
-          return null
-        }
-
-        return {
-          contents: [{ value: result.hover.contents.value }]
-        }
-      } catch (error) {
-        console.error('悬浮提示请求失败:', error)
-        return null
-      }
-    }
-  })
-
-  // 格式化
-  formatDisposable = monaco.languages.registerDocumentFormattingEditProvider('sql', {
-    provideDocumentFormattingEdits: async (model) => {
-      const documentText = model.getValue()
-
-      try {
-        const result = await window.api.sqlLanguageServer.format(documentText)
-        
-        if (!result.success || !result.edits.length) {
-          return []
-        }
-
-        return result.edits.map((edit: TextEditResult) => ({
-          range: {
-            startLineNumber: edit.range.start.line + 1,
-            startColumn: edit.range.start.character + 1,
-            endLineNumber: edit.range.end.line + 1,
-            endColumn: edit.range.end.character + 1
-          },
-          text: edit.newText
-        }))
-      } catch (error) {
-        console.error('格式化请求失败:', error)
-        return []
-      }
-    }
-  })
-}
-
-/**
- * 转换补全项类型
- */
-function convertCompletionItemKind(kind: number): monaco.languages.CompletionItemKind {
-  // LSP CompletionItemKind 到 Monaco CompletionItemKind 的映射
-  const kindMap: Record<number, monaco.languages.CompletionItemKind> = {
-    1: monaco.languages.CompletionItemKind.Text,
-    2: monaco.languages.CompletionItemKind.Method,
-    3: monaco.languages.CompletionItemKind.Function,
-    4: monaco.languages.CompletionItemKind.Constructor,
-    5: monaco.languages.CompletionItemKind.Field,
-    6: monaco.languages.CompletionItemKind.Variable,
-    7: monaco.languages.CompletionItemKind.Class,
-    8: monaco.languages.CompletionItemKind.Interface,
-    9: monaco.languages.CompletionItemKind.Module,
-    10: monaco.languages.CompletionItemKind.Property,
-    11: monaco.languages.CompletionItemKind.Unit,
-    12: monaco.languages.CompletionItemKind.Value,
-    13: monaco.languages.CompletionItemKind.Enum,
-    14: monaco.languages.CompletionItemKind.Keyword,
-    15: monaco.languages.CompletionItemKind.Snippet,
-    16: monaco.languages.CompletionItemKind.Color,
-    17: monaco.languages.CompletionItemKind.File,
-    18: monaco.languages.CompletionItemKind.Reference,
-    19: monaco.languages.CompletionItemKind.Folder,
-    20: monaco.languages.CompletionItemKind.EnumMember,
-    21: monaco.languages.CompletionItemKind.Constant,
-    22: monaco.languages.CompletionItemKind.Struct,
-    23: monaco.languages.CompletionItemKind.Event,
-    24: monaco.languages.CompletionItemKind.Operator,
-    25: monaco.languages.CompletionItemKind.TypeParameter
-  }
-  return kindMap[kind] || monaco.languages.CompletionItemKind.Text
-}
-
-/**
- * 延迟验证语法
- */
-function scheduleValidation() {
-  if (validateTimer) {
-    clearTimeout(validateTimer)
-  }
-  validateTimer = setTimeout(validateDocument, 500)
-}
-
-/**
- * 验证文档语法
- */
-async function validateDocument() {
-  if (!editor) return
-
-  const model = editor.getModel()
-  if (!model) return
-
-  const documentText = model.getValue()
-
-  try {
-    const result = await window.api.sqlLanguageServer.validate(documentText)
-    
-    if (!result.success) {
-      monaco.editor.setModelMarkers(model, 'sql', [])
-      return
-    }
-
-    const markers: monaco.editor.IMarkerData[] = result.diagnostics.map((d: DiagnosticResult) => ({
-      severity: convertDiagnosticSeverity(d.severity),
-      message: d.message,
-      startLineNumber: d.range.start.line + 1,
-      startColumn: d.range.start.character + 1,
-      endLineNumber: d.range.end.line + 1,
-      endColumn: d.range.end.character + 1
-    }))
-
-    monaco.editor.setModelMarkers(model, 'sql', markers)
-  } catch (error) {
-    console.error('语法验证失败:', error)
-  }
-}
-
-/**
- * 转换诊断严重性
- */
-function convertDiagnosticSeverity(severity: number): monaco.MarkerSeverity {
-  // LSP DiagnosticSeverity: 1=Error, 2=Warning, 3=Information, 4=Hint
-  const severityMap: Record<number, monaco.MarkerSeverity> = {
-    1: monaco.MarkerSeverity.Error,
-    2: monaco.MarkerSeverity.Warning,
-    3: monaco.MarkerSeverity.Info,
-    4: monaco.MarkerSeverity.Hint
-  }
-  return severityMap[severity] || monaco.MarkerSeverity.Error
-}
-
-/**
- * 格式化文档
- */
-async function formatDocument() {
-  if (!editor) return
-
-  const model = editor.getModel()
-  if (!model) return
-
-  const documentText = model.getValue()
-
-  try {
-    const result = await window.api.sqlLanguageServer.format(documentText)
-    
-    if (result.success && result.edits.length > 0) {
-      const edit = result.edits[0]
-      editor.setValue(edit.newText)
-    }
-  } catch (error) {
-    console.error('格式化失败:', error)
-  }
 }
 
 // 标签页移除（带保存确认）
@@ -777,7 +401,7 @@ async function handleTabRemove(tabId: string | number) {
   // 清理该标签页的结果数据
   resultStore.cleanupEditorTab(id)
   // 清理该标签页的 Monaco Model
-  disposeTabModel(id)
+  editorModelManager.disposeTabModel(id)
   editorStore.closeTab(id)
 }
 
@@ -807,7 +431,7 @@ function handleConnectionTreeRefresh(payload: EventBusEvents['connectionTree:ref
     (!payload.databaseName || payload.databaseName === selectedDatabase.value)
   ) {
     // 强制刷新 Language Server 元数据
-    updateLanguageServerMetadata(true)
+    languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value, true)
   }
 }
 
@@ -821,25 +445,15 @@ onMounted(async () => {
   eventBus.on('connectionTree:refresh', handleConnectionTreeRefresh)
   
   // 初始化 Language Server 元数据
-  await updateLanguageServerMetadata()
+  await languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value)
 })
 
 onUnmounted(() => {
-  // 清理定时器
-  if (validateTimer) {
-    clearTimeout(validateTimer)
-  }
-  
-  // 清理 disposables
-  completionDisposable?.dispose()
-  hoverDisposable?.dispose()
-  formatDisposable?.dispose()
+  // 清理 Language Server 资源
+  languageServer.dispose()
   
   // 清理所有 Model
-  for (const [tabId] of modelCache) {
-    disposeTabModel(tabId)
-  }
-  modelCache.clear()
+  editorModelManager.disposeAllModels()
   
   editor?.dispose()
   // 移除键盘快捷键监听

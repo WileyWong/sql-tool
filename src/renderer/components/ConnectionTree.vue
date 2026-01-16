@@ -31,8 +31,8 @@
             class="tree-node" 
             :class="getNodeClass(data)" 
             @dblclick.stop="handleNodeDblClick(data)"
-            @mouseenter="handleNodeMouseEnter(data)"
-            @mouseleave="handleNodeMouseLeave(data)"
+            @mouseenter="treeFilter.handleNodeMouseEnter(data)"
+            @mouseleave="treeFilter.handleNodeMouseLeave(data)"
           >
             <el-icon :class="getNodeIconClass(data)">
               <component :is="getNodeIcon(data)" />
@@ -41,25 +41,25 @@
             <!-- 服务器/数据库节点的过滤功能 -->
             <template v-if="data.type === 'connection' || data.type === 'database'">
               <!-- 过滤输入框模式 -->
-              <div v-if="isFilterMode(data)" class="filter-input-wrapper" @click.stop>
+              <div v-if="treeFilter.isFilterMode(data)" class="filter-input-wrapper" @click.stop>
                 <input
-                  :ref="el => setFilterInputRef(data, el)"
-                  v-model="getFilterState(data).keyword"
+                  :ref="el => treeFilter.setFilterInputRef(data, el)"
+                  v-model="treeFilter.getFilterState(data).keyword"
                   class="filter-input"
                   :placeholder="data.type === 'connection' ? '过滤数据库' : '过滤表/视图/函数'"
-                  @keydown.enter.stop="applyFilter(data)"
-                  @keydown.esc.stop="exitFilterMode(data)"
+                  @keydown.enter.stop="handleApplyFilter(data)"
+                  @keydown.esc.stop="treeFilter.exitFilterMode(data)"
                   @blur="handleFilterInputBlur(data)"
                 />
               </div>
               <!-- 过滤按钮模式 -->
               <span 
-                v-else-if="hoveredNodeId === data.id || hasActiveFilter(data)"
+                v-else-if="treeFilter.hoveredNodeId.value === data.id || treeFilter.hasActiveFilter(data)"
                 class="filter-btn"
-                :class="{ active: hasActiveFilter(data) }"
-                @click.stop="enterFilterMode(data)"
+                :class="{ active: treeFilter.hasActiveFilter(data) }"
+                @click.stop="treeFilter.enterFilterMode(data)"
               >
-                {{ hasActiveFilter(data) ? '已过滤' : '过滤' }}
+                {{ treeFilter.hasActiveFilter(data) ? '已过滤' : '过滤' }}
               </span>
             </template>
           </span>
@@ -93,27 +93,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, FolderOpened, Connection, Coin, Grid, View, Operation, Folder } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
 import { eventBus } from '../utils/eventBus'
+import { useTreeFilter } from '../composables/useTreeFilter'
 import type { TreeNode, TreeNodeType } from '@shared/types'
 import type Node from 'element-plus/es/components/tree/src/model/node'
 
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
 
+// 使用 Composable
+const treeFilter = useTreeFilter()
+
 const treeRef = ref()
 const refreshing = ref(false)
-
-// 过滤相关状态
-const hoveredNodeId = ref<string | null>(null)
-// 每个数据库节点的过滤状态 Map<nodeId, { isFilterMode: boolean, keyword: string, appliedKeyword: string }>
-const filterStates = ref<Map<string, { isFilterMode: boolean; keyword: string; appliedKeyword: string }>>(new Map())
-// 过滤输入框引用
-const filterInputRefs = ref<Map<string, HTMLInputElement | null>>(new Map())
 
 const treeProps = {
   children: 'children',
@@ -166,7 +163,7 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
     let databases = connectionStore.getDatabaseNames(data.connectionId!)
     
     // 获取过滤关键字并应用过滤
-    const filterKeyword = getConnectionFilterKeyword(data.connectionId!).toLowerCase()
+    const filterKeyword = treeFilter.getConnectionFilterKeyword(data.connectionId!).toLowerCase()
     if (filterKeyword) {
       databases = databases.filter(db => db.toLowerCase().includes(filterKeyword))
     }
@@ -220,7 +217,7 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
     
     if (dbMeta) {
       // 获取过滤关键字
-      const filterKeyword = getDatabaseFilterKeyword(data.connectionId!, data.databaseName!).toLowerCase()
+      const filterKeyword = treeFilter.getDatabaseFilterKeyword(data.connectionId!, data.databaseName!).toLowerCase()
       let tables = dbMeta.tables
       
       // 应用过滤
@@ -250,7 +247,7 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
     
     if (dbMeta) {
       // 获取过滤关键字
-      const filterKeyword = getDatabaseFilterKeyword(data.connectionId!, data.databaseName!).toLowerCase()
+      const filterKeyword = treeFilter.getDatabaseFilterKeyword(data.connectionId!, data.databaseName!).toLowerCase()
       let views = dbMeta.views
       
       // 应用过滤
@@ -280,7 +277,7 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
     
     if (dbMeta) {
       // 获取过滤关键字
-      const filterKeyword = getDatabaseFilterKeyword(data.connectionId!, data.databaseName!).toLowerCase()
+      const filterKeyword = treeFilter.getDatabaseFilterKeyword(data.connectionId!, data.databaseName!).toLowerCase()
       let functions = dbMeta.functions
       
       // 应用过滤
@@ -432,86 +429,29 @@ async function handleNodeDblClick(data: TreeNode) {
 
 // === 过滤功能相关方法 ===
 
-// 鼠标进入节点
-function handleNodeMouseEnter(data: TreeNode) {
-  hoveredNodeId.value = data.id
-}
-
-// 鼠标离开节点
-function handleNodeMouseLeave(data: TreeNode) {
-  if (hoveredNodeId.value === data.id) {
-    hoveredNodeId.value = null
-  }
-}
-
-// 获取过滤状态
-function getFilterState(data: TreeNode) {
-  if (!filterStates.value.has(data.id)) {
-    filterStates.value.set(data.id, { isFilterMode: false, keyword: '', appliedKeyword: '' })
-  }
-  return filterStates.value.get(data.id)!
-}
-
-// 是否处于过滤输入模式
-function isFilterMode(data: TreeNode) {
-  return getFilterState(data).isFilterMode
-}
-
-// 是否有激活的过滤
-function hasActiveFilter(data: TreeNode) {
-  return getFilterState(data).appliedKeyword !== ''
-}
-
-// 设置过滤输入框引用
-function setFilterInputRef(data: TreeNode, el: Element | ComponentPublicInstance | null) {
-  filterInputRefs.value.set(data.id, el as HTMLInputElement | null)
-}
-
-// 进入过滤模式
-function enterFilterMode(data: TreeNode) {
-  const state = getFilterState(data)
-  state.isFilterMode = true
-  state.keyword = state.appliedKeyword // 恢复之前的过滤关键字
-  // 下一帧聚焦输入框
-  setTimeout(() => {
-    const input = filterInputRefs.value.get(data.id)
-    if (input) {
-      input.focus()
-      input.select()
+// 应用过滤（包装器）
+function handleApplyFilter(data: TreeNode) {
+  const hasChanged = treeFilter.applyFilter(data)
+  if (hasChanged) {
+    // 根据节点类型刷新子节点
+    if (data.type === 'connection') {
+      refreshConnectionChildren(data)
+    } else if (data.type === 'database') {
+      refreshDatabaseChildren(data)
     }
-  }, 0)
-}
-
-// 退出过滤模式
-function exitFilterMode(data: TreeNode) {
-  const state = getFilterState(data)
-  state.isFilterMode = false
-  state.keyword = state.appliedKeyword // 恢复到已应用的关键字
-}
-
-// 应用过滤
-function applyFilter(data: TreeNode) {
-  const state = getFilterState(data)
-  state.appliedKeyword = state.keyword.trim()
-  state.isFilterMode = false
-  
-  // 根据节点类型刷新子节点
-  if (data.type === 'connection') {
-    refreshConnectionChildren(data)
-  } else if (data.type === 'database') {
-    refreshDatabaseChildren(data)
   }
 }
 
-// 处理输入框失焦
+// 处理输入框失焦（包装器）
 function handleFilterInputBlur(data: TreeNode) {
-  const state = getFilterState(data)
-  // 如果关键字没有变化，直接退出过滤模式
-  if (state.keyword.trim() === state.appliedKeyword) {
-    state.isFilterMode = false
-  } else {
-    // 如果关键字有变化，应用过滤
-    applyFilter(data)
+  const needRefresh = treeFilter.handleFilterInputBlur(data)
+  if (needRefresh) {
+    // 根据节点类型刷新子节点
+    if (data.type === 'connection') {
+      refreshConnectionChildren(data)
+    } else if (data.type === 'database') {
+      refreshDatabaseChildren(data)
+    }
   }
 }
 
@@ -540,19 +480,6 @@ function refreshDatabaseChildren(data: TreeNode) {
       }
     }
   }
-}
-
-// 获取数据库节点的过滤关键字
-function getDatabaseFilterKeyword(connectionId: string, databaseName: string): string {
-  const nodeId = `${connectionId}-${databaseName}`
-  const state = filterStates.value.get(nodeId)
-  return state?.appliedKeyword || ''
-}
-
-// 获取连接节点的过滤关键字
-function getConnectionFilterKeyword(connectionId: string): string {
-  const state = filterStates.value.get(connectionId)
-  return state?.appliedKeyword || ''
 }
 
 // 右键菜单
