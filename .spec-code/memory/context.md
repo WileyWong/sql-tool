@@ -103,6 +103,7 @@ sql-tool-v2/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-01-16 | RC-007-5: JSON/XML 查看器语法高亮和展开折叠功能，使用 Vue 渲染函数实现树形组件 |
 | 2026-01-16 | RC-007-4: 结果表格增加右键"查看"功能，支持原始值/JSON/XML格式化显示 |
 | 2026-01-16 | RC-007-3: 结果表格日期格式化，支持 DATE/DATETIME/TIME/TIMESTAMP/YEAR 类型的格式化显示 |
 | 2026-01-16 | RC-007-2: 支持 DATETIME/TIME/TIMESTAMP 类型的小数秒精度(fsp)参数，修改 `database.ts` 和 `TableDesignDialog.vue` |
