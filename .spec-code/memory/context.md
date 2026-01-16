@@ -103,6 +103,7 @@ sql-tool-v2/
 
 | 日期 | 变更内容 |
 |------|----------|
+| 2026-01-16 | RC-007-2: 支持 DATETIME/TIME/TIMESTAMP 类型的小数秒精度(fsp)参数，修改 `database.ts` 和 `TableDesignDialog.vue` |
 | 2026-01-16 | RC-007-1: Monaco Editor 主题模块化，新增 `src/renderer/config/monaco-theme.ts`，字符串颜色改为橙色 `#f5b801` |
 | 2025-12-19 | 创建项目需求文档 |
 | 2025-12-19 | 完成 UI 原型设计 |

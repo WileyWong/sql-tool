@@ -104,7 +104,17 @@
             <el-table-column label="长度" width="80">
               <template #default="{ row }">
                 <el-input-number
-                  v-if="typeNeedsLength(row.type)"
+                  v-if="typeNeedsFsp(row.type)"
+                  v-model="row.length"
+                  size="small"
+                  :min="0"
+                  :max="6"
+                  :controls="false"
+                  style="width: 100%"
+                  placeholder="精度"
+                />
+                <el-input-number
+                  v-else-if="typeNeedsLength(row.type)"
                   v-model="row.length"
                   size="small"
                   :min="1"
@@ -247,7 +257,7 @@ import { ref, computed, watch, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, Plus, Delete, Refresh } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
-import { MySQLDataTypes, typeNeedsLength, typeNeedsDecimals, typeSupportsUnsigned } from '@shared/types/database'
+import { MySQLDataTypes, typeNeedsLength, typeNeedsDecimals, typeSupportsUnsigned, typeNeedsFsp } from '@shared/types/database'
 
 const connectionStore = useConnectionStore()
 
@@ -566,6 +576,10 @@ function handleTypeChange(row: ColumnFormItem) {
   } else if (row.type === 'DECIMAL') {
     if (!row.length) row.length = 10
     if (!row.decimals) row.decimals = 2
+  } else if (['DATETIME', 'TIME', 'TIMESTAMP'].includes(row.type)) {
+    // 日期时间类型默认不设置精度（即精度为0）
+    // 用户可以手动设置 0-6 的精度
+    row.length = undefined
   }
   
   // 清除不适用的属性

@@ -127,9 +127,15 @@ export function getAllMySQLDataTypes(): string[] {
 
 /**
  * 判断数据类型是否需要长度参数
+ * 包括：字符串类型的长度、数值类型的精度、日期时间类型的小数秒精度(fsp)
  */
 export function typeNeedsLength(type: string): boolean {
-  const needsLength = ['CHAR', 'VARCHAR', 'BINARY', 'VARBINARY', 'BIT', 'DECIMAL', 'FLOAT', 'DOUBLE']
+  const needsLength = [
+    'CHAR', 'VARCHAR', 'BINARY', 'VARBINARY', 'BIT', 
+    'DECIMAL', 'FLOAT', 'DOUBLE',
+    // 日期时间类型支持小数秒精度 (fsp: 0-6)
+    'DATETIME', 'TIME', 'TIMESTAMP'
+  ]
   return needsLength.includes(type.toUpperCase())
 }
 
@@ -138,6 +144,14 @@ export function typeNeedsLength(type: string): boolean {
  */
 export function typeNeedsDecimals(type: string): boolean {
   return ['DECIMAL', 'FLOAT', 'DOUBLE'].includes(type.toUpperCase())
+}
+
+/**
+ * 判断数据类型是否为支持小数秒精度(fsp)的日期时间类型
+ * 支持的类型: DATETIME, TIME, TIMESTAMP (精度范围 0-6)
+ */
+export function typeNeedsFsp(type: string): boolean {
+  return ['DATETIME', 'TIME', 'TIMESTAMP'].includes(type.toUpperCase())
 }
 
 /**
