@@ -18,7 +18,7 @@ const api = {
     test: (config: ConnectionConfig): Promise<{ success: boolean; message: string; serverVersion?: string }> =>
       ipcRenderer.invoke(IpcChannels.CONNECTION_TEST, config),
     
-    connect: (connectionId: string): Promise<{ success: boolean; message?: string }> =>
+    connect: (connectionId: string): Promise<{ success: boolean; message?: string; serverVersion?: string }> =>
       ipcRenderer.invoke(IpcChannels.CONNECTION_CONNECT, connectionId),
     
     disconnect: (connectionId: string): Promise<{ success: boolean }> =>
@@ -161,6 +161,10 @@ const api = {
     // 设置上下文
     setContext: (connectionId: string | null, database: string | null) =>
       ipcRenderer.invoke('sql-ls:setContext', connectionId, database),
+    
+    // 设置数据库版本（用于过滤函数列表）
+    setDatabaseVersion: (version: string | null): Promise<{ success: boolean; functionsCount?: number; error?: string }> =>
+      ipcRenderer.invoke('sql-ls:setDatabaseVersion', version),
     
     // 清空元数据
     clear: () =>

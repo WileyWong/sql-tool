@@ -24,6 +24,8 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 export interface ConnectionInfo extends ConnectionConfig {
   status: ConnectionStatus
   error?: string
+  /** 数据库服务器版本（连接成功后获取） */
+  serverVersion?: string
 }
 
 /**

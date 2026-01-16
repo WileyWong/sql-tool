@@ -94,6 +94,10 @@ export interface FunctionMetadata {
   signature: string
   description?: string
   returnType?: string
+  /** 最低支持的 MySQL 版本（如 "5.7.0", "8.0.0"），null 或不设置表示所有版本支持 */
+  minVersion?: string | null
+  /** 最高支持的 MySQL 版本（如 "5.7.99"），null 或不设置表示无上限 */
+  maxVersion?: string | null
 }
 
 /**

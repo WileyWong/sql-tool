@@ -102,7 +102,17 @@ export const useConnectionStore = defineStore('connection', () => {
     if (result.success) {
       conn.status = 'connected'
       conn.error = undefined
+      conn.serverVersion = result.serverVersion
       currentConnectionId.value = connectionId
+      
+      // 通知 Language Server 数据库版本
+      if (result.serverVersion) {
+        try {
+          await window.api.sqlLanguageServer.setDatabaseVersion(result.serverVersion)
+        } catch (e) {
+          console.warn('设置 Language Server 数据库版本失败:', e)
+        }
+      }
       
       // 加载数据库列表
       await loadDatabases(connectionId)
@@ -124,8 +134,16 @@ export const useConnectionStore = defineStore('connection', () => {
     if (result.success) {
       conn.status = 'disconnected'
       conn.error = undefined
+      conn.serverVersion = undefined
       // 清除缓存
       databaseCache.value.delete(connectionId)
+      
+      // 清除 Language Server 数据库版本
+      try {
+        await window.api.sqlLanguageServer.setDatabaseVersion(null)
+      } catch (e) {
+        console.warn('清除 Language Server 数据库版本失败:', e)
+      }
     }
     
     return result

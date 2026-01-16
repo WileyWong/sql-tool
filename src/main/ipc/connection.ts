@@ -75,8 +75,8 @@ export function setupConnectionHandlers(ipcMain: IpcMain): void {
     }
     
     try {
-      await connect(config)
-      return { success: true, message: '连接成功' }
+      const result = await connect(config)
+      return { success: true, message: '连接成功', serverVersion: result.version }
     } catch (error: unknown) {
       const err = error as { message?: string }
       return { success: false, message: err.message || '连接失败' }

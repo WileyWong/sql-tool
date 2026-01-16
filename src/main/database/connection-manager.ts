@@ -78,7 +78,7 @@ async function createConnection(config: ConnectionConfig): Promise<Connection> {
 /**
  * 建立数据库连接
  */
-export async function connect(config: ConnectionConfig): Promise<void> {
+export async function connect(config: ConnectionConfig): Promise<{ version: string }> {
   // 如果已有连接，先断开
   if (activeConnections.has(config.id)) {
     await disconnect(config.id)
@@ -86,7 +86,30 @@ export async function connect(config: ConnectionConfig): Promise<void> {
   
   const connection = await createConnection(config)
   
+  // 获取服务器版本
+  const [rows] = await connection.query('SELECT VERSION() as version')
+  const version = (rows as { version: string }[])[0]?.version || 'Unknown'
+  
   activeConnections.set(config.id, { connection, config })
+  
+  return { version }
+}
+
+/**
+ * 获取数据库版本（从已连接的连接中）
+ */
+export async function getDatabaseVersion(connectionId: string): Promise<string | null> {
+  const connection = await getConnectionWithReconnect(connectionId)
+  if (!connection) {
+    return null
+  }
+  
+  try {
+    const [rows] = await connection.query('SELECT VERSION() as version')
+    return (rows as { version: string }[])[0]?.version || null
+  } catch {
+    return null
+  }
 }
 
 /**

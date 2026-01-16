@@ -148,6 +148,20 @@ function registerIpcHandlers(): void {
     }
   })
 
+  // 设置数据库版本（用于过滤函数列表）
+  ipcMain.handle('sql-ls:setDatabaseVersion', async (
+    _event: IpcMainInvokeEvent,
+    version: string | null
+  ) => {
+    try {
+      metadataService.setDatabaseVersion(version)
+      return { success: true, functionsCount: metadataService.getFunctions().length }
+    } catch (error: any) {
+      console.error('设置数据库版本失败:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
   // 清空元数据
   ipcMain.handle('sql-ls:clear', async () => {
     try {

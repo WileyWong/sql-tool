@@ -1,7 +1,7 @@
 /**
  * 元数据服务
  * 管理数据库元数据（表、字段、视图、函数）
- * 函数列表从外部 JSON 配置文件加载，支持热更新
+ * 函数列表从外部 JSON 配置文件加载，支持热更新和版本过滤
  */
 
 import fs from 'fs'
@@ -37,13 +37,68 @@ interface FunctionLoadResult {
   error?: string
 }
 
+/**
+ * 解析版本号为数字数组，便于比较
+ * @param version 版本字符串，如 "8.0.32", "5.7.44-log"
+ * @returns 版本数字数组 [major, minor, patch]
+ */
+function parseVersion(version: string): number[] {
+  // 移除版本号后的非数字部分（如 "-log", "-community"）
+  const cleanVersion = version.replace(/[^0-9.]/g, '').split('-')[0]
+  const parts = cleanVersion.split('.')
+  return [
+    parseInt(parts[0] || '0', 10),
+    parseInt(parts[1] || '0', 10),
+    parseInt(parts[2] || '0', 10)
+  ]
+}
+
+/**
+ * 比较两个版本号
+ * @returns -1: v1 < v2, 0: v1 == v2, 1: v1 > v2
+ */
+function compareVersions(v1: string, v2: string): number {
+  const p1 = parseVersion(v1)
+  const p2 = parseVersion(v2)
+  
+  for (let i = 0; i < 3; i++) {
+    if (p1[i] < p2[i]) return -1
+    if (p1[i] > p2[i]) return 1
+  }
+  return 0
+}
+
+/**
+ * 检查函数是否在指定版本中受支持
+ */
+function isFunctionSupported(func: FunctionMetadata, dbVersion: string): boolean {
+  // 如果没有设置版本限制，则所有版本都支持
+  if (!func.minVersion && !func.maxVersion) {
+    return true
+  }
+  
+  // 检查最低版本要求
+  if (func.minVersion && compareVersions(dbVersion, func.minVersion) < 0) {
+    return false
+  }
+  
+  // 检查最高版本限制
+  if (func.maxVersion && compareVersions(dbVersion, func.maxVersion) > 0) {
+    return false
+  }
+  
+  return true
+}
+
 export class MetadataService {
   private tables: Map<string, TableMetadata> = new Map()
   private views: Map<string, ViewMetadata> = new Map()
-  private functions: FunctionMetadata[] = []
+  private allFunctions: FunctionMetadata[] = []  // 所有函数（未过滤）
+  private functions: FunctionMetadata[] = []      // 当前版本支持的函数
   private functionsLoadResult: FunctionLoadResult | null = null
   private currentConnectionId: string | null = null
   private currentDatabase: string | null = null
+  private currentDbVersion: string | null = null  // 当前数据库版本
 
   constructor() {
     // 初始化时加载函数列表
@@ -80,14 +135,22 @@ export class MetadataService {
         }
       }
 
-      this.functions = allFunctions
+      this.allFunctions = allFunctions
+      // 如果已设置版本，则过滤；否则使用全部函数
+      this.functions = this.currentDbVersion 
+        ? this.filterFunctionsByVersion(allFunctions, this.currentDbVersion)
+        : allFunctions
+        
       this.functionsLoadResult = {
-        functions: allFunctions,
+        functions: this.functions,
         loadedAt: new Date(),
         source: configPath
       }
 
       console.log(`[MetadataService] Loaded ${allFunctions.length} MySQL functions from ${configPath}`)
+      if (this.currentDbVersion) {
+        console.log(`[MetadataService] Filtered to ${this.functions.length} functions for version ${this.currentDbVersion}`)
+      }
       return this.functionsLoadResult
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -104,6 +167,13 @@ export class MetadataService {
   }
 
   /**
+   * 根据数据库版本过滤函数
+   */
+  private filterFunctionsByVersion(functions: FunctionMetadata[], dbVersion: string): FunctionMetadata[] {
+    return functions.filter(func => isFunctionSupported(func, dbVersion))
+  }
+
+  /**
    * 重新加载函数列表（支持热更新）
    */
   reloadFunctions(): FunctionLoadResult {
@@ -115,6 +185,41 @@ export class MetadataService {
    */
   getFunctionsLoadStatus(): FunctionLoadResult | null {
     return this.functionsLoadResult
+  }
+
+  /**
+   * 设置数据库版本，并重新过滤函数列表
+   * @param version MySQL 版本字符串，如 "8.0.32", "5.7.44"
+   */
+  setDatabaseVersion(version: string | null): void {
+    if (this.currentDbVersion === version) {
+      return // 版本未变化，无需重新过滤
+    }
+    
+    this.currentDbVersion = version
+    
+    if (version) {
+      this.functions = this.filterFunctionsByVersion(this.allFunctions, version)
+      console.log(`[MetadataService] Database version set to ${version}, ${this.functions.length}/${this.allFunctions.length} functions available`)
+    } else {
+      this.functions = this.allFunctions
+      console.log(`[MetadataService] Database version cleared, all ${this.allFunctions.length} functions available`)
+    }
+    
+    // 更新加载结果
+    if (this.functionsLoadResult) {
+      this.functionsLoadResult = {
+        ...this.functionsLoadResult,
+        functions: this.functions
+      }
+    }
+  }
+
+  /**
+   * 获取当前数据库版本
+   */
+  getDatabaseVersion(): string | null {
+    return this.currentDbVersion
   }
 
   /**
@@ -182,10 +287,17 @@ export class MetadataService {
   }
 
   /**
-   * 获取所有函数
+   * 获取所有函数（已根据当前数据库版本过滤）
    */
   getFunctions(): FunctionMetadata[] {
     return this.functions
+  }
+
+  /**
+   * 获取所有函数（未过滤）
+   */
+  getAllFunctions(): FunctionMetadata[] {
+    return this.allFunctions
   }
 
   /**
@@ -197,8 +309,9 @@ export class MetadataService {
 
   /**
    * 按分类获取函数（从配置文件重新读取以获取分类信息）
+   * @param filterByVersion 是否根据当前数据库版本过滤，默认 true
    */
-  getFunctionsByCategory(): Map<string, { label: string; functions: FunctionMetadata[] }> {
+  getFunctionsByCategory(filterByVersion: boolean = true): Map<string, { label: string; functions: FunctionMetadata[] }> {
     const result = new Map<string, { label: string; functions: FunctionMetadata[] }>()
     const configPath = getResourcePath('mysql-functions.json')
     
@@ -208,10 +321,20 @@ export class MetadataService {
         const config: MySQLFunctionsConfig = JSON.parse(content)
         
         for (const [key, category] of Object.entries(config.categories)) {
-          result.set(key, {
-            label: category.label,
-            functions: category.functions
-          })
+          let functions = category.functions
+          
+          // 根据版本过滤
+          if (filterByVersion && this.currentDbVersion) {
+            functions = this.filterFunctionsByVersion(functions, this.currentDbVersion)
+          }
+          
+          // 只添加有函数的分类
+          if (functions.length > 0) {
+            result.set(key, {
+              label: category.label,
+              functions
+            })
+          }
         }
       }
     } catch (error) {
@@ -243,16 +366,19 @@ export class MetadataService {
     this.views.clear()
     this.currentConnectionId = null
     this.currentDatabase = null
-    // 注意：不清空 functions，因为它们是全局的 MySQL 内置函数
+    // 清空版本时恢复所有函数
+    this.currentDbVersion = null
+    this.functions = this.allFunctions
   }
 
   /**
    * 获取当前上下文
    */
-  getContext(): { connectionId: string | null; database: string | null } {
+  getContext(): { connectionId: string | null; database: string | null; dbVersion: string | null } {
     return {
       connectionId: this.currentConnectionId,
-      database: this.currentDatabase
+      database: this.currentDatabase,
+      dbVersion: this.currentDbVersion
     }
   }
 }
