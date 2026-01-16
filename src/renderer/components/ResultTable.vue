@@ -43,7 +43,7 @@
           </div>
           <!-- 显示模式 -->
           <span v-else :class="{ 'null-value': row[col.name] === null }">
-            {{ formatValue(row[col.name]) }}
+            {{ formatValue(row[col.name], col.type) }}
           </span>
         </template>
       </el-table-column>
@@ -85,10 +85,107 @@ function getColumnWidth(name: string): number {
   return Math.min(baseWidth, 300)
 }
 
+// 格式化日期时间值
+function formatDateTime(value: unknown, type: string): string | null {
+  if (value === null || value === undefined) return null
+  
+  const upperType = type.toUpperCase()
+  
+  // 处理 DATE 类型
+  if (upperType === 'DATE') {
+    const date = new Date(value as string | number | Date)
+    if (isNaN(date.getTime())) return String(value)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  
+  // 处理 DATETIME 类型 (包括 DATETIME(fsp))
+  // 注意：MySQL 返回的类型可能只是 DATETIME，即使字段定义了精度
+  if (upperType.startsWith('DATETIME')) {
+    const date = new Date(value as string | number | Date)
+    if (isNaN(date.getTime())) return String(value)
+    
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    const ms = date.getMilliseconds()
+    
+    // 如果有毫秒值，显示毫秒
+    if (ms > 0) {
+      const msStr = String(ms).padStart(3, '0')
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${msStr}`
+    }
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  }
+  
+  // 处理 TIMESTAMP 类型 (包括 TIMESTAMP(fsp))
+  if (upperType.startsWith('TIMESTAMP')) {
+    const date = new Date(value as string | number | Date)
+    if (isNaN(date.getTime())) return String(value)
+    
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    const ms = date.getMilliseconds()
+    
+    // 如果有毫秒值，显示毫秒
+    if (ms > 0) {
+      const msStr = String(ms).padStart(3, '0')
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${msStr}`
+    }
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  }
+  
+  // 处理 TIME 类型 (包括 TIME(fsp))
+  if (upperType.startsWith('TIME')) {
+    // TIME 类型可能是字符串格式 "HH:mm:ss" 或毫秒数
+    const strValue = String(value)
+    // 如果已经是时间格式，直接返回（保留毫秒部分如果有的话）
+    const timeMatch = strValue.match(/^(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/)
+    if (timeMatch) {
+      const [, hours, minutes, seconds, ms] = timeMatch
+      if (ms && parseInt(ms, 10) > 0) {
+        return `${hours}:${minutes}:${seconds}.${ms}`
+      }
+      return `${hours}:${minutes}:${seconds}`
+    }
+    return strValue
+  }
+  
+  // 处理 YEAR 类型
+  if (upperType === 'YEAR') {
+    // YEAR 类型可能是数字或字符串
+    const yearValue = typeof value === 'number' ? value : parseInt(String(value), 10)
+    if (!isNaN(yearValue)) {
+      return String(yearValue)
+    }
+    return String(value)
+  }
+  
+  return null
+}
+
 // 格式化值
-function formatValue(value: unknown): string {
+function formatValue(value: unknown, columnType?: string): string {
   if (value === null) return 'NULL'
   if (value === undefined) return ''
+  
+  // 尝试日期时间格式化
+  if (columnType) {
+    const formatted = formatDateTime(value, columnType)
+    if (formatted !== null) return formatted
+  }
+  
   if (typeof value === 'object') {
     return JSON.stringify(value)
   }
