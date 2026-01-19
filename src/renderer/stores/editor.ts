@@ -4,6 +4,7 @@ import { ref, computed, nextTick } from 'vue'
 export interface EditorTab {
   id: string
   title: string
+  baseTitle?: string // 基础标题（如"查询1"），用于无文件路径时动态生成 title
   content: string
   filePath?: string
   isDirty: boolean
@@ -40,6 +41,11 @@ export const useEditorStore = defineStore('editor', () => {
     return tab.content === '' && !tab.filePath
   }
   
+  // 生成标签页标题（带数据库名）
+  function generateTitle(baseTitle: string, databaseName?: string): string {
+    return databaseName ? `${baseTitle}(${databaseName})` : baseTitle
+  }
+  
   // 初始化：创建第一个标签页
   function init() {
     if (tabs.value.length === 0) {
@@ -51,11 +57,13 @@ export const useEditorStore = defineStore('editor', () => {
   function createTab(content = '', filePath?: string) {
     tabCounter++
     const id = `tab-${Date.now()}`
-    const title = filePath ? filePath.split(/[/\\]/).pop()! : `查询${tabCounter}`
+    const baseTitle = `查询${tabCounter}`
+    const title = filePath ? filePath.split(/[/\\]/).pop()! : baseTitle
     
     const tab: EditorTab = {
       id,
       title,
+      baseTitle: filePath ? undefined : baseTitle,
       content,
       filePath,
       isDirty: false,
@@ -81,6 +89,10 @@ export const useEditorStore = defineStore('editor', () => {
     if (activeTab.value) {
       activeTab.value.connectionId = connectionId
       activeTab.value.databaseName = databaseName
+      // 如果是无文件路径的查询标签页，更新标题
+      if (activeTab.value.baseTitle) {
+        activeTab.value.title = generateTitle(activeTab.value.baseTitle, databaseName)
+      }
     }
   }
   
@@ -151,7 +163,15 @@ export const useEditorStore = defineStore('editor', () => {
       // 复用当前空标签页
       currentTab.content = content
       currentTab.filePath = filePath
-      currentTab.title = filePath ? filePath.split(/[/\\]/).pop()! : `查询${tabCounter}`
+      if (filePath) {
+        currentTab.title = filePath.split(/[/\\]/).pop()!
+        currentTab.baseTitle = undefined
+      } else {
+        // 无文件路径，使用基础标题并考虑数据库名
+        const baseTitle = currentTab.baseTitle || `查询${tabCounter}`
+        currentTab.baseTitle = baseTitle
+        currentTab.title = generateTitle(baseTitle, currentTab.databaseName)
+      }
       currentTab.isDirty = false
       
       // 使用 nextTick 确保响应式更新完成后再触发编辑器刷新
