@@ -141,7 +141,9 @@ export async function executeQuery(
         let execSql = statement
         
         if (isSelect && !hasLimit(statement)) {
-          execSql = `${statement} LIMIT ${maxRows}`
+          // 移除末尾的分号和空白，再添加 LIMIT
+          execSql = statement.replace(/;\s*$/, '').trim()
+          execSql = `${execSql} LIMIT ${maxRows}`
         }
         
         const [rows, fields] = await connection.query(execSql)

@@ -103,6 +103,20 @@ export class CompletionProvider {
         this.addKeywordSuggestions(suggestions, ['AND', 'OR'])
         break
 
+      case 'ORDER_BY_CLAUSE':
+        if (context.tables && context.tables.length > 0) {
+          this.addColumnSuggestionsForTables(suggestions, context.tables, context.tables.length > 1)
+        }
+        this.addKeywordSuggestions(suggestions, ['ASC', 'DESC', 'NULLS', 'FIRST', 'LAST', 'LIMIT'])
+        break
+
+      case 'GROUP_BY_CLAUSE':
+        if (context.tables && context.tables.length > 0) {
+          this.addColumnSuggestionsForTables(suggestions, context.tables, context.tables.length > 1)
+        }
+        this.addKeywordSuggestions(suggestions, ['HAVING', 'ORDER', 'BY', 'WITH', 'ROLLUP'])
+        break
+
       case 'TABLE_DOT':
         if (context.targetTable) {
           // 先检查是否是子查询别名

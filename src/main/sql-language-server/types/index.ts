@@ -12,6 +12,8 @@ export type CursorContextType =
   | 'JOIN_CLAUSE'          // JOIN 后，提示表/视图/函数
   | 'WHERE_CLAUSE'         // WHERE 后，提示字段/函数
   | 'ON_CLAUSE'            // ON 后，提示字段
+  | 'ORDER_BY_CLAUSE'      // ORDER BY 后，提示字段
+  | 'GROUP_BY_CLAUSE'      // GROUP BY 后，提示字段
   | 'TABLE_DOT'            // 表名. 后，提示该表字段
   | 'SUBQUERY_COLUMNS'     // 子查询字段
   | 'IN_COMMENT'           // 注释内，不提示

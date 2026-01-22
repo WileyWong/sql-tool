@@ -20,6 +20,7 @@
   "dependencies": {
     "crypto-js": "^4.2.0",
     "element-plus": "^2.4.4",
+    "exceljs": "^4.4.0",
     "mitt": "^3.0.1",
     "monaco-editor": "^0.45.0",
     "monaco-languageclient": "^8.1.1",

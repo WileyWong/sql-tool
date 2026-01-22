@@ -192,6 +192,20 @@ export class SqlParserService {
       return { type: 'WHERE_CLAUSE', tables }
     }
 
+    // ORDER BY 后
+    if (this.isInOrderByClause(textBefore, textBeforeUpper, lastKeyword)) {
+      const tables = this.extractTablesFromSql(sql)
+      // console.log('[SQL Parser] ORDER_BY_CLAUSE:', tables)
+      return { type: 'ORDER_BY_CLAUSE', tables }
+    }
+
+    // GROUP BY 后
+    if (this.isInGroupByClause(textBefore, textBeforeUpper, lastKeyword)) {
+      const tables = this.extractTablesFromSql(sql)
+      // console.log('[SQL Parser] GROUP_BY_CLAUSE:', tables)
+      return { type: 'GROUP_BY_CLAUSE', tables }
+    }
+
     // SELECT 列位置（在 SELECT 和 FROM 之间）
     if (this.isInSelectColumns(textBeforeUpper, fullTextUpper, offset)) {
       const tables = this.extractTablesFromSql(sql)
@@ -298,6 +312,66 @@ export class SqlParserService {
       // 确保没有 ORDER BY, GROUP BY 等
       if (!/\b(ORDER|GROUP|HAVING|LIMIT)\b/i.test(afterWhere)) {
         return true
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * 检查是否在 ORDER BY 子句中
+   */
+  private isInOrderByClause(textBefore: string, textBeforeUpper: string, lastKeyword: string | null): boolean {
+    if (!textBeforeUpper.includes('ORDER')) {
+      return false
+    }
+
+    // 直接在 ORDER BY 后
+    if (/\bORDER\s+BY\s+$/i.test(textBefore)) {
+      return true
+    }
+
+    // ORDER BY 后正在输入字段或已有逗号分隔的字段
+    // 匹配: ORDER BY xxx, 或 ORDER BY xxx,yyy,
+    const orderByMatch = textBefore.match(/\bORDER\s+BY\s+(.*)$/i)
+    if (orderByMatch) {
+      const afterOrderBy = orderByMatch[1]
+      // 排除已有 LIMIT 等后续子句
+      if (!/\b(LIMIT|OFFSET|FOR\s+UPDATE|LOCK\s+IN)\b/i.test(afterOrderBy)) {
+        // 检查是否在逗号后或正在输入
+        // 允许: ORDER BY col1, col2, | ORDER BY col1 | ORDER BY col1,
+        if (/,\s*$/.test(afterOrderBy) || /,\s*\w*$/.test(afterOrderBy) || /^\s*\w*$/.test(afterOrderBy)) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * 检查是否在 GROUP BY 子句中
+   */
+  private isInGroupByClause(textBefore: string, textBeforeUpper: string, lastKeyword: string | null): boolean {
+    if (!textBeforeUpper.includes('GROUP')) {
+      return false
+    }
+
+    // 直接在 GROUP BY 后
+    if (/\bGROUP\s+BY\s+$/i.test(textBefore)) {
+      return true
+    }
+
+    // GROUP BY 后正在输入字段
+    const groupByMatch = textBefore.match(/\bGROUP\s+BY\s+(.*)$/i)
+    if (groupByMatch) {
+      const afterGroupBy = groupByMatch[1]
+      // 排除已有 HAVING, ORDER BY 等后续子句
+      if (!/\b(HAVING|ORDER|LIMIT|OFFSET)\b/i.test(afterGroupBy)) {
+        // 检查是否在逗号后或正在输入
+        if (/,\s*$/.test(afterGroupBy) || /,\s*\w*$/.test(afterGroupBy) || /^\s*\w*$/.test(afterGroupBy)) {
+          return true
+        }
       }
     }
 

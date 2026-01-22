@@ -100,7 +100,7 @@ const api = {
     export: (
       columns: { name: string; type: string }[],
       rows: Record<string, unknown>[],
-      format: 'csv' | 'json'
+      format: 'csv' | 'json' | 'xlsx'
     ): Promise<{ success: boolean; filePath?: string; canceled?: boolean; message?: string }> =>
       ipcRenderer.invoke(IpcChannels.FILE_EXPORT, { columns, rows, format }),
     

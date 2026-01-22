@@ -39,14 +39,20 @@
         </el-tab-pane>
       </el-tabs>
       
-      <!-- 导出按钮（放在标签页右侧） -->
+      <!-- 导出按钮（下拉菜单样式） -->
       <div class="export-buttons" v-if="canExport">
-        <button class="export-btn" @click="handleExport('csv')" title="导出为 CSV">
-          📥 CSV
-        </button>
-        <button class="export-btn" @click="handleExport('json')" title="导出为 JSON">
-          📥 JSON
-        </button>
+        <el-dropdown trigger="hover" @command="handleExport">
+          <button class="export-btn">
+            📥 导出 <span class="dropdown-arrow">▼</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="xlsx">Excel (.xlsx)</el-dropdown-item>
+              <el-dropdown-item command="csv">CSV (.csv)</el-dropdown-item>
+              <el-dropdown-item command="json">JSON (.json)</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
   </div>
@@ -93,15 +99,37 @@ function formatTime(date: Date): string {
   })
 }
 
+// 深度序列化，确保数据可以通过 IPC 传输
+// 使用 JSON.stringify 的 replacer 处理特殊类型
+function deepSerialize<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data, (_key, value) => {
+    if (typeof value === 'bigint') {
+      return value.toString()
+    }
+    if (value instanceof Date) {
+      return value.toISOString()
+    }
+    // 处理 Buffer 对象 { type: 'Buffer', data: [...] }
+    if (typeof value === 'object' && value !== null && value.type === 'Buffer' && Array.isArray(value.data)) {
+      return btoa(String.fromCharCode(...value.data))
+    }
+    return value
+  }))
+}
+
 // 导出
-async function handleExport(format: 'csv' | 'json') {
+async function handleExport(format: 'csv' | 'json' | 'xlsx') {
   const data = currentResultSet.value
   if (!data) {
     ElMessage.warning('没有可导出的数据')
     return
   }
   
-  const result = await window.api.file.export(data.columns, data.rows, format)
+  // 深度序列化确保 IPC 可传输
+  const columns = deepSerialize(data.columns)
+  const rows = deepSerialize(data.rows)
+  
+  const result = await window.api.file.export(columns, rows, format)
   if (result.success) {
     ElMessage.success(`导出成功: ${result.filePath}`)
   } else if (!result.canceled) {
@@ -185,7 +213,7 @@ async function handleExport(format: 'csv' | 'json') {
 }
 
 .export-btn {
-  padding: 4px 10px;
+  padding: 4px 12px;
   background: #3c3c3c;
   border: 1px solid #555;
   color: #d4d4d4;
@@ -194,13 +222,18 @@ async function handleExport(format: 'csv' | 'json') {
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .export-btn:hover {
   background: #505050;
   border-color: #0e639c;
   color: #fff;
+}
+
+.dropdown-arrow {
+  font-size: 8px;
+  margin-left: 2px;
 }
 
 .message-list {
