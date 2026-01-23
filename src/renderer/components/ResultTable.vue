@@ -44,7 +44,7 @@
           </div>
           <!-- 显示模式 -->
           <span v-else :class="{ 'null-value': row[col.name] === null }">
-            {{ formatValue(row[col.name], col.type) }}
+            {{ formatCellValue(row[col.name], col.type) }}
           </span>
         </template>
       </el-table-column>
@@ -54,7 +54,8 @@
     <div class="status-bar">
       <span>{{ data.rowCount }} 行</span>
       <span>耗时 {{ data.executionTime }}ms</span>
-      <span v-if="data.editable" class="editable-hint">可编辑</span>
+      <span v-if="editingCell" class="editing-hint">编辑后回车保存</span>
+      <span v-else-if="data.editable" class="editable-hint">可编辑</span>
     </div>
     
     <!-- 右键菜单 -->
@@ -104,7 +105,7 @@ import { ElMessage } from 'element-plus'
 import type { QueryResultSet } from '@shared/types'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
-import { useResultStore } from '../stores/result'
+import { formatDateTime, formatBitValue, formatCellValue } from '../utils/formatters'
 import JsonTreeViewer from './JsonTreeViewer.vue'
 import XmlTreeViewer from './XmlTreeViewer.vue'
 
@@ -114,7 +115,6 @@ const props = defineProps<{
 
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
-const resultStore = useResultStore()
 
 // 编辑状态
 const editingCell = ref<{ rowIndex: number; column: string } | null>(null)
@@ -202,113 +202,6 @@ function getColumnWidth(name: string): number {
   return Math.min(baseWidth, 300)
 }
 
-// 格式化日期时间值
-function formatDateTime(value: unknown, type: string): string | null {
-  if (value === null || value === undefined) return null
-  
-  const upperType = type.toUpperCase()
-  
-  // 处理 DATE 类型
-  if (upperType === 'DATE') {
-    const date = new Date(value as string | number | Date)
-    if (isNaN(date.getTime())) return String(value)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-  
-  // 处理 DATETIME 类型 (包括 DATETIME(fsp))
-  // 注意：MySQL 返回的类型可能只是 DATETIME，即使字段定义了精度
-  if (upperType.startsWith('DATETIME')) {
-    const date = new Date(value as string | number | Date)
-    if (isNaN(date.getTime())) return String(value)
-    
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    const ms = date.getMilliseconds()
-    
-    // 如果有毫秒值，显示毫秒
-    if (ms > 0) {
-      const msStr = String(ms).padStart(3, '0')
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${msStr}`
-    }
-    
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-  }
-  
-  // 处理 TIMESTAMP 类型 (包括 TIMESTAMP(fsp))
-  if (upperType.startsWith('TIMESTAMP')) {
-    const date = new Date(value as string | number | Date)
-    if (isNaN(date.getTime())) return String(value)
-    
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    const ms = date.getMilliseconds()
-    
-    // 如果有毫秒值，显示毫秒
-    if (ms > 0) {
-      const msStr = String(ms).padStart(3, '0')
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${msStr}`
-    }
-    
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-  }
-  
-  // 处理 TIME 类型 (包括 TIME(fsp))
-  if (upperType.startsWith('TIME')) {
-    // TIME 类型可能是字符串格式 "HH:mm:ss" 或毫秒数
-    const strValue = String(value)
-    // 如果已经是时间格式，直接返回（保留毫秒部分如果有的话）
-    const timeMatch = strValue.match(/^(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/)
-    if (timeMatch) {
-      const [, hours, minutes, seconds, ms] = timeMatch
-      if (ms && parseInt(ms, 10) > 0) {
-        return `${hours}:${minutes}:${seconds}.${ms}`
-      }
-      return `${hours}:${minutes}:${seconds}`
-    }
-    return strValue
-  }
-  
-  // 处理 YEAR 类型
-  if (upperType === 'YEAR') {
-    // YEAR 类型可能是数字或字符串
-    const yearValue = typeof value === 'number' ? value : parseInt(String(value), 10)
-    if (!isNaN(yearValue)) {
-      return String(yearValue)
-    }
-    return String(value)
-  }
-  
-  return null
-}
-
-// 格式化值
-function formatValue(value: unknown, columnType?: string): string {
-  if (value === null) return 'NULL'
-  if (value === undefined) return ''
-  
-  // 尝试日期时间格式化
-  if (columnType) {
-    const formatted = formatDateTime(value, columnType)
-    if (formatted !== null) return formatted
-  }
-  
-  if (typeof value === 'object') {
-    return JSON.stringify(value)
-  }
-  return String(value)
-}
-
 // 判断是否正在编辑
 function isEditing(rowIndex: number, column: string): boolean {
   return editingCell.value?.rowIndex === rowIndex && editingCell.value?.column === column
@@ -330,16 +223,40 @@ function handleCellDblClick(row: Record<string, unknown>, column: { property: st
   const rowIndex = props.data.rows.indexOf(row)
   if (rowIndex === -1) return
   
+  // 获取列的类型信息
+  const columnInfo = props.data.columns.find(c => c.name === column.property)
+  const columnType = columnInfo?.type || ''
+  
   // 进入编辑模式
   editingCell.value = { rowIndex, column: column.property }
   originalValue.value = row[column.property]
-  // 对于对象类型，使用 JSON.stringify 格式化，保持与显示一致
-  if (row[column.property] === null) {
+
+  // 根据类型格式化编辑值
+  const cellValue = row[column.property]
+  if (cellValue === null) {
     editValue.value = ''
-  } else if (typeof row[column.property] === 'object') {
-    editValue.value = JSON.stringify(row[column.property])
   } else {
-    editValue.value = String(row[column.property])
+    // 尝试 BIT 类型格式化
+    const formattedBit = formatBitValue(cellValue, columnType)
+    if (formattedBit !== null) {
+      editValue.value = formattedBit
+    } else if (typeof cellValue === 'object') {
+      // 检查是否是日期时间类型（可能传回 Date 对象）
+      const formattedDate = formatDateTime(cellValue, columnType)
+      if (formattedDate !== null) {
+        editValue.value = formattedDate
+      } else {
+        editValue.value = JSON.stringify(cellValue)
+      }
+    } else {
+      // 尝试日期时间格式化
+      const formattedDate = formatDateTime(cellValue, columnType)
+      if (formattedDate !== null) {
+        editValue.value = formattedDate
+      } else {
+        editValue.value = String(cellValue)
+      }
+    }
   }
   
   // 聚焦输入框
@@ -423,10 +340,8 @@ async function confirmEdit() {
     // 更新本地数据
     row[column] = newValue
     
-    // 生成行的唯一标识（使用主键值）
-    const rowKey = props.data.primaryKeys!.map(pk => `${pk}:${row[pk]}`).join('|')
-    // 标记结果有修改
-    resultStore.markAsModified(rowKey, { ...row })
+    // 数据已成功写入数据库，清除修改标记（如果之前有的话）
+    // 注意：这里不需要标记为有修改，因为数据已经持久化了
     
     ElMessage.success('更新成功')
   } else {
@@ -526,6 +441,12 @@ function cancelEdit() {
 .editable-hint {
   color: #dcdcaa;
   margin-left: auto;
+}
+
+.editing-hint {
+  color: #4fc3f7;
+  margin-left: auto;
+  font-weight: 500;
 }
 
 /* 编辑单元格样式 */

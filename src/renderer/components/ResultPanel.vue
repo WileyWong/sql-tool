@@ -62,6 +62,7 @@
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useResultStore } from '../stores/result'
+import { formatValueForExport } from '../utils/formatters'
 import ResultTable from './ResultTable.vue'
 import ExplainView from './ExplainView.vue'
 import type { QueryResultSet, ExplainResult } from '@shared/types'
@@ -125,9 +126,18 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
     return
   }
   
+  // 格式化导出数据：按表格显示格式进行格式化
+  const formattedRows = data.rows.map(row => {
+    const formattedRow: Record<string, unknown> = {}
+    data.columns.forEach(col => {
+      formattedRow[col.name] = formatValueForExport(row[col.name], col.type)
+    })
+    return formattedRow
+  })
+  
   // 深度序列化确保 IPC 可传输
   const columns = deepSerialize(data.columns)
-  const rows = deepSerialize(data.rows)
+  const rows = deepSerialize(formattedRows)
   
   const result = await window.api.file.export(columns, rows, format)
   if (result.success) {
