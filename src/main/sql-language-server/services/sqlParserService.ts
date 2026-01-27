@@ -321,7 +321,7 @@ export class SqlParserService {
   /**
    * 检查是否在 ORDER BY 子句中
    */
-  private isInOrderByClause(textBefore: string, textBeforeUpper: string, lastKeyword: string | null): boolean {
+  private isInOrderByClause(textBefore: string, textBeforeUpper: string, _lastKeyword: string | null): boolean {
     if (!textBeforeUpper.includes('ORDER')) {
       return false
     }
@@ -352,7 +352,7 @@ export class SqlParserService {
   /**
    * 检查是否在 GROUP BY 子句中
    */
-  private isInGroupByClause(textBefore: string, textBeforeUpper: string, lastKeyword: string | null): boolean {
+  private isInGroupByClause(textBefore: string, textBeforeUpper: string, _lastKeyword: string | null): boolean {
     if (!textBeforeUpper.includes('GROUP')) {
       return false
     }
