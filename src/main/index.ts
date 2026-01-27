@@ -1,10 +1,11 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { setupConnectionHandlers } from './ipc/connection'
 import { setupDatabaseHandlers } from './ipc/database'
 import { setupQueryHandlers } from './ipc/query'
 import { setupFileHandlers } from './ipc/file'
 import { initSqlLanguageServer } from './sql-language-server'
+import { createApplicationMenu, updateRecentFilesMenu } from './menu'
 import { IpcChannels } from '@shared/constants'
 
 // 禁用硬件加速（解决某些系统上的渲染问题）
@@ -14,9 +15,6 @@ let mainWindow: BrowserWindow | null = null
 let forceClose = false
 
 function createWindow() {
-  // 隐藏 Electron 默认菜单
-  Menu.setApplicationMenu(null)
-  
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -41,6 +39,10 @@ function createWindow() {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+    // 创建应用程序菜单
+    if (mainWindow) {
+      createApplicationMenu(mainWindow)
+    }
   })
 
   // 拦截窗口关闭，通知渲染进程检查未保存内容
@@ -67,6 +69,11 @@ function setupIpcHandlers() {
   ipcMain.on(IpcChannels.WINDOW_CLOSE_CONFIRMED, () => {
     forceClose = true
     mainWindow?.close()
+  })
+  
+  // 更新最近文件菜单
+  ipcMain.handle(IpcChannels.MENU_UPDATE_RECENT_FILES, (_, files: string[]) => {
+    updateRecentFilesMenu(files)
   })
   
   // 初始化 SQL Language Server

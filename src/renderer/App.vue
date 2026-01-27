@@ -1,8 +1,5 @@
 <template>
   <div class="app-container">
-    <!-- 菜单栏 -->
-    <MenuBar />
-    
     <!-- 工具栏 -->
     <div class="app-toolbar">
       <Toolbar />
@@ -58,7 +55,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, provide } from 'vue'
-import MenuBar from './components/MenuBar.vue'
 import Toolbar from './components/Toolbar.vue'
 import ConnectionTree from './components/ConnectionTree.vue'
 import SqlEditor from './components/SqlEditor.vue'
@@ -70,8 +66,10 @@ import StatusBar from './components/StatusBar.vue'
 import SaveConfirmDialog from './components/SaveConfirmDialog.vue'
 import ResultOverwriteDialog from './components/ResultOverwriteDialog.vue'
 import { useEditorStore } from './stores/editor'
+import { useConnectionStore } from './stores/connection'
 
 const editorStore = useEditorStore()
+const connectionStore = useConnectionStore()
 const resultHeight = ref(200)
 const sidebarWidth = ref(260)
 const saveConfirmDialogRef = ref<InstanceType<typeof SaveConfirmDialog> | null>(null)
@@ -138,14 +136,41 @@ async function handleBeforeClose() {
   window.api.window.confirmClose()
 }
 
-onMounted(() => {
-  // 监听窗口关闭前事件
+// 设置菜单事件监听
+function setupMenuListeners() {
+  window.api.menu.onNewConnection(() => connectionStore.openNewConnectionDialog())
+  window.api.menu.onNewQuery(() => editorStore.createTab())
+  window.api.menu.onOpenFile(async () => {
+    await editorStore.openFile()
+    const recentFiles = await window.api.file.getRecentFiles()
+    await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
+  })
+  window.api.menu.onOpenRecent(async (_event: unknown, filePath: string) => {
+    await editorStore.openRecentFile(filePath)
+  })
+  window.api.menu.onSave(async () => {
+    await editorStore.saveFile()
+    const recentFiles = await window.api.file.getRecentFiles()
+    await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
+  })
+  window.api.menu.onSaveAs(async () => {
+    await editorStore.saveFileAs()
+    const recentFiles = await window.api.file.getRecentFiles()
+    await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
+  })
+}
+
+onMounted(async () => {
   window.api.window.onBeforeClose(handleBeforeClose)
+  setupMenuListeners()
+  // 初始化最近文件菜单
+  const recentFiles = await window.api.file.getRecentFiles()
+  await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
 })
 
 onUnmounted(() => {
-  // 移除监听器
   window.api.window.removeBeforeCloseListener()
+  window.api.menu.removeAllListeners()
 })
 
 // 拖拽调整结果面板高度（上下）

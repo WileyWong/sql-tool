@@ -169,6 +169,41 @@ const api = {
     // 清空元数据
     clear: () =>
       ipcRenderer.invoke('sql-ls:clear')
+  },
+
+  // 菜单相关
+  menu: {
+    // 监听菜单事件
+    onNewConnection: (callback: () => void): void => {
+      ipcRenderer.on(IpcChannels.MENU_NEW_CONNECTION, callback)
+    },
+    onNewQuery: (callback: () => void): void => {
+      ipcRenderer.on(IpcChannels.MENU_NEW_QUERY, callback)
+    },
+    onOpenFile: (callback: () => void): void => {
+      ipcRenderer.on(IpcChannels.MENU_OPEN_FILE, callback)
+    },
+    onOpenRecent: (callback: (_event: unknown, filePath: string) => void): void => {
+      ipcRenderer.on(IpcChannels.MENU_OPEN_RECENT, callback)
+    },
+    onSave: (callback: () => void): void => {
+      ipcRenderer.on(IpcChannels.MENU_SAVE, callback)
+    },
+    onSaveAs: (callback: () => void): void => {
+      ipcRenderer.on(IpcChannels.MENU_SAVE_AS, callback)
+    },
+    // 更新最近文件菜单
+    updateRecentFiles: (files: string[]): Promise<void> =>
+      ipcRenderer.invoke(IpcChannels.MENU_UPDATE_RECENT_FILES, files),
+    // 移除所有菜单监听器
+    removeAllListeners: (): void => {
+      ipcRenderer.removeAllListeners(IpcChannels.MENU_NEW_CONNECTION)
+      ipcRenderer.removeAllListeners(IpcChannels.MENU_NEW_QUERY)
+      ipcRenderer.removeAllListeners(IpcChannels.MENU_OPEN_FILE)
+      ipcRenderer.removeAllListeners(IpcChannels.MENU_OPEN_RECENT)
+      ipcRenderer.removeAllListeners(IpcChannels.MENU_SAVE)
+      ipcRenderer.removeAllListeners(IpcChannels.MENU_SAVE_AS)
+    }
   }
 }
 

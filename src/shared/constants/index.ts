@@ -62,5 +62,15 @@ export const IpcChannels = {
   
   // 窗口控制
   WINDOW_CLOSE_CONFIRMED: 'window:closeConfirmed',
-  WINDOW_BEFORE_CLOSE: 'window:beforeClose'
+  WINDOW_BEFORE_CLOSE: 'window:beforeClose',
+  
+  // 菜单相关
+  MENU_NEW_CONNECTION: 'menu:new-connection',
+  MENU_NEW_QUERY: 'menu:new-query',
+  MENU_OPEN_FILE: 'menu:open-file',
+  MENU_OPEN_RECENT: 'menu:open-recent',
+  MENU_SAVE: 'menu:save',
+  MENU_SAVE_AS: 'menu:save-as',
+  MENU_ABOUT: 'menu:about',
+  MENU_UPDATE_RECENT_FILES: 'menu:update-recent-files'
 } as const
