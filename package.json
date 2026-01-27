@@ -18,6 +18,7 @@
     "pack:linux:arm64": "npm run build && electron-builder --linux --arm64"
   },
   "dependencies": {
+    "@tanstack/vue-virtual": "^3.13.18",
     "crypto-js": "^4.2.0",
     "element-plus": "^2.4.4",
     "exceljs": "^4.4.0",

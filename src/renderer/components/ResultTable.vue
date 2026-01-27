@@ -1,24 +1,15 @@
 <template>
   <div class="result-table" @contextmenu.prevent>
-    <el-table
-      :data="data.rows"
-      border
-      stripe
-      size="small"
-      height="100%"
-      :empty-text="'查询返回 0 行'"
-      @cell-dblclick="handleCellDblClick"
-      @cell-contextmenu="handleCellContextMenu"
-    >
-      <el-table-column
-        v-for="col in data.columns"
-        :key="col.name"
-        :prop="col.name"
-        :label="col.name"
-        :min-width="getColumnWidth(col.name)"
-        show-overflow-tooltip
-      >
-        <template #header>
+    <!-- 表格容器 -->
+    <div class="table-container" ref="tableContainerRef">
+      <!-- 表头 -->
+      <div class="table-header">
+        <div 
+          v-for="col in data.columns" 
+          :key="col.name"
+          class="header-cell"
+          :style="{ width: getColumnWidth(col.name) + 'px', minWidth: getColumnWidth(col.name) + 'px' }"
+        >
           <div class="column-header">
             <span class="column-name" :class="{ 'primary-key': col.isPrimaryKey }">
               {{ col.name }}
@@ -26,29 +17,66 @@
             </span>
             <span class="column-type">{{ col.type }}</span>
           </div>
-        </template>
-        <template #default="{ row, $index }">
-          <!-- 编辑模式 -->
+        </div>
+      </div>
+      
+      <!-- 虚拟滚动表体 -->
+      <div 
+        ref="scrollContainerRef" 
+        class="table-body"
+        @scroll="handleScroll"
+      >
+        <div 
+          class="table-body-inner"
+          :style="{ height: `${rowVirtualizer.getTotalSize()}px` }"
+        >
           <div
-            v-if="isEditing($index, col.name)"
-            class="edit-cell"
+            v-for="virtualRow in rowVirtualizer.getVirtualItems()"
+            :key="virtualRow.index"
+            class="table-row"
+            :class="{ 'striped': virtualRow.index % 2 === 1 }"
+            :style="{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${virtualRow.start}px)`
+            }"
           >
-            <input
-              ref="editInput"
-              v-model="editValue"
-              class="edit-input"
-              @keydown.enter="confirmEdit"
-              @keydown.escape="cancelEdit"
-              @blur="cancelEdit"
-            />
+            <div
+              v-for="col in data.columns"
+              :key="col.name"
+              class="table-cell"
+              :style="{ width: getColumnWidth(col.name) + 'px', minWidth: getColumnWidth(col.name) + 'px' }"
+              @dblclick="handleCellDblClick(data.rows[virtualRow.index], col, virtualRow.index)"
+              @contextmenu.prevent="handleCellContextMenu(data.rows[virtualRow.index], col, $event)"
+            >
+              <!-- 编辑模式 -->
+              <div
+                v-if="isEditing(virtualRow.index, col.name)"
+                class="edit-cell"
+              >
+                <input
+                  ref="editInput"
+                  v-model="editValue"
+                  class="edit-input"
+                  @keydown.enter="confirmEdit"
+                  @keydown.escape="cancelEdit"
+                  @blur="cancelEdit"
+                />
+              </div>
+              <!-- 显示模式 -->
+              <span v-else :class="{ 'null-value': data.rows[virtualRow.index][col.name] === null }">
+                {{ formatCellValue(data.rows[virtualRow.index][col.name], col.type) }}
+              </span>
+            </div>
           </div>
-          <!-- 显示模式 -->
-          <span v-else :class="{ 'null-value': row[col.name] === null }">
-            {{ formatCellValue(row[col.name], col.type) }}
-          </span>
-        </template>
-      </el-table-column>
-    </el-table>
+        </div>
+        <!-- 空数据提示 -->
+        <div v-if="data.rows.length === 0" class="empty-text">查询返回 0 行</div>
+      </div>
+    </div>
     
     <!-- 状态栏 -->
     <div class="status-bar">
@@ -100,9 +128,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, computed, onMounted, onUnmounted } from 'vue'
+import { ref, nextTick, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import { ElMessage } from 'element-plus'
-import type { QueryResultSet } from '@shared/types'
+import type { QueryResultSet, ColumnDef } from '@shared/types'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
 import { formatDateTime, formatBitValue, formatCellValue } from '../utils/formatters'
@@ -115,6 +144,20 @@ const props = defineProps<{
 
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
+
+// 滚动容器引用
+const scrollContainerRef = ref<HTMLElement | null>(null)
+
+// 行高
+const ROW_HEIGHT = 36
+
+// 虚拟化配置
+const rowVirtualizer = useVirtualizer(computed(() => ({
+  count: props.data.rows.length,
+  getScrollElement: () => scrollContainerRef.value,
+  estimateSize: () => ROW_HEIGHT,
+  overscan: 10
+})))
 
 // 编辑状态
 const editingCell = ref<{ rowIndex: number; column: string } | null>(null)
@@ -146,11 +189,16 @@ const formattedViewContent = computed(() => {
   return strValue
 })
 
+// 处理滚动
+function handleScroll() {
+  // 虚拟化器会自动处理
+}
+
 // 处理右键菜单
-function handleCellContextMenu(row: Record<string, unknown>, column: { property: string }, _cell: HTMLElement, event: MouseEvent) {
+function handleCellContextMenu(row: Record<string, unknown>, column: ColumnDef, event: MouseEvent) {
   event.preventDefault()
   
-  const value = row[column.property]
+  const value = row[column.name]
   contextMenu.value = {
     visible: true,
     x: event.clientX,
@@ -208,31 +256,27 @@ function isEditing(rowIndex: number, column: string): boolean {
 }
 
 // 双击单元格
-function handleCellDblClick(row: Record<string, unknown>, column: { property: string }, _cell: unknown, _event: Event) {
+function handleCellDblClick(row: Record<string, unknown>, column: ColumnDef, rowIndex: number) {
   // 检查是否可编辑
   if (!props.data.editable || !props.data.primaryKeys?.length) {
     return
   }
   
   // 不允许编辑主键列
-  if (props.data.primaryKeys.includes(column.property)) {
+  if (props.data.primaryKeys.includes(column.name)) {
     ElMessage.warning('主键列不可编辑')
     return
   }
   
-  const rowIndex = props.data.rows.indexOf(row)
-  if (rowIndex === -1) return
-  
   // 获取列的类型信息
-  const columnInfo = props.data.columns.find(c => c.name === column.property)
-  const columnType = columnInfo?.type || ''
+  const columnType = column.type || ''
   
   // 进入编辑模式
-  editingCell.value = { rowIndex, column: column.property }
-  originalValue.value = row[column.property]
+  editingCell.value = { rowIndex, column: column.name }
+  originalValue.value = row[column.name]
 
   // 根据类型格式化编辑值
-  const cellValue = row[column.property]
+  const cellValue = row[column.name]
   if (cellValue === null) {
     editValue.value = ''
   } else {
@@ -357,6 +401,13 @@ function cancelEdit() {
   editValue.value = ''
   originalValue.value = null
 }
+
+// 当数据变化时，重置滚动位置
+watch(() => props.data.rows, () => {
+  if (scrollContainerRef.value) {
+    scrollContainerRef.value.scrollTop = 0
+  }
+})
 </script>
 
 <style scoped>
@@ -367,32 +418,29 @@ function cancelEdit() {
   background: #1e1e1e;
 }
 
-.result-table :deep(.el-table) {
+.table-container {
   flex: 1;
-  background: #1e1e1e;
-  color: #d4d4d4;
-  --el-table-border-color: #555;
-  --el-table-header-bg-color: #2d2d2d;
-  --el-table-tr-bg-color: #1e1e1e;
-  --el-table-row-hover-bg-color: #2a2d2e;
-  --el-fill-color-lighter: #252526;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.result-table :deep(.el-table th.el-table__cell) {
+.table-header {
+  display: flex;
   background: #2d2d2d;
-  color: #d4d4d4;
+  border-bottom: 1px solid #555;
+  flex-shrink: 0;
 }
 
-.result-table :deep(.el-table td.el-table__cell) {
-  border-color: #555;
+.header-cell {
+  padding: 8px 12px;
+  border-right: 1px solid #555;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
-.result-table :deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
-  background: #252526;
-}
-
-.result-table :deep(.el-table__empty-text) {
-  color: #858585;
+.header-cell:last-child {
+  border-right: none;
 }
 
 .column-header {
@@ -421,9 +469,60 @@ function cancelEdit() {
   font-weight: normal;
 }
 
+.table-body {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.table-body-inner {
+  position: relative;
+  width: 100%;
+}
+
+.table-row {
+  display: flex;
+  border-bottom: 1px solid #555;
+  background: #1e1e1e;
+}
+
+.table-row.striped {
+  background: #252526;
+}
+
+.table-row:hover {
+  background: #2a2d2e;
+}
+
+.table-cell {
+  padding: 8px 12px;
+  border-right: 1px solid #555;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #d4d4d4;
+  font-size: 12px;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.table-cell:last-child {
+  border-right: none;
+}
+
 .null-value {
   color: #858585;
   font-style: italic;
+}
+
+.empty-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #858585;
+  font-size: 14px;
 }
 
 .status-bar {
@@ -436,6 +535,7 @@ function cancelEdit() {
   gap: 20px;
   font-size: 12px;
   color: #4ec9b0;
+  flex-shrink: 0;
 }
 
 .editable-hint {
@@ -522,5 +622,24 @@ function cancelEdit() {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* 滚动条样式 */
+.table-body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.table-body::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.table-body::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 5px;
+}
+
+.table-body::-webkit-scrollbar-thumb:hover {
+  background: #666;
 }
 </style>
