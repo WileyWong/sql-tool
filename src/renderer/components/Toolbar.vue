@@ -89,6 +89,9 @@ async function handleSave() {
   const result = await editorStore.saveFile()
   if (result.success) {
     ElMessage.success('保存成功')
+    // 更新最近文件菜单
+    const recentFiles = await window.api.file.getRecentFiles()
+    await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
   } else if (!(result as { canceled?: boolean }).canceled) {
     ElMessage.error(result.message || '保存失败')
   }

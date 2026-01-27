@@ -55,6 +55,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, provide } from 'vue'
+import { ElMessage } from 'element-plus'
 import Toolbar from './components/Toolbar.vue'
 import ConnectionTree from './components/ConnectionTree.vue'
 import SqlEditor from './components/SqlEditor.vue'
@@ -146,7 +147,13 @@ function setupMenuListeners() {
     await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
   })
   window.api.menu.onOpenRecent(async (_event: unknown, filePath: string) => {
-    await editorStore.openRecentFile(filePath)
+    const result = await editorStore.openRecentFile(filePath)
+    if (!result.success) {
+      // 提示文件不存在，并更新菜单
+      ElMessage.warning(`文件不存在：${filePath}`)
+      const recentFiles = await window.api.file.getRecentFiles()
+      await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
+    }
   })
   window.api.menu.onSave(async () => {
     await editorStore.saveFile()

@@ -416,7 +416,9 @@ async function handleSaveShortcut(e: KeyboardEvent) {
     e.preventDefault()
     const result = await editorStore.saveFile()
     if (result.success) {
-      // 可以添加保存成功的提示
+      // 更新最近文件菜单
+      const recentFiles = await window.api.file.getRecentFiles()
+      await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
     }
   }
 }
