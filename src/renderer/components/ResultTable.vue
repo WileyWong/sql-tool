@@ -1,21 +1,24 @@
 <template>
   <div class="result-table" @contextmenu.prevent>
     <!-- 表格容器 -->
-    <div class="table-container" ref="tableContainerRef">
-      <!-- 表头 -->
-      <div class="table-header">
-        <div 
-          v-for="col in data.columns" 
-          :key="col.name"
-          class="header-cell"
-          :style="{ width: getColumnWidth(col.name) + 'px', minWidth: getColumnWidth(col.name) + 'px' }"
-        >
-          <div class="column-header">
-            <span class="column-name" :class="{ 'primary-key': col.isPrimaryKey }">
-              {{ col.name }}
-              <span v-if="col.isPrimaryKey" class="pk-icon">🔑</span>
-            </span>
-            <span class="column-type">{{ col.type }}</span>
+    <div class="table-container">
+      <!-- 表头容器（隐藏水平滚动条，由表体控制） -->
+      <div class="table-header-wrapper">
+        <div class="table-header" ref="tableHeaderRef">
+          <div 
+            v-for="col in data.columns" 
+            :key="col.name"
+            class="header-cell"
+            :style="{ width: columnWidths[col.name] + 'px', minWidth: '50px' }"
+            @mousedown.prevent="handleHeaderMouseDown($event, col.name)"
+          >
+            <div class="column-header">
+              <span class="column-name" :class="{ 'primary-key': col.isPrimaryKey }">
+                {{ col.name }}
+                <span v-if="col.isPrimaryKey" class="pk-icon">🔑</span>
+              </span>
+              <span class="column-type">{{ col.type }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -48,7 +51,7 @@
               v-for="col in data.columns"
               :key="col.name"
               class="table-cell"
-              :style="{ width: getColumnWidth(col.name) + 'px', minWidth: getColumnWidth(col.name) + 'px' }"
+              :style="{ width: columnWidths[col.name] + 'px', minWidth: '50px' }"
               @dblclick="handleCellDblClick(data.rows[virtualRow.index], col, virtualRow.index)"
               @contextmenu.prevent="handleCellContextMenu(data.rows[virtualRow.index], col, $event)"
             >
@@ -147,9 +150,83 @@ const editorStore = useEditorStore()
 
 // 滚动容器引用
 const scrollContainerRef = ref<HTMLElement | null>(null)
+const tableHeaderRef = ref<HTMLElement | null>(null)
 
 // 行高
 const ROW_HEIGHT = 36
+
+// 列宽状态
+const columnWidths = ref<Record<string, number>>({})
+
+// 列宽拖动状态
+const resizing = ref<{
+  column: string
+  startX: number
+  startWidth: number
+} | null>(null)
+
+// 初始化列宽
+function initColumnWidths() {
+  const widths: Record<string, number> = {}
+  for (const col of props.data.columns) {
+    if (!columnWidths.value[col.name]) {
+      const baseWidth = Math.max(col.name.length * 10, 80)
+      widths[col.name] = Math.min(baseWidth, 300)
+    } else {
+      widths[col.name] = columnWidths.value[col.name]
+    }
+  }
+  columnWidths.value = widths
+}
+
+// 处理表头鼠标按下 - 检测是否在右边缘（拖动区域）
+function handleHeaderMouseDown(event: MouseEvent, columnName: string) {
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  const offsetX = event.clientX - rect.left
+  const resizeZone = 5 // 右边缘5px为拖动区域
+  
+  if (offsetX >= rect.width - resizeZone) {
+    startResize(event, columnName)
+  }
+}
+
+// 开始拖动调整列宽
+function startResize(event: MouseEvent, columnName: string) {
+  resizing.value = {
+    column: columnName,
+    startX: event.clientX,
+    startWidth: columnWidths.value[columnName] || 100
+  }
+  
+  document.addEventListener('mousemove', handleResizeMove)
+  document.addEventListener('mouseup', handleResizeEnd)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+// 拖动中
+function handleResizeMove(event: MouseEvent) {
+  if (!resizing.value) return
+  
+  const diff = event.clientX - resizing.value.startX
+  const newWidth = Math.max(50, resizing.value.startWidth + diff)
+  columnWidths.value[resizing.value.column] = newWidth
+}
+
+// 拖动结束
+function handleResizeEnd() {
+  resizing.value = null
+  document.removeEventListener('mousemove', handleResizeMove)
+  document.removeEventListener('mouseup', handleResizeEnd)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
+// 监听数据变化，初始化列宽
+watch(() => props.data.columns, () => {
+  initColumnWidths()
+}, { immediate: true })
 
 // 虚拟化配置
 const rowVirtualizer = useVirtualizer(computed(() => ({
@@ -189,9 +266,11 @@ const formattedViewContent = computed(() => {
   return strValue
 })
 
-// 处理滚动
+// 处理滚动 - 同步表头水平滚动
 function handleScroll() {
-  // 虚拟化器会自动处理
+  if (scrollContainerRef.value && tableHeaderRef.value) {
+    tableHeaderRef.value.style.transform = `translateX(-${scrollContainerRef.value.scrollLeft}px)`
+  }
 }
 
 // 处理右键菜单
@@ -242,13 +321,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  // 清理拖动事件
+  document.removeEventListener('mousemove', handleResizeMove)
+  document.removeEventListener('mouseup', handleResizeEnd)
 })
-
-// 计算列宽
-function getColumnWidth(name: string): number {
-  const baseWidth = Math.max(name.length * 10, 80)
-  return Math.min(baseWidth, 300)
-}
 
 // 判断是否正在编辑
 function isEditing(rowIndex: number, column: string): boolean {
@@ -425,18 +501,41 @@ watch(() => props.data.rows, () => {
   overflow: hidden;
 }
 
-.table-header {
-  display: flex;
+.table-header-wrapper {
+  overflow-x: hidden;
+  overflow-y: visible;
+  flex-shrink: 0;
   background: #2d2d2d;
   border-bottom: 1px solid #555;
-  flex-shrink: 0;
+}
+
+.table-header {
+  display: flex;
+  will-change: transform;
 }
 
 .header-cell {
-  padding: 8px 12px;
   border-right: 1px solid #555;
   box-sizing: border-box;
   flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.header-cell::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 10;
+}
+
+.header-cell:hover::after {
+  background: rgba(14, 99, 156, 0.4);
 }
 
 .header-cell:last-child {
@@ -444,14 +543,19 @@ watch(() => props.data.rows, () => {
 }
 
 .column-header {
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   line-height: 1.2;
+  overflow: hidden;
 }
 
 .column-name {
   font-weight: 600;
   color: #d4d4d4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .column-name.primary-key {
@@ -467,6 +571,9 @@ watch(() => props.data.rows, () => {
   font-size: 10px;
   color: #858585;
   font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-body {
