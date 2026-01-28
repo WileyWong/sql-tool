@@ -207,7 +207,7 @@ export function useLanguageServer() {
   function registerProviders() {
     // 自动补全
     completionDisposable = monaco.languages.registerCompletionItemProvider('sql', {
-      triggerCharacters: ['.', ' ', '\n'],
+      triggerCharacters: ['.', ' '],
       provideCompletionItems: async (model, position) => {
         const documentText = model.getValue()
         const line = position.lineNumber - 1 // Monaco 是 1-based，LSP 是 0-based
