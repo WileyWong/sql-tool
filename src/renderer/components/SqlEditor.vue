@@ -439,7 +439,11 @@ function handleHoverClick(e: MouseEvent) {
   
   // 检查点击的是否在 hover widget 内
   const hoverWidget = target.closest('.monaco-hover')
-  if (!hoverWidget) return
+  if (!hoverWidget) {
+    // 点击非 hover 区域，清除 hover 状态
+    languageServer.clearHoverState()
+    return
+  }
   
   // 检查是否有当前 hover 的表信息
   if (!languageServer.currentHoverTableInfo.value) return
@@ -467,6 +471,36 @@ function handleHoverClick(e: MouseEvent) {
 }
 
 /**
+ * 监听鼠标移动，检测 hover widget 是否关闭
+ */
+function handleMouseMove(e: MouseEvent) {
+  // 如果没有 hover 状态，不需要检测
+  if (!languageServer.currentHoverTableInfo.value) return
+  
+  const target = e.target as HTMLElement
+  // 检查鼠标是否在 hover widget 或编辑器内
+  const hoverWidget = document.querySelector('.monaco-hover')
+  const editorElement = editorContainer.value
+  
+  if (hoverWidget && hoverWidget.contains(target)) {
+    // 鼠标在 hover widget 内，保持状态
+    return
+  }
+  
+  if (editorElement && editorElement.contains(target)) {
+    // 鼠标在编辑器内但不在 hover widget 内
+    // 检查 hover widget 是否还存在（可能已关闭）
+    if (!hoverWidget || !document.body.contains(hoverWidget)) {
+      languageServer.clearHoverState()
+    }
+    return
+  }
+  
+  // 鼠标离开了编辑器区域，清除状态
+  languageServer.clearHoverState()
+}
+
+/**
  * 处理连接树刷新事件
  */
 function handleConnectionTreeRefresh(payload: EventBusEvents['connectionTree:refresh']) {
@@ -489,6 +523,9 @@ onMounted(async () => {
   // 添加 hover widget 点击监听
   document.addEventListener('click', handleHoverClick)
   
+  // 添加鼠标移动监听，用于检测 hover widget 关闭
+  document.addEventListener('mousemove', handleMouseMove)
+  
   // 监听连接树刷新事件
   eventBus.on('connectionTree:refresh', handleConnectionTreeRefresh)
   
@@ -509,6 +546,9 @@ onUnmounted(() => {
   
   // 移除 hover widget 点击监听
   document.removeEventListener('click', handleHoverClick)
+  
+  // 移除鼠标移动监听
+  document.removeEventListener('mousemove', handleMouseMove)
   
   // 移除事件总线监听
   eventBus.off('connectionTree:refresh', handleConnectionTreeRefresh)

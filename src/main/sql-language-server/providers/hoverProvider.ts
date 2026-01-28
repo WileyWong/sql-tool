@@ -141,9 +141,8 @@ export class HoverProvider {
   private createTableHover(table: { name: string; comment?: string; columns: any[] }): Hover {
     const lines: string[] = []
     
-    // 表名行：使用特殊的 data 属性标记，便于前端识别点击
-    // Monaco hover 中的 code 标签会保留，可以通过点击 code 标签来触发
-    lines.push(`**表**: \`${table.name}\` 👆 *点击表名打开管理*`)
+    // 表名行：使用反引号包裹，渲染为 code 标签，前端通过点击 code 来触发打开表管理
+    lines.push(`**表**: \`${table.name}\``)
     lines.push('')
     
     if (table.comment) {
