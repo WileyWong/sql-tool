@@ -469,10 +469,12 @@ function handleCellDblClick(row: Record<string, unknown>, column: ColumnDef, row
   // 进入编辑模式
   editingCell.value = { rowIndex, column: column.name }
   editingNewRow.value = null
-  originalValue.value = row[column.name]
+  
+  // 获取单元格值（优先从 pendingChanges 获取修改后的值）
+  const cellValue = getCellValue(rowIndex, column.name)
+  originalValue.value = cellValue
   
   // 根据类型格式化编辑值
-  const cellValue = row[column.name]
   editValue.value = formatEditValue(cellValue, column.type)
   
   // 聚焦输入框

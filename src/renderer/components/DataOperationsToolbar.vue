@@ -105,12 +105,45 @@ function handleOperation() {
 .data-operations-toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 0 8px;
 }
 
 .data-operations-toolbar .el-button {
-  padding: 4px 8px;
+  padding: 6px 10px;
+  transition: all 0.2s ease;
+}
+
+/* 可用状态 - 新增按钮（绿色主题） */
+.data-operations-toolbar .el-button:not(:disabled):has(.el-icon-plus) {
+  color: #67c23a;
+  border-color: #67c23a;
+  background-color: rgba(103, 194, 58, 0.1);
+}
+
+.data-operations-toolbar .el-button:not(:disabled):has(.el-icon-plus):hover {
+  background-color: #67c23a;
+  color: #fff;
+}
+
+/* 可用状态 - 还原按钮（橙色主题） */
+.data-operations-toolbar .el-button:not(:disabled):has(.el-icon-refresh-left) {
+  color: #e6a23c;
+  border-color: #e6a23c;
+  background-color: rgba(230, 162, 60, 0.1);
+}
+
+.data-operations-toolbar .el-button:not(:disabled):has(.el-icon-refresh-left):hover {
+  background-color: #e6a23c;
+  color: #fff;
+}
+
+/* 禁用状态 - 更明显的视觉区分 */
+.data-operations-toolbar .el-button.is-disabled {
+  opacity: 0.4;
+  background-color: transparent !important;
+  border-color: #606266 !important;
+  color: #606266 !important;
 }
 
 /* 按钮分组分隔线（可选，用于后续扩展） */
