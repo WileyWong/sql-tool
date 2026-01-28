@@ -405,3 +405,61 @@ export async function updateCell(
     return { success: false, message: err.message || '更新失败' }
   }
 }
+
+/**
+ * 批量执行 SQL 语句（带事务支持）
+ */
+export async function executeBatch(
+  connectionId: string,
+  sqls: string[]
+): Promise<{ success: boolean; message?: string; results?: Array<{ sql: string; affectedRows: number }> }> {
+  let connection
+  try {
+    connection = await getConnectionWithReconnect(connectionId)
+  } catch (error: unknown) {
+    const err = error as { message?: string }
+    return { success: false, message: err.message || '数据库连接已断开，重连失败' }
+  }
+  
+  if (!connection) {
+    return { success: false, message: '连接不存在' }
+  }
+  
+  if (sqls.length === 0) {
+    return { success: false, message: '没有要执行的 SQL 语句' }
+  }
+  
+  const results: Array<{ sql: string; affectedRows: number }> = []
+  
+  try {
+    // 开始事务
+    await connection.query('START TRANSACTION')
+    
+    for (const sql of sqls) {
+      try {
+        const [result] = await connection.query(sql)
+        const res = result as { affectedRows: number }
+        results.push({ sql, affectedRows: res.affectedRows || 0 })
+      } catch (error: unknown) {
+        // 执行失败，回滚事务
+        await connection.query('ROLLBACK')
+        const err = error as { message?: string }
+        return { success: false, message: `执行失败: ${err.message || '未知错误'}\nSQL: ${sql}` }
+      }
+    }
+    
+    // 提交事务
+    await connection.query('COMMIT')
+    
+    return { success: true, results }
+  } catch (error: unknown) {
+    // 发生错误，尝试回滚
+    try {
+      await connection.query('ROLLBACK')
+    } catch {
+      // 忽略回滚错误
+    }
+    const err = error as { message?: string }
+    return { success: false, message: err.message || '批量执行失败' }
+  }
+}

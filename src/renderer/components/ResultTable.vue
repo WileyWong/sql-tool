@@ -5,6 +5,19 @@
       <!-- 表头容器（隐藏水平滚动条，由表体控制） -->
       <div class="table-header-wrapper">
         <div class="table-header" ref="tableHeaderRef">
+          <!-- 复选框列头 -->
+          <div 
+            class="header-cell checkbox-cell"
+            :style="{ width: CHECKBOX_COLUMN_WIDTH + 'px' }"
+          >
+            <el-checkbox
+              :model-value="isAllSelected"
+              :indeterminate="isIndeterminate"
+              :disabled="!canSelect"
+              @change="handleSelectAll"
+            />
+          </div>
+          <!-- 数据列头 -->
           <div 
             v-for="col in data.columns" 
             :key="col.name"
@@ -31,13 +44,17 @@
       >
         <div 
           class="table-body-inner"
-          :style="{ height: `${rowVirtualizer.getTotalSize()}px` }"
+          :style="{ height: `${totalHeight}px` }"
         >
+          <!-- 原始数据行 -->
           <div
             v-for="virtualRow in rowVirtualizer.getVirtualItems()"
-            :key="virtualRow.index"
+            :key="`row-${virtualRow.index}`"
             class="table-row"
-            :class="{ 'striped': virtualRow.index % 2 === 1 }"
+            :class="{ 
+              'striped': virtualRow.index % 2 === 1,
+              'selected': isRowSelected(virtualRow.index)
+            }"
             :style="{
               position: 'absolute',
               top: 0,
@@ -47,10 +64,23 @@
               transform: `translateY(${virtualRow.start}px)`
             }"
           >
+            <!-- 复选框单元格 -->
+            <div
+              class="table-cell checkbox-cell"
+              :style="{ width: CHECKBOX_COLUMN_WIDTH + 'px' }"
+            >
+              <el-checkbox
+                :model-value="isRowSelected(virtualRow.index)"
+                :disabled="!canSelect"
+                @change="(val: boolean) => handleSelectRow(virtualRow.index, val)"
+              />
+            </div>
+            <!-- 数据单元格 -->
             <div
               v-for="col in data.columns"
               :key="col.name"
               class="table-cell"
+              :class="{ 'modified': isCellModified(virtualRow.index, col.name) }"
               :style="{ width: columnWidths[col.name] + 'px', minWidth: '50px' }"
               @dblclick="handleCellDblClick(data.rows[virtualRow.index], col, virtualRow.index)"
               @contextmenu.prevent="handleCellContextMenu(data.rows[virtualRow.index], col, $event)"
@@ -61,31 +91,83 @@
                 class="edit-cell"
               >
                 <input
-                  ref="editInput"
+                  ref="editInputRef"
                   v-model="editValue"
                   class="edit-input"
                   @keydown.enter="confirmEdit"
                   @keydown.escape="cancelEdit"
-                  @blur="cancelEdit"
+                  @blur="handleEditBlur"
                 />
               </div>
               <!-- 显示模式 -->
-              <span v-else :class="{ 'null-value': data.rows[virtualRow.index][col.name] === null }">
-                {{ formatCellValue(data.rows[virtualRow.index][col.name], col.type) }}
+              <span v-else :class="{ 'null-value': getCellValue(virtualRow.index, col.name) === null }">
+                {{ formatCellValue(getCellValue(virtualRow.index, col.name), col.type) }}
+              </span>
+            </div>
+          </div>
+          
+          <!-- 新增行 -->
+          <div
+            v-for="(newRow, idx) in dataOps?.state.newRows || []"
+            :key="`new-${newRow.tempId}`"
+            class="table-row new-row"
+            :style="{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: `${ROW_HEIGHT}px`,
+              transform: `translateY(${getNewRowTop(idx)}px)`
+            }"
+          >
+            <!-- 复选框单元格（新增行不可选） -->
+            <div
+              class="table-cell checkbox-cell"
+              :style="{ width: CHECKBOX_COLUMN_WIDTH + 'px' }"
+            >
+              <span class="new-row-badge">新</span>
+            </div>
+            <!-- 数据单元格 -->
+            <div
+              v-for="col in data.columns"
+              :key="col.name"
+              class="table-cell"
+              :style="{ width: columnWidths[col.name] + 'px', minWidth: '50px' }"
+              @dblclick="handleNewRowDblClick(newRow.tempId, col)"
+            >
+              <!-- 编辑模式 -->
+              <div
+                v-if="isEditingNewRow(newRow.tempId, col.name)"
+                class="edit-cell"
+              >
+                <input
+                  ref="editInputRef"
+                  v-model="editValue"
+                  class="edit-input"
+                  @keydown.enter="confirmNewRowEdit"
+                  @keydown.escape="cancelEdit"
+                  @blur="handleEditBlur"
+                />
+              </div>
+              <!-- 显示模式 -->
+              <span v-else :class="{ 'null-value': !newRow.data[col.name] }">
+                {{ formatCellValue(newRow.data[col.name], col.type) || 'NULL' }}
               </span>
             </div>
           </div>
         </div>
         <!-- 空数据提示 -->
-        <div v-if="data.rows.length === 0" class="empty-text">查询返回 0 行</div>
+        <div v-if="data.rows.length === 0 && (!dataOps?.state.newRows || dataOps.state.newRows.length === 0)" class="empty-text">查询返回 0 行</div>
       </div>
     </div>
     
     <!-- 状态栏 -->
     <div class="status-bar">
       <span>{{ data.rowCount }} 行</span>
+      <span v-if="dataOps?.state.newRows?.length">+ {{ dataOps.state.newRows.length }} 新增</span>
+      <span v-if="dataOps?.state.pendingChanges?.size">{{ dataOps.state.pendingChanges.size }} 处修改</span>
       <span>耗时 {{ data.executionTime }}ms</span>
-      <span v-if="editingCell" class="editing-hint">编辑后回车保存</span>
+      <span v-if="editingCell" class="editing-hint">按回车退出编辑</span>
       <span v-else-if="data.editable" class="editable-hint">可编辑</span>
     </div>
     
@@ -135,25 +217,30 @@ import { ref, nextTick, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { ElMessage } from 'element-plus'
 import type { QueryResultSet, ColumnDef } from '@shared/types'
-import { useConnectionStore } from '../stores/connection'
-import { useEditorStore } from '../stores/editor'
 import { formatDateTime, formatBitValue, formatCellValue } from '../utils/formatters'
 import JsonTreeViewer from './JsonTreeViewer.vue'
 import XmlTreeViewer from './XmlTreeViewer.vue'
+import type { UseDataOperationsReturn } from '../composables/useDataOperations'
 
 const props = defineProps<{
   data: QueryResultSet
+  dataOperations?: UseDataOperationsReturn
 }>()
 
-const connectionStore = useConnectionStore()
-const editorStore = useEditorStore()
+const emit = defineEmits<{
+  (e: 'cell-change', rowKey: string, column: string, oldValue: unknown, newValue: unknown): void
+}>()
+
+// 数据操作对象（可选）
+const dataOps = computed(() => props.dataOperations)
+
+// 常量
+const ROW_HEIGHT = 36
+const CHECKBOX_COLUMN_WIDTH = 40
 
 // 滚动容器引用
 const scrollContainerRef = ref<HTMLElement | null>(null)
 const tableHeaderRef = ref<HTMLElement | null>(null)
-
-// 行高
-const ROW_HEIGHT = 36
 
 // 列宽状态
 const columnWidths = ref<Record<string, number>>({})
@@ -228,7 +315,17 @@ watch(() => props.data.columns, () => {
   initColumnWidths()
 }, { immediate: true })
 
-// 虚拟化配置
+// 计算总行数（原始数据 + 新增行）
+const totalRowCount = computed(() => {
+  return props.data.rows.length + (dataOps.value?.state.newRows?.length || 0)
+})
+
+// 计算总高度
+const totalHeight = computed(() => {
+  return totalRowCount.value * ROW_HEIGHT
+})
+
+// 虚拟化配置（仅用于原始数据行）
 const rowVirtualizer = useVirtualizer(computed(() => ({
   count: props.data.rows.length,
   getScrollElement: () => scrollContainerRef.value,
@@ -238,8 +335,10 @@ const rowVirtualizer = useVirtualizer(computed(() => ({
 
 // 编辑状态
 const editingCell = ref<{ rowIndex: number; column: string } | null>(null)
+const editingNewRow = ref<{ tempId: string; column: string } | null>(null)
 const editValue = ref<string>('')
 const originalValue = ref<unknown>(null)
+const editInputRef = ref<HTMLInputElement | null>(null)
 
 // 右键菜单状态
 const contextMenu = ref({
@@ -331,6 +430,29 @@ function isEditing(rowIndex: number, column: string): boolean {
   return editingCell.value?.rowIndex === rowIndex && editingCell.value?.column === column
 }
 
+// 判断是否正在编辑新增行
+function isEditingNewRow(tempId: string, column: string): boolean {
+  return editingNewRow.value?.tempId === tempId && editingNewRow.value?.column === column
+}
+
+// 获取单元格值（优先返回 pending changes 中的修改值）
+function getCellValue(rowIndex: number, column: string): unknown {
+  if (!dataOps.value) {
+    return props.data.rows[rowIndex][column]
+  }
+  
+  const row = props.data.rows[rowIndex]
+  const rowKey = dataOps.value.getRowKey(row, rowIndex)
+  
+  // 检查是否有 pending change
+  const pendingChange = dataOps.value.state.pendingChanges.get(rowKey)?.get(column)
+  if (pendingChange) {
+    return pendingChange.newValue
+  }
+  
+  return row[column]
+}
+
 // 双击单元格
 function handleCellDblClick(row: Record<string, unknown>, column: ColumnDef, rowIndex: number) {
   // 检查是否可编辑
@@ -344,138 +466,143 @@ function handleCellDblClick(row: Record<string, unknown>, column: ColumnDef, row
     return
   }
   
-  // 获取列的类型信息
-  const columnType = column.type || ''
-  
   // 进入编辑模式
   editingCell.value = { rowIndex, column: column.name }
+  editingNewRow.value = null
   originalValue.value = row[column.name]
-
+  
   // 根据类型格式化编辑值
   const cellValue = row[column.name]
-  if (cellValue === null) {
-    editValue.value = ''
-  } else {
-    // 尝试 BIT 类型格式化
-    const formattedBit = formatBitValue(cellValue, columnType)
-    if (formattedBit !== null) {
-      editValue.value = formattedBit
-    } else if (typeof cellValue === 'object') {
-      // 检查是否是日期时间类型（可能传回 Date 对象）
-      const formattedDate = formatDateTime(cellValue, columnType)
-      if (formattedDate !== null) {
-        editValue.value = formattedDate
-      } else {
-        editValue.value = JSON.stringify(cellValue)
-      }
-    } else {
-      // 尝试日期时间格式化
-      const formattedDate = formatDateTime(cellValue, columnType)
-      if (formattedDate !== null) {
-        editValue.value = formattedDate
-      } else {
-        editValue.value = String(cellValue)
-      }
-    }
-  }
+  editValue.value = formatEditValue(cellValue, column.type)
   
   // 聚焦输入框
   nextTick(() => {
-    const input = document.querySelector('.edit-input') as HTMLInputElement
-    if (input) {
-      input.focus()
-      input.select()
-    }
+    const inputEl = Array.isArray(editInputRef.value) ? editInputRef.value[0] : editInputRef.value
+    inputEl?.focus()
+    inputEl?.select()
   })
 }
 
-// 确认编辑
-async function confirmEdit() {
-  if (!editingCell.value || !props.data.editable) return
+// 双击新增行单元格
+function handleNewRowDblClick(tempId: string, column: ColumnDef) {
+  if (!dataOps.value) return
+  
+  const newRow = dataOps.value.state.newRows.find(r => r.tempId === tempId)
+  if (!newRow) return
+  
+  editingNewRow.value = { tempId, column: column.name }
+  editingCell.value = null
+  originalValue.value = newRow.data[column.name]
+  editValue.value = formatEditValue(newRow.data[column.name], column.type)
+  
+  nextTick(() => {
+    const inputEl = Array.isArray(editInputRef.value) ? editInputRef.value[0] : editInputRef.value
+    inputEl?.focus()
+    inputEl?.select()
+  })
+}
+
+// 格式化编辑值
+function formatEditValue(value: unknown, columnType: string): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  
+  // 尝试 BIT 类型格式化
+  const formattedBit = formatBitValue(value, columnType)
+  if (formattedBit !== null) {
+    return formattedBit
+  }
+  
+  if (typeof value === 'object') {
+    // 检查是否是日期时间类型
+    const formattedDate = formatDateTime(value, columnType)
+    if (formattedDate !== null) {
+      return formattedDate
+    }
+    return JSON.stringify(value)
+  }
+  
+  // 尝试日期时间格式化
+  const formattedDate = formatDateTime(value, columnType)
+  if (formattedDate !== null) {
+    return formattedDate
+  }
+  
+  return String(value)
+}
+
+// 确认编辑（仅退出编辑模式，不保存到数据库）
+function confirmEdit() {
+  if (!editingCell.value || !dataOps.value) {
+    cancelEdit()
+    return
+  }
   
   const { rowIndex, column } = editingCell.value
   const row = props.data.rows[rowIndex]
   
-  // 值没变化，直接取消
+  // 解析新值
   let newValue: unknown = editValue.value === '' ? null : editValue.value
   
-  // 如果原始值是对象类型，说明这是一个 JSON 字段
+  // 如果原始值是对象类型，尝试解析 JSON
   if (originalValue.value !== null && typeof originalValue.value === 'object' && newValue !== null) {
-    // 对于 JSON 字段，我们需要传递字符串给数据库
-    // 首先验证是否是有效的 JSON
     try {
-      const parsedValue = JSON.parse(newValue as string)
-      // 如果解析成功，比较解析后的值与原始值
-      if (JSON.stringify(parsedValue) === JSON.stringify(originalValue.value)) {
-        cancelEdit()
-        return
-      }
-      // 对于 JSON 字段，传递字符串给数据库
-      newValue = newValue as string
-    } catch (error) {
-      // JSON 解析失败，保持字符串形式，让数据库来验证
-      // 这里不做前端验证，按需求文档要求依赖数据库错误反馈
-    }
-  } else {
-    // 非 JSON 字段的常规比较
-    if (newValue === originalValue.value || (newValue === null && originalValue.value === null)) {
-      cancelEdit()
-      return
+      newValue = JSON.parse(newValue as string)
+    } catch {
+      // JSON 解析失败，保持字符串形式
     }
   }
   
-  // 构建主键条件
-  const primaryKeys = props.data.primaryKeys!.map(pk => ({
-    column: pk,
-    value: row[pk]
-  }))
+  // 记录修改（通知父组件）
+  const rowKey = dataOps.value.getRowKey(row, rowIndex)
+  emit('cell-change', rowKey, column, originalValue.value, newValue)
   
-  // 使用当前标签页的连接ID
-  const connectionId = editorStore.activeTab?.connectionId
-  if (!connectionId || !props.data.databaseName || !props.data.tableName) {
-    ElMessage.error('无法获取连接信息')
-    cancelEdit()
-    return
-  }
-  
-  // 检查连接是否有效
-  const conn = connectionStore.connections.find(c => c.id === connectionId)
-  if (!conn || conn.status !== 'connected') {
-    ElMessage.error('连接已断开')
-    cancelEdit()
-    return
-  }
-  
-  // 执行更新
-  const result = await window.api.query.updateCell(
-    connectionId,
-    props.data.databaseName,
-    props.data.tableName,
-    primaryKeys,
-    column,
-    newValue
-  )
-  
-  if (result.success) {
-    // 更新本地数据
-    row[column] = newValue
-    
-    // 数据已成功写入数据库，清除修改标记（如果之前有的话）
-    // 注意：这里不需要标记为有修改，因为数据已经持久化了
-    
-    ElMessage.success('更新成功')
-  } else {
-    ElMessage.error(result.message || '更新失败')
-  }
-  
+  // 退出编辑模式
   editingCell.value = null
+  editValue.value = ''
+  originalValue.value = null
+}
+
+// 确认新增行编辑
+function confirmNewRowEdit() {
+  if (!editingNewRow.value || !dataOps.value) {
+    cancelEdit()
+    return
+  }
+  
+  const { tempId, column } = editingNewRow.value
+  
+  // 解析新值
+  let newValue: unknown = editValue.value === '' ? null : editValue.value
+  
+  // 更新新增行数据
+  dataOps.value.updateNewRowData(tempId, column, newValue)
+  
+  // 退出编辑模式
+  editingNewRow.value = null
+  editValue.value = ''
+  originalValue.value = null
 }
 
 // 取消编辑
 function cancelEdit() {
   editingCell.value = null
+  editingNewRow.value = null
   editValue.value = ''
   originalValue.value = null
+}
+
+// 处理编辑框失去焦点
+function handleEditBlur() {
+  // 延迟处理，让点击事件先执行
+  setTimeout(() => {
+    if (editingCell.value) {
+      confirmEdit()
+    } else if (editingNewRow.value) {
+      confirmNewRowEdit()
+    }
+  }, 200)
 }
 
 // 当数据变化时，重置滚动位置
@@ -484,6 +611,71 @@ watch(() => props.data.rows, () => {
     scrollContainerRef.value.scrollTop = 0
   }
 })
+
+// --- 复选框相关 ---
+
+// 是否可以选中（有主键且非联表查询）
+const canSelect = computed(() => {
+  return props.data.editable === true && (props.data.primaryKeys?.length ?? 0) > 0
+})
+
+// 是否全选
+const isAllSelected = computed(() => {
+  if (!dataOps.value || props.data.rows.length === 0) return false
+  return props.data.rows.every((row, index) => {
+    const rowKey = dataOps.value!.getRowKey(row, index)
+    return dataOps.value!.state.selectedRowKeys.has(rowKey)
+  })
+})
+
+// 是否部分选中
+const isIndeterminate = computed(() => {
+  if (!dataOps.value || props.data.rows.length === 0) return false
+  const selectedCount = props.data.rows.filter((row, index) => {
+    const rowKey = dataOps.value!.getRowKey(row, index)
+    return dataOps.value!.state.selectedRowKeys.has(rowKey)
+  }).length
+  return selectedCount > 0 && selectedCount < props.data.rows.length
+})
+
+// 行是否选中
+function isRowSelected(rowIndex: number): boolean {
+  if (!dataOps.value) return false
+  const row = props.data.rows[rowIndex]
+  const rowKey = dataOps.value.getRowKey(row, rowIndex)
+  return dataOps.value.state.selectedRowKeys.has(rowKey)
+}
+
+// 处理选择行
+function handleSelectRow(rowIndex: number, selected: boolean) {
+  if (!dataOps.value) return
+  const row = props.data.rows[rowIndex]
+  const rowKey = dataOps.value.getRowKey(row, rowIndex)
+  dataOps.value.toggleRowSelection(rowKey, selected)
+}
+
+// 处理全选
+function handleSelectAll(selected: boolean) {
+  if (!dataOps.value) return
+  dataOps.value.toggleAllSelection(selected)
+}
+
+// --- 修改标识相关 ---
+
+// 单元格是否已修改
+function isCellModified(rowIndex: number, column: string): boolean {
+  if (!dataOps.value) return false
+  const row = props.data.rows[rowIndex]
+  const rowKey = dataOps.value.getRowKey(row, rowIndex)
+  return dataOps.value.isCellModified(rowKey, column)
+}
+
+// --- 新增行位置计算 ---
+
+// 获取新增行的顶部位置
+function getNewRowTop(idx: number): number {
+  return (props.data.rows.length + idx) * ROW_HEIGHT
+}
 </script>
 
 <style scoped>
@@ -512,6 +704,7 @@ watch(() => props.data.rows, () => {
 .table-header {
   display: flex;
   will-change: transform;
+  padding-left: 0;
 }
 
 .header-cell {
@@ -520,6 +713,14 @@ watch(() => props.data.rows, () => {
   flex-shrink: 0;
   position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.header-cell.checkbox-cell {
+  justify-content: center;
+  padding: 0;
 }
 
 .header-cell::after {
@@ -543,7 +744,6 @@ watch(() => props.data.rows, () => {
 }
 
 .column-header {
-  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   line-height: 1.2;
@@ -601,6 +801,18 @@ watch(() => props.data.rows, () => {
   background: #2a2d2e;
 }
 
+.table-row.selected {
+  background: rgba(64, 158, 255, 0.1);
+}
+
+.table-row.new-row {
+  background: rgba(103, 194, 58, 0.1);
+}
+
+.table-row.new-row:hover {
+  background: rgba(103, 194, 58, 0.15);
+}
+
 .table-cell {
   padding: 8px 12px;
   border-right: 1px solid #555;
@@ -612,10 +824,22 @@ watch(() => props.data.rows, () => {
   font-size: 12px;
   flex-shrink: 0;
   cursor: default;
+  display: flex;
+  align-items: center;
+}
+
+.table-cell.checkbox-cell {
+  justify-content: center;
+  padding: 0;
 }
 
 .table-cell:last-child {
   border-right: none;
+}
+
+.table-cell.modified {
+  border-left: 3px solid #e6a23c;
+  padding-left: 9px;
 }
 
 .null-value {
@@ -660,10 +884,13 @@ watch(() => props.data.rows, () => {
 .edit-cell {
   margin: -8px -12px;
   padding: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .edit-input {
   width: 100%;
+  height: 100%;
   padding: 8px 12px;
   background: #3c3c3c;
   border: 2px solid #0e639c;
@@ -675,6 +902,16 @@ watch(() => props.data.rows, () => {
 
 .edit-input:focus {
   background: #2d2d2d;
+}
+
+/* 新增行标识 */
+.new-row-badge {
+  font-size: 10px;
+  color: #67c23a;
+  background: rgba(103, 194, 58, 0.2);
+  padding: 2px 4px;
+  border-radius: 2px;
+  border: 1px solid rgba(103, 194, 58, 0.3);
 }
 
 /* 右键菜单样式 */

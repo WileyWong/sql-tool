@@ -83,7 +83,10 @@ const api = {
       column: string,
       newValue: unknown
     ): Promise<{ success: boolean; message?: string }> =>
-      ipcRenderer.invoke(IpcChannels.QUERY_UPDATE_CELL, { connectionId, database, table, primaryKeys, column, newValue })
+      ipcRenderer.invoke(IpcChannels.QUERY_UPDATE_CELL, { connectionId, database, table, primaryKeys, column, newValue }),
+    
+    executeBatch: (connectionId: string, sqls: string[]): Promise<{ success: boolean; message?: string; results?: Array<{ sql: string; affectedRows: number }> }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_EXECUTE_BATCH, { connectionId, sqls })
   },
   
   // 文件操作

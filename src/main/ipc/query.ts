@@ -1,6 +1,6 @@
 import { IpcMain } from 'electron'
 import { IpcChannels, Defaults } from '@shared/constants'
-import { executeQuery, cancelQuery, explainQuery, updateCell } from '../database/query-executor'
+import { executeQuery, cancelQuery, explainQuery, updateCell, executeBatch } from '../database/query-executor'
 
 export function setupQueryHandlers(ipcMain: IpcMain): void {
   // 执行 SQL
@@ -41,5 +41,13 @@ export function setupQueryHandlers(ipcMain: IpcMain): void {
       data.column,
       data.newValue
     )
+  })
+  
+  // 批量执行 SQL
+  ipcMain.handle(IpcChannels.QUERY_EXECUTE_BATCH, async (_, data: {
+    connectionId: string
+    sqls: string[]
+  }) => {
+    return executeBatch(data.connectionId, data.sqls)
   })
 }
