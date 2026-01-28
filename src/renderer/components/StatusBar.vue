@@ -7,6 +7,10 @@
       <span v-if="serverVersion" class="status-item">
         {{ serverVersion }}
       </span>
+      <!-- hover 操作提示 -->
+      <span v-if="hoverHint" class="status-item hover-hint">
+        {{ hoverHint }}
+      </span>
     </div>
     <div class="right">
       <span class="status-item">{{ cursorPosition }}</span>
@@ -53,6 +57,9 @@ const serverVersion = computed(() => {
 const cursorPosition = computed(() => {
   return `行: 1, 列: 1`
 })
+
+// hover 提示
+const hoverHint = computed(() => editorStore.hoverHint)
 </script>
 
 <style scoped>
@@ -75,5 +82,13 @@ const cursorPosition = computed(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* hover 提示样式 */
+.hover-hint {
+  color: #4fc3f7;
+  font-style: italic;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
 }
 </style>

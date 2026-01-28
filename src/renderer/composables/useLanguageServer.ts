@@ -6,6 +6,7 @@
 import { ref } from 'vue'
 import * as monaco from 'monaco-editor'
 import { useConnectionStore } from '../stores/connection'
+import { useEditorStore } from '../stores/editor'
 
 // 补全项类型
 export interface CompletionItemResult {
@@ -76,15 +77,20 @@ const SEVERITY_MAP: Record<number, monaco.MarkerSeverity> = {
 
 export function useLanguageServer() {
   const connectionStore = useConnectionStore()
+  const editorStore = useEditorStore()
   
   // 当前连接和数据库状态（避免重复更新）
   const lastConnectionId = ref<string | undefined>()
   const lastDatabaseName = ref<string | undefined>()
   
+  // 当前 hover 的表信息（用于点击处理）
+  const currentHoverTableInfo = ref<{ name: string } | null>(null)
+  
   // Disposables
   let completionDisposable: monaco.IDisposable | null = null
   let hoverDisposable: monaco.IDisposable | null = null
   let formatDisposable: monaco.IDisposable | null = null
+  let commandDisposable: monaco.IDisposable | null = null
   let validateTimer: ReturnType<typeof setTimeout> | null = null
 
   /**
@@ -260,7 +266,19 @@ export function useLanguageServer() {
           const result = await window.api.sqlLanguageServer.hover(documentText, line, character)
           
           if (!result.success || !result.hover) {
+            // 清除状态栏提示和表信息
+            editorStore.setHoverHint(null)
+            currentHoverTableInfo.value = null
             return null
+          }
+
+          // 如果是表 hover，设置状态栏提示和保存表信息
+          if (result.tableInfo) {
+            editorStore.setHoverHint('💡 点击表名打开表管理')
+            currentHoverTableInfo.value = result.tableInfo
+          } else {
+            editorStore.setHoverHint(null)
+            currentHoverTableInfo.value = null
           }
 
           return {
@@ -268,6 +286,8 @@ export function useLanguageServer() {
           }
         } catch (error) {
           console.error('悬浮提示请求失败:', error)
+          editorStore.setHoverHint(null)
+          currentHoverTableInfo.value = null
           return null
         }
       }
@@ -367,6 +387,27 @@ export function useLanguageServer() {
   }
 
   /**
+   * 打开表管理对话框（处理 hover 中的表名点击）
+   */
+  function openTableManageFromHover() {
+    const tableInfo = currentHoverTableInfo.value
+    const connectionId = lastConnectionId.value
+    const databaseName = lastDatabaseName.value
+    
+    if (tableInfo && connectionId && databaseName) {
+      connectionStore.openTableManageDialog(connectionId, databaseName, tableInfo.name)
+    }
+  }
+
+  /**
+   * 清除 hover 状态（当 hover widget 关闭时调用）
+   */
+  function clearHoverState() {
+    editorStore.setHoverHint(null)
+    currentHoverTableInfo.value = null
+  }
+
+  /**
    * 清理资源
    */
   function dispose() {
@@ -378,16 +419,23 @@ export function useLanguageServer() {
     completionDisposable?.dispose()
     hoverDisposable?.dispose()
     formatDisposable?.dispose()
+    commandDisposable?.dispose()
     
     completionDisposable = null
     hoverDisposable = null
     formatDisposable = null
+    commandDisposable = null
+    
+    // 清除状态
+    editorStore.setHoverHint(null)
+    currentHoverTableInfo.value = null
   }
 
   return {
     // 状态
     lastConnectionId,
     lastDatabaseName,
+    currentHoverTableInfo,
     
     // 上下文管理
     updateContext,
@@ -402,6 +450,10 @@ export function useLanguageServer() {
     scheduleValidation,
     validateDocument,
     formatDocument,
+    
+    // Hover 交互
+    openTableManageFromHover,
+    clearHoverState,
     
     // 资源清理
     dispose

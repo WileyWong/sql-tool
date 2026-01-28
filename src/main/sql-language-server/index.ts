@@ -80,11 +80,18 @@ function registerIpcHandlers(): void {
     character: number
   ) => {
     try {
-      const hover = hoverProvider.provideHover(
+      const result = hoverProvider.provideHover(
         documentText,
         { line, character }
       )
-      return { success: true, hover }
+      if (result) {
+        return {
+          success: true,
+          hover: result.hover,
+          tableInfo: result.tableInfo
+        }
+      }
+      return { success: true, hover: null }
     } catch (error: any) {
       console.error('悬浮提示请求失败:', error)
       return { success: false, error: error.message, hover: null }

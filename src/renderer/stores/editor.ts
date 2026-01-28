@@ -27,6 +27,9 @@ export const useEditorStore = defineStore('editor', () => {
   // 最近文件列表版本号（用于触发 MenuBar 刷新）
   const recentFilesVersion = ref(0)
   
+  // 状态栏 hover 提示
+  const hoverHint = ref<string | null>(null)
+  
   // 当前标签页
   const activeTab = computed(() => {
     if (!activeTabId.value) return null
@@ -269,6 +272,11 @@ export const useEditorStore = defineStore('editor', () => {
     return currentSql.value
   }
   
+  // 设置状态栏 hover 提示
+  function setHoverHint(hint: string | null) {
+    hoverHint.value = hint
+  }
+  
   return {
     // 状态
     tabs,
@@ -277,6 +285,7 @@ export const useEditorStore = defineStore('editor', () => {
     currentSql,
     contentUpdateTrigger,
     recentFilesVersion,
+    hoverHint,
     
     // 方法
     init,
@@ -293,6 +302,7 @@ export const useEditorStore = defineStore('editor', () => {
     saveFileAs,
     saveTabById,
     getSelectedSql,
+    setHoverHint,
     isTabEmpty,
     hasUnsavedChanges,
     getUnsavedTabs

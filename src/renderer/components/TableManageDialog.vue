@@ -288,7 +288,7 @@ function selectIndex(index: IndexMeta) {
 }
 
 // 获取索引类型标签类型
-function getIndexTypeTagType(type: IndexMeta['type']): '' | 'success' | 'warning' | 'info' | 'danger' {
+function getIndexTypeTagType(type: IndexMeta['type']): 'primary' | 'success' | 'warning' | 'info' | 'danger' {
   switch (type) {
     case 'PRIMARY':
       return 'danger'
@@ -299,7 +299,8 @@ function getIndexTypeTagType(type: IndexMeta['type']): '' | 'success' | 'warning
     case 'SPATIAL':
       return 'success'
     default:
-      return ''
+      // NORMAL 或其他类型使用 primary
+      return 'primary'
   }
 }
 

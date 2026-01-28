@@ -6,6 +6,16 @@ import { Hover, Position, MarkupKind } from 'vscode-languageserver'
 import { MetadataService } from '../services/metadataService'
 import { SqlParserService } from '../services/sqlParserService'
 
+/**
+ * 扩展的 Hover 结果，包含表信息用于前端交互
+ */
+export interface HoverResult {
+  hover: Hover
+  tableInfo?: {
+    name: string
+  }
+}
+
 export class HoverProvider {
   private metadataService: MetadataService
   private sqlParser: SqlParserService
@@ -18,7 +28,7 @@ export class HoverProvider {
   /**
    * 提供悬浮提示
    */
-  provideHover(documentText: string, position: Position): Hover | null {
+  provideHover(documentText: string, position: Position): HoverResult | null {
     // 获取光标位置的单词
     const wordInfo = this.getWordAtPosition(documentText, position)
     if (!wordInfo) return null
@@ -32,26 +42,29 @@ export class HoverProvider {
         c => c.name.toLowerCase() === word.toLowerCase()
       )
       if (column) {
-        return this.createColumnHover(column, tableName)
+        return { hover: this.createColumnHover(column, tableName) }
       }
     }
 
     // 查找表
     const table = this.metadataService.getTable(word)
     if (table) {
-      return this.createTableHover(table)
+      return {
+        hover: this.createTableHover(table),
+        tableInfo: { name: table.name }
+      }
     }
 
     // 查找视图
     const view = this.metadataService.getView(word)
     if (view) {
-      return this.createViewHover(view)
+      return { hover: this.createViewHover(view) }
     }
 
     // 查找函数
     const func = this.metadataService.getFunction(word)
     if (func) {
-      return this.createFunctionHover(func)
+      return { hover: this.createFunctionHover(func) }
     }
 
     // 查找字段（无前缀，从上下文推断表）
@@ -60,7 +73,7 @@ export class HoverProvider {
       const columns = this.metadataService.getColumns(tableRef.name)
       const column = columns.find(c => c.name.toLowerCase() === word.toLowerCase())
       if (column) {
-        return this.createColumnHover(column, tableRef.name)
+        return { hover: this.createColumnHover(column, tableRef.name) }
       }
     }
 
@@ -128,7 +141,9 @@ export class HoverProvider {
   private createTableHover(table: { name: string; comment?: string; columns: any[] }): Hover {
     const lines: string[] = []
     
-    lines.push(`**表**: \`${table.name}\``)
+    // 表名行：使用特殊的 data 属性标记，便于前端识别点击
+    // Monaco hover 中的 code 标签会保留，可以通过点击 code 标签来触发
+    lines.push(`**表**: \`${table.name}\` 👆 *点击表名打开管理*`)
     lines.push('')
     
     if (table.comment) {
@@ -139,19 +154,20 @@ export class HoverProvider {
     lines.push(`**字段数**: ${table.columns.length}`)
     lines.push('')
     
-    // 显示前 5 个字段
+    // 显示所有字段（不再限制为前 5 个）
     if (table.columns.length > 0) {
-      lines.push('**字段预览**:')
-      const previewColumns = table.columns.slice(0, 5)
-      for (const col of previewColumns) {
+      lines.push('**字段列表**:')
+      lines.push('')
+      
+      for (const col of table.columns) {
         const nullable = col.nullable ? '' : ' NOT NULL'
-        lines.push(`- \`${col.name}\`: ${col.type}${nullable}`)
-      }
-      if (table.columns.length > 5) {
-        lines.push(`- ... 还有 ${table.columns.length - 5} 个字段`)
+        // 主键标识
+        const pkIcon = col.isPrimaryKey ? ' 🔑' : ''
+        // 字段注释
+        const comment = col.comment ? ` // ${col.comment}` : ''
+        lines.push(`- \`${col.name}\`${pkIcon}: ${col.type}${nullable}${comment}`)
       }
     }
-
     return {
       contents: {
         kind: MarkupKind.Markdown,

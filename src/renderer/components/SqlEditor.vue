@@ -356,6 +356,13 @@ function initEditor() {
     ],
     run: () => languageServer.formatDocument(editor)
   })
+  
+  // 监听 hover widget 的显示/隐藏（用于清除状态栏提示）
+  editor.onDidChangeHoverVisibility?.((e: { visible: boolean }) => {
+    if (!e.visible) {
+      languageServer.clearHoverState()
+    }
+  })
 }
 
 // 标签页移除（带保存确认）
@@ -424,6 +431,42 @@ async function handleSaveShortcut(e: KeyboardEvent) {
 }
 
 /**
+ * 处理 hover widget 点击事件
+ * 只有点击表名（code 标签）时才打开表管理对话框
+ */
+function handleHoverClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  
+  // 检查点击的是否在 hover widget 内
+  const hoverWidget = target.closest('.monaco-hover')
+  if (!hoverWidget) return
+  
+  // 检查是否有当前 hover 的表信息
+  if (!languageServer.currentHoverTableInfo.value) return
+  
+  // 检查点击的是否是 code 标签（表名被反引号包裹，会渲染为 code）
+  // 或者点击的元素的父元素是 code
+  const codeElement = target.tagName === 'CODE' ? target : target.closest('code')
+  if (!codeElement) return
+  
+  // 获取 hover 内容的第一个段落（表名所在行）
+  const hoverContent = hoverWidget.querySelector('.monaco-hover-content')
+  if (!hoverContent) return
+  
+  // 检查这个 code 是否在第一个段落中（表名行）
+  const firstParagraph = hoverContent.querySelector('p')
+  if (firstParagraph && firstParagraph.contains(codeElement)) {
+    // 验证 code 内容是否与当前 hover 的表名一致
+    const tableName = languageServer.currentHoverTableInfo.value.name
+    if (codeElement.textContent === tableName) {
+      e.preventDefault()
+      e.stopPropagation()
+      languageServer.openTableManageFromHover()
+    }
+  }
+}
+
+/**
  * 处理连接树刷新事件
  */
 function handleConnectionTreeRefresh(payload: EventBusEvents['connectionTree:refresh']) {
@@ -443,6 +486,9 @@ onMounted(async () => {
   // 添加键盘快捷键监听
   window.addEventListener('keydown', handleSaveShortcut)
   
+  // 添加 hover widget 点击监听
+  document.addEventListener('click', handleHoverClick)
+  
   // 监听连接树刷新事件
   eventBus.on('connectionTree:refresh', handleConnectionTreeRefresh)
   
@@ -460,6 +506,9 @@ onUnmounted(() => {
   editor?.dispose()
   // 移除键盘快捷键监听
   window.removeEventListener('keydown', handleSaveShortcut)
+  
+  // 移除 hover widget 点击监听
+  document.removeEventListener('click', handleHoverClick)
   
   // 移除事件总线监听
   eventBus.off('connectionTree:refresh', handleConnectionTreeRefresh)
@@ -633,5 +682,51 @@ onUnmounted(() => {
 
 .info-select-dropdown .el-select-dropdown__item.is-hovering {
   background-color: #3c3c3c !important;
+}
+
+/* Monaco hover widget 样式优化 */
+.monaco-editor .monaco-hover {
+  max-width: 600px !important;
+}
+
+.monaco-editor .monaco-hover-content {
+  max-height: 300px !important;
+  overflow-y: auto !important;
+}
+
+/* hover widget 滚动条样式 */
+.monaco-editor .monaco-hover-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.monaco-editor .monaco-hover-content::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.monaco-editor .monaco-hover-content::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 4px;
+}
+
+.monaco-editor .monaco-hover-content::-webkit-scrollbar-thumb:hover {
+  background-color: #666;
+}
+
+/* hover widget 中表名 code 标签样式 - 可点击效果 */
+/* 只选择第一个 p 标签中紧跟 strong 后的 code（即 **表**: `表名` 中的表名） */
+/* 排除 li 中的 code（字段列表中的列名） */
+.monaco-editor .monaco-hover-content p:first-of-type > strong + code {
+  color: #4fc3f7 !important;
+  cursor: pointer !important;
+  border-bottom: 1px dashed #4fc3f7;
+  transition: all 0.2s ease;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.monaco-editor .monaco-hover-content p:first-of-type > strong + code:hover {
+  color: #81d4fa !important;
+  border-bottom-style: solid;
+  background-color: rgba(79, 195, 247, 0.2) !important;
 }
 </style>
