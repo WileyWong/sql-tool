@@ -10,6 +10,8 @@ export type EventBusEvents = {
     connectionId: string
     databaseName?: string
   }
+  // SQL 执行事件（右键菜单触发）
+  'execute-sql': void
 }
 
 export const eventBus = mitt<EventBusEvents>()

@@ -42,11 +42,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
 import { useResultStore } from '../stores/result'
+import { eventBus } from '../utils/eventBus'
 
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
@@ -199,6 +200,15 @@ async function handleExplain() {
     resultStore.setExecutionStatus('error')
   }
 }
+
+// 监听右键菜单执行事件
+onMounted(() => {
+  eventBus.on('execute-sql', handleExecute)
+})
+
+onUnmounted(() => {
+  eventBus.off('execute-sql', handleExecute)
+})
 </script>
 
 <style scoped>

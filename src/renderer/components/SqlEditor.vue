@@ -362,6 +362,17 @@ function initEditor() {
     run: () => languageServer.formatDocument(editor)
   })
   
+  // 注册执行 SQL 右键菜单
+  editor.addAction({
+    id: 'sql.execute',
+    label: '执行',
+    contextMenuGroupId: 'navigation',
+    contextMenuOrder: 0,
+    run: () => {
+      eventBus.emit('execute-sql')
+    }
+  })
+  
   // 监听 hover widget 的显示/隐藏（用于清除状态栏提示）
   editor.onDidChangeHoverVisibility?.((e: { visible: boolean }) => {
     if (!e.visible) {
