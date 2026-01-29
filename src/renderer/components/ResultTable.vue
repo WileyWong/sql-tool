@@ -59,7 +59,7 @@
               position: 'absolute',
               top: 0,
               left: 0,
-              width: '100%',
+              minWidth: `${totalWidth}px`,
               height: `${virtualRow.size}px`,
               transform: `translateY(${virtualRow.start}px)`
             }"
@@ -115,7 +115,7 @@
               position: 'absolute',
               top: 0,
               left: 0,
-              width: '100%',
+              minWidth: `${totalWidth}px`,
               height: `${ROW_HEIGHT}px`,
               transform: `translateY(${getNewRowTop(idx)}px)`
             }"
@@ -405,6 +405,14 @@ const totalRowCount = computed(() => {
 // 计算总高度
 const totalHeight = computed(() => {
   return totalRowCount.value * ROW_HEIGHT
+})
+
+// 计算表格总宽度（用于确保行背景完整覆盖）
+const totalWidth = computed(() => {
+  const columnsWidth = props.data.columns.reduce((sum, col) => {
+    return sum + (columnWidths.value[col.name] || MIN_COLUMN_WIDTH)
+  }, 0)
+  return columnsWidth + CHECKBOX_COLUMN_WIDTH
 })
 
 // 虚拟化配置（仅用于原始数据行）
