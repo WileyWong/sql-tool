@@ -1,5 +1,7 @@
 # SQL Tool
 
+[English](./README_EN.md) | 中文
+
 一个基于 Electron + Vue 3 的 MySQL 数据库客户端工具。
 
 完全AI开发，主要是现有的一些管理工具，总有一些不满意的地方，就自己使用AI写了一个。后续会随着使用发现的问题不断优化。
@@ -126,7 +128,7 @@ npm run pack:linux:arm64
 ## 项目结构
 
 ```
-sql-tool-v2/
+sql-tool/
 ├── src/
 │   ├── main/              # Electron 主进程
 │   │   ├── index.ts       # 主进程入口
