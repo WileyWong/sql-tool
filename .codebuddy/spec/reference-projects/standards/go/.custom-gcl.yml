@@ -1,5 +1,0 @@
-version: v1.64.8
-plugins:
-  - module: 'git.woa.com/standards/go/tencentlint'
-    import: 'git.woa.com/standards/go/tencentlint'
-    version: master

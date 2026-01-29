@@ -1,3 +1,0 @@
-if(isJedi) {
-  fight ();
-}

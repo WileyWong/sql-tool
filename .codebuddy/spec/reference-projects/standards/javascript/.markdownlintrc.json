@@ -1,7 +1,0 @@
-{
-  "no-blanks-blockquote": false,
-  "line-length": false,
-  "no-duplicate-heading": false,
-  "single-title": false,
-  "no-inline-html": { "allowed_elements": ["a"] }
-}

@@ -1,3 +1,0 @@
-#HEAD
-
-* Initial config
