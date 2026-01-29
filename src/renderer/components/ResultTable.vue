@@ -910,6 +910,7 @@ function getNewRowTop(idx: number): number {
   cursor: default;
   display: flex;
   align-items: center;
+  position: relative;  /* 为编辑输入框提供定位上下文 */
 }
 
 .table-cell.checkbox-cell {
@@ -966,10 +967,14 @@ function getNewRowTop(idx: number): number {
 
 /* 编辑单元格样式 */
 .edit-cell {
-  margin: -8px -12px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
   padding: 0;
-  width: 100%;
-  height: 100%;
+  z-index: 1;
 }
 
 .edit-input {

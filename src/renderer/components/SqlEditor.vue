@@ -82,6 +82,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import * as monaco from 'monaco-editor'
+import { ElMessage } from 'element-plus'
 import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
 import { useResultStore } from '../stores/result'
@@ -280,7 +281,11 @@ watch(selectedConnectionId, async (newId) => {
   if (newId) {
     const conn = connections.value.find(c => c.id === newId)
     if (conn && conn.status !== 'connected') {
-      await connectionStore.connect(newId)
+      const result = await connectionStore.connect(newId)
+      if (!result.success) {
+        ElMessage.error(`连接失败: ${result.message || '未知错误'}`)
+        return
+      }
     }
     connectionStore.setCurrentConnection(newId)
   }

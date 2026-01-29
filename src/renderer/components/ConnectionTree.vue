@@ -153,7 +153,8 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
     if (!conn || conn.status !== 'connected') {
       // 需要先连接
       const result = await connectionStore.connect(data.connectionId!)
-      if (!result) {
+      if (!result.success) {
+        ElMessage.error(`连接失败: ${result.message || '未知错误'}`)
         resolve([])
         return
       }
@@ -410,7 +411,11 @@ async function handleNodeClick(data: TreeNode) {
     const conn = connectionStore.connections.find(c => c.id === data.connectionId)
     if (conn?.status !== 'connected') {
       // 点击连接
-      await connectionStore.connect(data.connectionId!)
+      const result = await connectionStore.connect(data.connectionId!)
+      if (!result.success) {
+        ElMessage.error(`连接失败: ${result.message || '未知错误'}`)
+        return
+      }
     }
     connectionStore.setCurrentConnection(data.connectionId!)
   }
@@ -501,9 +506,13 @@ async function handleMenuClick(key: string) {
   contextMenu.value.visible = false
   
   switch (key) {
-    case 'connect':
-      await connectionStore.connect(node.connectionId!)
+    case 'connect': {
+      const result = await connectionStore.connect(node.connectionId!)
+      if (!result.success) {
+        ElMessage.error(`连接失败: ${result.message || '未知错误'}`)
+      }
       break
+    }
     case 'disconnect':
       await connectionStore.disconnect(node.connectionId!)
       break
