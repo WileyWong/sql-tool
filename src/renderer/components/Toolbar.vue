@@ -58,6 +58,9 @@ const resultOverwriteDialog = inject<{ show: () => Promise<'submit' | 'discard' 
 // 注入 SQL 编辑器（获取选中文本）
 const sqlEditor = inject<{ getSelectedText: () => string }>('sqlEditor')
 
+// 注入数据操作状态（统一跟踪机制）
+const dataOperations = inject<{ hasUnsavedChanges: () => boolean; clearChanges: () => void }>('dataOperations')
+
 // 获取当前标签页的连接（每个标签页独立的连接）
 const currentTabConnection = computed(() => {
   const tab = editorStore.activeTab
@@ -112,7 +115,7 @@ async function handleExecute() {
   }
   
   // 检查是否有未保存的修改
-  if (resultStore.hasUnsavedChanges()) {
+  if (dataOperations?.hasUnsavedChanges()) {
     if (!resultOverwriteDialog) {
       // 降级到 confirm
       const confirmed = window.confirm('当前查询结果有未保存的修改，是否继续执行新的查询？\n\n点击"确定"放弃修改并执行，点击"取消"取消执行。')
@@ -130,7 +133,7 @@ async function handleExecute() {
         return
       }
       // result === 'discard' 时清除修改标记并继续执行
-      resultStore.clearModifiedMark()
+      dataOperations?.clearChanges()
     }
   }
   

@@ -28,7 +28,7 @@
         
         <!-- 结果面板 -->
         <div class="result-area" :style="{ height: resultHeight + 'px' }">
-          <ResultPanel />
+          <ResultPanel ref="resultPanelRef" />
         </div>
       </section>
     </main>
@@ -76,6 +76,7 @@ const sidebarWidth = ref(260)
 const saveConfirmDialogRef = ref<InstanceType<typeof SaveConfirmDialog> | null>(null)
 const resultOverwriteDialogRef = ref<InstanceType<typeof ResultOverwriteDialog> | null>(null)
 const sqlEditorRef = ref<InstanceType<typeof SqlEditor> | null>(null)
+const resultPanelRef = ref<InstanceType<typeof ResultPanel> | null>(null)
 
 // 提供保存确认对话框给子组件使用
 provide('saveConfirmDialog', {
@@ -96,6 +97,12 @@ provide('sqlEditor', {
   getSelectedText: () => {
     return sqlEditorRef.value?.getSelectedText() || ''
   }
+})
+
+// 提供数据操作状态给子组件使用（统一跟踪机制）
+provide('dataOperations', {
+  hasUnsavedChanges: () => resultPanelRef.value?.hasUnsavedChanges() || false,
+  clearChanges: () => resultPanelRef.value?.clearChanges()
 })
 
 // 处理窗口关闭前事件
