@@ -125,12 +125,12 @@ async function handleExecute() {
         return
       }
       if (result === 'submit') {
-        // 用户选择提交，但当前修改已经即时保存到数据库，所以直接继续
-        // 注意：当前实现中，编辑单元格后会立即 UPDATE 到数据库
-        // 所以"提交"在这里只是清除修改标记
-        resultStore.clearModifiedMark()
+        // 用户选择提交，提示用户先手动提交修改
+        ElMessage.warning('请先点击提交按钮保存修改，然后再执行新的查询')
+        return
       }
-      // result === 'discard' 时直接继续执行，不需要额外操作
+      // result === 'discard' 时清除修改标记并继续执行
+      resultStore.clearModifiedMark()
     }
   }
   

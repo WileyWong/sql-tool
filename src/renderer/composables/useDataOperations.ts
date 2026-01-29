@@ -48,7 +48,7 @@ export interface UseDataOperationsReturn {
   addButtonEnabled: ComputedRef<boolean>
   
   // 方法
-  initialize: (data: QueryResultSet) => void
+  initialize: (data: QueryResultSet, preserveChanges?: boolean) => void
   toggleRowSelection: (rowKey: string, selected: boolean) => void
   toggleAllSelection: (selected: boolean) => void
   recordChange: (rowKey: string, column: string, oldValue: unknown, newValue: unknown) => void
@@ -126,10 +126,12 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
   // --- 方法 ---
   
   // 初始化（查询完成后调用）
-  function initialize(data: QueryResultSet) {
+  function initialize(data: QueryResultSet, preserveChanges: boolean = false) {
     state.selectedRowKeys.clear()
-    state.pendingChanges.clear()
-    state.newRows = []
+    if (!preserveChanges) {
+      state.pendingChanges.clear()
+      state.newRows = []
+    }
     // 深拷贝原始数据用于还原
     state.originalData = JSON.parse(JSON.stringify(data.rows))
   }

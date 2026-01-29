@@ -147,21 +147,31 @@ const confirmDialog = reactive({
   loading: false
 })
 
+// 跟踪当前已初始化的结果集，避免切换标签页时重复初始化
+let initializedResultSet: QueryResultSet | null = null
+
 // 监听结果数据变化，初始化数据操作状态
 watch(currentResultSet, (newVal) => {
-  if (newVal) {
-    dataOps.initialize(newVal)
+  if (newVal && newVal !== initializedResultSet) {
+    // 如果 resultStore 标记有未保存修改，保留修改状态（切换标签页场景）
+    const preserveChanges = resultStore.hasUnsavedChanges()
+    dataOps.initialize(newVal, preserveChanges)
+    initializedResultSet = newVal
   }
 }, { immediate: true })
 
 // 新增行
 function handleAddRow() {
-  dataOps.addNewRow()
+  const tempId = dataOps.addNewRow()
+  // 通知 resultStore 标记有未保存的修改
+  resultStore.markAsModified(`new_${tempId}`, {})
 }
 
 // 还原
 function handleRevert() {
   dataOps.revertAll()
+  // 清除 resultStore 的修改标记
+  resultStore.clearModifiedMark()
   ElMessage.info('已还原所有修改')
 }
 
@@ -203,6 +213,10 @@ async function handleConfirmExecute() {
         if (result.deletedRowKeys && result.deletedRowKeys.length > 0) {
           removeDeletedRows(result.deletedRowKeys)
         }
+        // 清除 resultStore 的修改标记（如果没有其他修改了）
+        if (!dataOps.hasChanges.value) {
+          resultStore.clearModifiedMark()
+        }
       } else {
         ElMessage.error(result.message || '删除失败')
       }
@@ -215,6 +229,8 @@ async function handleConfirmExecute() {
         if (result.committedNewRows && result.committedNewRows.length > 0) {
           mergeNewRowsToResult(result.committedNewRows)
         }
+        // 清除 resultStore 的修改标记
+        resultStore.clearModifiedMark()
       } else {
         ElMessage.error(result.message || '提交失败')
       }
@@ -307,6 +323,11 @@ async function refreshData() {
 // 单元格修改回调
 function handleCellChange(rowKey: string, column: string, oldValue: unknown, newValue: unknown) {
   dataOps.recordChange(rowKey, column, oldValue, newValue)
+  // 通知 resultStore 标记有未保存的修改
+  const activeTab = resultStore.activeTab
+  if (activeTab && activeTab.type === 'resultset') {
+    resultStore.markAsModified(rowKey, { [column]: newValue })
+  }
 }
 
 function formatTime(date: Date): string {
