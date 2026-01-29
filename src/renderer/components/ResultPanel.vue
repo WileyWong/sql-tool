@@ -15,6 +15,7 @@
             <ResultTable 
               :data="tab.data as QueryResultSet" 
               :data-operations="dataOps"
+              :editor-tab-id="editorStore.activeTabId || undefined"
               @cell-change="handleCellChange"
             />
           </template>

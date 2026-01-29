@@ -15,6 +15,7 @@ interface TabResultState {
   messages: { type: 'info' | 'success' | 'warning' | 'error'; text: string; time: Date }[]
   activeTabId: string
   executionStatus: ExecutionStatus
+  columnWidths: Record<string, number>  // 列宽状态（按列名存储）
 }
 
 export const useResultStore = defineStore('result', () => {
@@ -31,7 +32,8 @@ export const useResultStore = defineStore('result', () => {
         tabs: [],
         messages: [],
         activeTabId: 'message',
-        executionStatus: 'idle'
+        executionStatus: 'idle',
+        columnWidths: {}
       })
     }
     return tabResults.get(editorTabId)!
@@ -65,13 +67,14 @@ export const useResultStore = defineStore('result', () => {
     currentEditorTabId.value = editorTabId
   }
   
-  // 清空当前标签页的结果
+  // 清空当前标签页的结果（重新执行 SQL 时调用）
   function clearResults() {
     if (!currentEditorTabId.value) return
     const state = getOrCreateTabState(currentEditorTabId.value)
     state.tabs = []
     state.messages = []
     state.activeTabId = 'message'
+    state.columnWidths = {}  // 清除列宽状态，重新执行 SQL 时重新计算
   }
   
   // 添加消息
@@ -190,6 +193,31 @@ export const useResultStore = defineStore('result', () => {
     tabResults.delete(editorTabId)
   }
   
+  // 保存列宽状态
+  function saveColumnWidths(editorTabId: string, widths: Record<string, number>) {
+    const state = tabResults.get(editorTabId)
+    if (state) {
+      state.columnWidths = { ...widths }
+    }
+  }
+  
+  // 获取列宽状态
+  function getColumnWidths(editorTabId: string): Record<string, number> | null {
+    const state = tabResults.get(editorTabId)
+    if (state && Object.keys(state.columnWidths).length > 0) {
+      return state.columnWidths
+    }
+    return null
+  }
+  
+  // 清除列宽状态（重新执行 SQL 时调用）
+  function clearColumnWidths(editorTabId: string) {
+    const state = tabResults.get(editorTabId)
+    if (state) {
+      state.columnWidths = {}
+    }
+  }
+  
   return {
     // 状态
     tabs,
@@ -207,6 +235,9 @@ export const useResultStore = defineStore('result', () => {
     handleExplainResult,
     switchTab,
     switchToEditorTab,
-    cleanupEditorTab
+    cleanupEditorTab,
+    saveColumnWidths,
+    getColumnWidths,
+    clearColumnWidths
   }
 })

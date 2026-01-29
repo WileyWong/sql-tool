@@ -221,10 +221,12 @@ import { formatDateTime, formatBitValue, formatCellValue } from '../utils/format
 import JsonTreeViewer from './JsonTreeViewer.vue'
 import XmlTreeViewer from './XmlTreeViewer.vue'
 import type { UseDataOperationsReturn } from '../composables/useDataOperations'
+import { useResultStore } from '../stores/result'
 
 const props = defineProps<{
   data: QueryResultSet
   dataOperations?: UseDataOperationsReturn
+  editorTabId?: string  // 编辑器标签页 ID，用于列宽持久化
 }>()
 
 const emit = defineEmits<{
@@ -234,9 +236,18 @@ const emit = defineEmits<{
 // 数据操作对象（可选）
 const dataOps = computed(() => props.dataOperations)
 
+// Result Store（用于列宽持久化）
+const resultStore = useResultStore()
+
 // 常量
 const ROW_HEIGHT = 36
 const CHECKBOX_COLUMN_WIDTH = 40
+const MIN_COLUMN_WIDTH = 50
+const MAX_COLUMN_WIDTH = 300
+const CHAR_WIDTH = 8           // 单字符宽度（英文）
+const CHINESE_CHAR_WIDTH = 16  // 中文字符宽度
+const CELL_PADDING = 24        // 单元格 padding
+const TYPE_LABEL_WIDTH = 30    // 类型标签额外宽度
 
 // 滚动容器引用
 const scrollContainerRef = ref<HTMLElement | null>(null)
@@ -252,16 +263,82 @@ const resizing = ref<{
   startWidth: number
 } | null>(null)
 
-// 初始化列宽
+/**
+ * 计算文本宽度（考虑中英文）
+ */
+function getTextWidth(text: string): number {
+  let width = 0
+  for (const char of text) {
+    // 中文字符（Unicode 范围）
+    if (/[\u4e00-\u9fa5]/.test(char)) {
+      width += CHINESE_CHAR_WIDTH
+    } else {
+      width += CHAR_WIDTH
+    }
+  }
+  return width
+}
+
+/**
+ * 计算单列宽度
+ */
+function calculateColumnWidth(
+  columnName: string,
+  sampleRows: Record<string, unknown>[]
+): number {
+  // 1. 计算表头宽度
+  const headerWidth = getTextWidth(columnName) + TYPE_LABEL_WIDTH + CELL_PADDING
+
+  // 2. 计算数据内容最大宽度
+  let maxDataWidth = 0
+  for (const row of sampleRows) {
+    const value = row[columnName]
+    const displayValue = value === null || value === undefined ? 'NULL' : String(value)
+    const textWidth = getTextWidth(displayValue) + CELL_PADDING
+    maxDataWidth = Math.max(maxDataWidth, textWidth)
+  }
+
+  // 3. 取较大值并应用限制
+  const calculatedWidth = Math.max(headerWidth, maxDataWidth)
+  return Math.min(Math.max(calculatedWidth, MIN_COLUMN_WIDTH), MAX_COLUMN_WIDTH)
+}
+
+/**
+ * 获取采样行数
+ */
+function getSampleRowCount(): number {
+  if (!scrollContainerRef.value) {
+    return 20 // 默认采样 20 行
+  }
+  const containerHeight = scrollContainerRef.value.clientHeight || 400
+  const visibleRows = Math.ceil(containerHeight / ROW_HEIGHT)
+  return Math.min(Math.max(visibleRows, 10), 20) // 10-20 行
+}
+
+// 初始化列宽（动态计算 + 持久化恢复）
 function initColumnWidths() {
+  // 1. 尝试从 store 恢复列宽
+  if (props.editorTabId) {
+    const savedWidths = resultStore.getColumnWidths(props.editorTabId)
+    if (savedWidths && Object.keys(savedWidths).length > 0) {
+      // 检查列是否匹配（可能 SQL 变了）
+      const savedColumns = new Set(Object.keys(savedWidths))
+      const columnsMatch = props.data.columns.every(c => savedColumns.has(c.name))
+      
+      if (columnsMatch) {
+        columnWidths.value = { ...savedWidths }
+        return
+      }
+    }
+  }
+  
+  // 2. 动态计算列宽
+  const sampleCount = getSampleRowCount()
+  const sampleRows = props.data.rows.slice(0, sampleCount)
+  
   const widths: Record<string, number> = {}
   for (const col of props.data.columns) {
-    if (!columnWidths.value[col.name]) {
-      const baseWidth = Math.max(col.name.length * 10, 80)
-      widths[col.name] = Math.min(baseWidth, 300)
-    } else {
-      widths[col.name] = columnWidths.value[col.name]
-    }
+    widths[col.name] = calculateColumnWidth(col.name, sampleRows)
   }
   columnWidths.value = widths
 }
@@ -301,8 +378,13 @@ function handleResizeMove(event: MouseEvent) {
   columnWidths.value[resizing.value.column] = newWidth
 }
 
-// 拖动结束
+// 拖动结束 - 保存列宽到 store
 function handleResizeEnd() {
+  // 保存列宽到 store
+  if (props.editorTabId) {
+    resultStore.saveColumnWidths(props.editorTabId, columnWidths.value)
+  }
+  
   resizing.value = null
   document.removeEventListener('mousemove', handleResizeMove)
   document.removeEventListener('mouseup', handleResizeEnd)
@@ -454,7 +536,7 @@ function getCellValue(rowIndex: number, column: string): unknown {
 }
 
 // 双击单元格
-function handleCellDblClick(row: Record<string, unknown>, column: ColumnDef, rowIndex: number) {
+function handleCellDblClick(_row: Record<string, unknown>, column: ColumnDef, rowIndex: number) {
   // 检查是否可编辑
   if (!props.data.editable || !props.data.primaryKeys?.length) {
     return
