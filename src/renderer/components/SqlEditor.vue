@@ -374,6 +374,7 @@ function initEditor() {
   })
   
   // 监听 hover widget 的显示/隐藏（用于清除状态栏提示）
+  // @ts-ignore - Monaco 内部 API，可能不在类型定义中
   editor.onDidChangeHoverVisibility?.((e: { visible: boolean }) => {
     if (!e.visible) {
       languageServer.clearHoverState()
