@@ -1,147 +1,147 @@
 # SQL Tool
 
-[English](./README_EN.md) | 中文
+English | [中文](./README_CN.md)
 
-一个基于 Electron + Vue 3 的 MySQL 数据库客户端工具。
+A MySQL database client tool built with Electron + Vue 3.
 
-完全AI开发，主要是现有的一些管理工具，总有一些不满意的地方，就自己使用AI写了一个。后续会随着使用发现的问题不断优化。
+Fully developed with AI assistance. I created this because existing database management tools always had some aspects I wasn't satisfied with. It will continue to be optimized as issues are discovered during use.
 
-AI开发的需求文档也一并提交上来了， 写的不太好，请见谅。
+The AI-assisted requirement documents are also included in the repository. They may not be perfect, but hopefully they're helpful.
 
-## 功能特性
+## Features
 
-### 数据库连接管理
-- 支持创建、编辑、删除 MySQL 数据库连接
-- 连接信息本地加密存储（AES 对称加密）
-- 树形结构展示数据库、表、视图、字段等
-- 支持双击切换当前数据库
-- 右键菜单支持刷新节点
+### Database Connection Management
+- Create, edit, and delete MySQL database connections
+- Connection credentials stored locally with AES encryption
+- Tree view displaying databases, tables, views, columns, etc.
+- Double-click to switch current database
+- Right-click context menu for refreshing nodes
 
-### SQL 编辑器
-- 基于 Monaco Editor 的专业 SQL 编辑器
-- **智能联想**：实时自动触发，支持关键字、表名、字段名、函数等联想
-- **语法检查**：MySQL 语法错误识别，红色波浪线 + 悬浮提示
-- **代码格式化**：快捷键 `Shift+Alt+F`，支持关键字大写、自动缩进
-- **悬浮提示**：鼠标悬停显示表、字段、函数的详细信息
-- 多标签页管理，支持同时编辑多个 SQL 文件
-- 快捷键 `Ctrl+S` 保存当前查询
+### SQL Editor
+- Professional SQL editor powered by Monaco Editor
+- **Auto-completion**: Real-time suggestions for keywords, table names, column names, functions, etc.
+- **Syntax Checking**: MySQL syntax error detection with red squiggly underlines + hover tooltips
+- **Code Formatting**: `Shift+Alt+F` shortcut, uppercase keywords, auto-indentation
+- **Hover Information**: Mouse hover displays detailed information for tables, columns, and functions
+- Multi-tab management for editing multiple SQL files simultaneously
+- `Ctrl+S` shortcut to save current query
 
-### SQL 执行
-- 支持执行选中 SQL 或全部 SQL
-- 批量执行多语句，遇错停止
-- 支持停止正在执行的查询（发送 KILL QUERY）
-- 默认超时时间 10 分钟
-- 可配置结果集最大行数（默认 5000 行）
+### SQL Execution
+- Execute selected SQL or entire editor content
+- Batch execution of multiple statements, stops on first error
+- Stop running queries (sends KILL QUERY)
+- Default timeout: 10 minutes
+- Configurable maximum result set rows (default: 5000)
 
-### 查询结果
-- 多结果集标签页展示
-- 支持单元格编辑（单表查询且表有主键时）
-- 导出功能：支持 CSV、JSON、Excel 格式
-- 消息区显示非查询语句的影响行数
+### Query Results
+- Multiple result sets displayed in tabs
+- Cell editing support (for single-table queries with primary key)
+- Export functionality: CSV, JSON, Excel formats
+- Message panel shows affected rows for non-SELECT statements
 
-### 执行计划
-- 支持 MySQL EXPLAIN 格式
-- 流程图形式可视化展示查询计划
-- 表格形式展示详细执行计划数据
+### Execution Plan
+- MySQL EXPLAIN format support
+- Flowchart visualization of query execution plan
+- Table view for detailed execution plan data
 
-## 技术栈
+## Tech Stack
 
-- **前端框架**：Vue 3 + TypeScript
-- **桌面框架**：Electron 28
-- **UI 组件库**：Element Plus
-- **代码编辑器**：Monaco Editor + monaco-languageclient
-- **SQL 解析**：sql-parser-cst
-- **SQL 格式化**：sql-formatter
-- **数据库驱动**：mysql2
-- **构建工具**：Vite + electron-builder
+- **Frontend Framework**: Vue 3 + TypeScript
+- **Desktop Framework**: Electron 28
+- **UI Components**: Element Plus
+- **Code Editor**: Monaco Editor + monaco-languageclient
+- **SQL Parsing**: sql-parser-cst
+- **SQL Formatting**: sql-formatter
+- **Database Driver**: mysql2
+- **Build Tools**: Vite + electron-builder
 
-## 开发
+## Development
 
-### 环境要求
+### Requirements
 - Node.js >= 18
 - npm >= 9
 
-### 安装依赖
+### Install Dependencies
 ```bash
 npm install
 ```
 
-### 开发模式
+### Development Mode
 ```bash
 npm run dev
 ```
 
-### 构建
+### Build
 ```bash
 npm run build
 ```
 
-## 打包发布
+## Packaging & Release
 
 ### Windows
 ```bash
-# 打包 Windows 版本（x64 + arm64）
+# Package for Windows (x64 + arm64)
 npm run pack:win
 
-# 仅打包 x64 版本
+# Package x64 only
 npm run pack:win:x64
 
-# 仅打包 arm64 版本
+# Package arm64 only
 npm run pack:win:arm64
 ```
 
-输出格式：
-- `release/SQL Tool Setup x.x.x.exe` - NSIS 安装包
-- `release/SQL Tool x.x.x.exe` - 便携版
+Output:
+- `release/SQL Tool Setup x.x.x.exe` - NSIS installer
+- `release/SQL Tool x.x.x.exe` - Portable version
 
 ### macOS
 ```bash
-# 打包 macOS 版本（x64 + arm64）
+# Package for macOS (x64 + arm64)
 npm run pack:mac
 
-# 仅打包 x64 版本（Intel Mac）
+# Package x64 only (Intel Mac)
 npm run pack:mac:x64
 
-# 仅打包 arm64 版本（Apple Silicon）
+# Package arm64 only (Apple Silicon)
 npm run pack:mac:arm64
 ```
 
-输出格式：
-- `release/SQL Tool-x.x.x.dmg` - DMG 安装包
+Output:
+- `release/SQL Tool-x.x.x.dmg` - DMG installer
 
 ### Linux
 ```bash
-# 打包 Linux 版本（x64 + arm64）
+# Package for Linux (x64 + arm64)
 npm run pack:linux
 
-# 仅打包 x64 版本
+# Package x64 only
 npm run pack:linux:x64
 
-# 仅打包 arm64 版本
+# Package arm64 only
 npm run pack:linux:arm64
 ```
 
-输出格式：
-- `release/SQL Tool-x.x.x.AppImage` - AppImage 格式
-- `release/sql-tool_x.x.x_amd64.deb` - Debian 安装包
+Output:
+- `release/SQL Tool-x.x.x.AppImage` - AppImage format
+- `release/sql-tool_x.x.x_amd64.deb` - Debian package
 
-## 项目结构
+## Project Structure
 
 ```
 sql-tool/
 ├── src/
-│   ├── main/              # Electron 主进程
-│   │   ├── index.ts       # 主进程入口
-│   │   ├── database/      # 数据库连接管理
+│   ├── main/              # Electron main process
+│   │   ├── index.ts       # Main process entry
+│   │   ├── database/      # Database connection management
 │   │   └── language-server/ # SQL Language Server
-│   └── renderer/          # 渲染进程（Vue 应用）
-│       ├── components/    # Vue 组件
-│       ├── composables/   # 组合式函数
-│       ├── stores/        # Pinia 状态管理
-│       └── types/         # TypeScript 类型定义
-├── resources/             # 应用资源文件
-├── requirements/          # 需求文档
-└── release/               # 打包输出目录
+│   └── renderer/          # Renderer process (Vue app)
+│       ├── components/    # Vue components
+│       ├── composables/   # Composable functions
+│       ├── stores/        # Pinia state management
+│       └── types/         # TypeScript type definitions
+├── resources/             # Application resources
+├── requirements/          # Requirement documents
+└── release/               # Build output directory
 ```
 
 ## License
