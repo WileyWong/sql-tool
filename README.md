@@ -8,6 +8,10 @@ Fully developed with AI assistance. I created this because existing database man
 
 The AI-assisted requirement documents are also included in the repository. They may not be perfect, but hopefully they're helpful.
 
+## Screenshot
+
+![SQL Tool Screenshot](./screenshots/17696720892673.png)
+
 ## Features
 
 ### Database Connection Management
