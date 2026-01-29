@@ -311,14 +311,17 @@ async function refreshData() {
     activeTab.connectionId,
     sql,
     undefined,
-    activeTab.database
+    activeTab.databaseName
   )
   
   if (result.success && result.results) {
     // 更新结果
-    resultStore.setResults(result.results)
+    resultStore.handleQueryResults(result.results)
   }
 }
+
+// 导出 refreshData 供外部使用
+defineExpose({ refreshData })
 
 // 单元格修改回调
 function handleCellChange(rowKey: string, column: string, oldValue: unknown, newValue: unknown) {
