@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed, nextTick } from 'vue'
+import { i18n } from '../i18n'
+
+// 获取翻译函数
+const t = i18n.global.t
 
 export interface EditorTab {
   id: string
@@ -60,7 +64,7 @@ export const useEditorStore = defineStore('editor', () => {
   function createTab(content = '', filePath?: string) {
     tabCounter++
     const id = `tab-${Date.now()}`
-    const baseTitle = `查询${tabCounter}`
+    const baseTitle = `${t('editor.queryTab')}${tabCounter}`
     const title = filePath ? filePath.split(/[/\\]/).pop()! : baseTitle
     
     const tab: EditorTab = {
@@ -171,7 +175,7 @@ export const useEditorStore = defineStore('editor', () => {
         currentTab.baseTitle = undefined
       } else {
         // 无文件路径，使用基础标题并考虑数据库名
-        const baseTitle = currentTab.baseTitle || `查询${tabCounter}`
+        const baseTitle = currentTab.baseTitle || `${t('editor.queryTab')}${tabCounter}`
         currentTab.baseTitle = baseTitle
         currentTab.title = generateTitle(baseTitle, currentTab.databaseName)
       }

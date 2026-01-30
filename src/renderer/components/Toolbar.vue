@@ -2,16 +2,16 @@
   <div class="toolbar">
     <!-- 文件操作 -->
     <button class="toolbar-btn secondary" @click="handleNewConnection">
-      📁 新建连接
+      📁 {{ $t('toolbar.newConnection') }}
     </button>
     <button class="toolbar-btn secondary" @click="handleNew">
-      📄 新建查询
+      📄 {{ $t('toolbar.newQuery') }}
     </button>
     <button class="toolbar-btn secondary" @click="handleOpen">
-      📂 打开文件
+      📂 {{ $t('toolbar.openFile') }}
     </button>
     <button class="toolbar-btn secondary" @click="handleSave">
-      💾 保存
+      💾 {{ $t('toolbar.save') }}
     </button>
     
     <div class="toolbar-divider"></div>
@@ -22,33 +22,35 @@
       :disabled="!canExecute || isRunning"
       @click="handleExecute"
     >
-      ▶ 执行
+      ▶ {{ $t('toolbar.execute') }}
     </button>
     <button 
       class="toolbar-btn secondary" 
       :disabled="!isRunning"
       @click="handleStop"
     >
-      ⏹ 停止
+      ⏹ {{ $t('toolbar.stop') }}
     </button>
     <button 
       class="toolbar-btn secondary" 
       :disabled="!canExecute || isRunning"
       @click="handleExplain"
     >
-      📊 执行计划
+      📊 {{ $t('toolbar.explain') }}
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
 import { useResultStore } from '../stores/result'
 import { eventBus } from '../utils/eventBus'
 
+const { t } = useI18n()
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
 const resultStore = useResultStore()
@@ -92,26 +94,26 @@ async function handleOpen() {
 async function handleSave() {
   const result = await editorStore.saveFile()
   if (result.success) {
-    ElMessage.success('保存成功')
+    ElMessage.success(t('message.saveSuccess'))
     // 更新最近文件菜单
     const recentFiles = await window.api.file.getRecentFiles()
     await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
   } else if (!(result as { canceled?: boolean }).canceled) {
-    ElMessage.error(result.message || '保存失败')
+    ElMessage.error(result.message || t('error.saveFailed', { message: '' }))
   }
 }
 
 // 执行
 async function handleExecute() {
   if (!currentTabConnection.value) {
-    ElMessage.warning('请先连接数据库')
+    ElMessage.warning(t('error.noDatabase'))
     return
   }
   
   // 获取选中的 SQL（如果有选中则执行选中部分，否则执行全部）
   const sql = sqlEditor?.getSelectedText() || editorStore.currentSql
   if (!sql.trim()) {
-    ElMessage.warning('请输入 SQL 语句')
+    ElMessage.warning(t('error.noSql'))
     return
   }
   
@@ -119,7 +121,7 @@ async function handleExecute() {
   if (dataOperations?.hasUnsavedChanges()) {
     if (!resultOverwriteDialog) {
       // 降级到 confirm
-      const confirmed = window.confirm('当前查询结果有未保存的修改，是否继续执行新的查询？\n\n点击"确定"放弃修改并执行，点击"取消"取消执行。')
+      const confirmed = window.confirm(t('result.confirmDiscard'))
       if (!confirmed) {
         return
       }
@@ -130,7 +132,7 @@ async function handleExecute() {
       }
       if (result === 'submit') {
         // 用户选择提交，提示用户先手动提交修改
-        ElMessage.warning('请先点击提交按钮保存修改，然后再执行新的查询')
+        ElMessage.warning(t('result.unsavedChanges'))
         return
       }
       // result === 'discard' 时清除修改标记并继续执行
@@ -140,7 +142,7 @@ async function handleExecute() {
   
   resultStore.setExecutionStatus('running')
   resultStore.clearResults()
-  resultStore.addMessage('info', '开始执行查询...')
+  resultStore.addMessage('info', t('status.executing'))
   
   try {
     const maxRows = editorStore.activeTab?.maxRows || 5000
@@ -164,7 +166,7 @@ async function handleStop() {
   
   const result = await window.api.query.cancel(currentTabConnection.value.id)
   if (result.success) {
-    resultStore.addMessage('warning', '查询已取消')
+    resultStore.addMessage('warning', t('message.queryCancelled'))
     resultStore.setExecutionStatus('cancelled')
   }
 }
@@ -172,14 +174,14 @@ async function handleStop() {
 // 执行计划
 async function handleExplain() {
   if (!currentTabConnection.value) {
-    ElMessage.warning('请先连接数据库')
+    ElMessage.warning(t('error.noDatabase'))
     return
   }
   
   // 获取选中的 SQL（如果有选中则执行选中部分，否则执行全部）
   const sql = sqlEditor?.getSelectedText() || editorStore.currentSql
   if (!sql.trim()) {
-    ElMessage.warning('请输入 SQL 语句')
+    ElMessage.warning(t('error.noSql'))
     return
   }
   

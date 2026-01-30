@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed, reactive } from 'vue'
 import type { QueryResult, QueryResultSet, QueryMessage, ExplainResult, ExecutionStatus } from '@shared/types'
+import { i18n } from '../i18n'
+
+// 获取翻译函数
+const t = i18n.global.t
 
 export interface ResultTab {
   id: string
@@ -113,7 +117,7 @@ export const useResultStore = defineStore('result', () => {
           // 创建新的结果页签
           resultTab = {
             id: 'result',
-            title: '结果',
+            title: t('result.title'),
             type: 'resultset',
             data: result
           }
@@ -123,14 +127,14 @@ export const useResultStore = defineStore('result', () => {
         // 添加消息
         state.messages.push({
           type: 'success',
-          text: `查询返回 ${result.rowCount} 行，耗时 ${result.executionTime}ms`,
+          text: t('result.queryResult', { rows: result.rowCount, time: result.executionTime }),
           time: new Date()
         })
       } else if (result.type === 'message') {
         // 非查询结果添加到消息
         state.messages.push({
           type: 'success',
-          text: `${result.message}，耗时 ${result.executionTime}ms`,
+          text: t('result.nonQueryResult', { message: result.message, time: result.executionTime }),
           time: new Date()
         })
       } else if (result.type === 'error') {
@@ -160,7 +164,7 @@ export const useResultStore = defineStore('result', () => {
     const existingIndex = state.tabs.findIndex(t => t.id === 'explain')
     const tab: ResultTab = {
       id: 'explain',
-      title: '执行计划',
+      title: t('result.explain'),
       type: 'explain',
       data: explain
     }
@@ -174,7 +178,7 @@ export const useResultStore = defineStore('result', () => {
     state.activeTabId = 'explain'
     state.messages.push({
       type: 'info',
-      text: '执行计划已生成',
+      text: t('result.explainGenerated'),
       time: new Date()
     })
   }

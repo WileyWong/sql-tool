@@ -9,18 +9,18 @@
   >
     <div v-if="loading" class="loading-container">
       <el-icon class="is-loading"><Loading /></el-icon>
-      <span>加载中...</span>
+      <span>{{ $t('common.loading') }}</span>
     </div>
     
     <div v-else class="design-container">
       <!-- 表基本信息 -->
       <div class="table-info-section">
         <el-form :model="tableForm" label-width="80px" inline>
-          <el-form-item label="表名" required>
-            <el-input v-model="tableForm.name" placeholder="请输入表名" style="width: 200px" />
+          <el-form-item :label="$t('table.tableName')" required>
+            <el-input v-model="tableForm.name" :placeholder="$t('table.tableNamePlaceholder')" style="width: 200px" />
           </el-form-item>
-          <el-form-item label="引擎">
-            <el-select v-model="tableForm.engine" placeholder="选择引擎" style="width: 120px">
+          <el-form-item :label="$t('table.engine')">
+            <el-select v-model="tableForm.engine" :placeholder="$t('table.enginePlaceholder')" style="width: 120px">
               <el-option
                 v-for="e in engines"
                 :key="e.engine"
@@ -29,8 +29,8 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="字符集">
-            <el-select v-model="tableForm.charset" placeholder="选择字符集" style="width: 140px" @change="handleCharsetChange">
+          <el-form-item :label="$t('table.charset')">
+            <el-select v-model="tableForm.charset" :placeholder="$t('table.charsetPlaceholder')" style="width: 140px" @change="handleCharsetChange">
               <el-option
                 v-for="c in charsets"
                 :key="c.charset"
@@ -39,8 +39,8 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="排序规则">
-            <el-select v-model="tableForm.collation" placeholder="选择排序规则" style="width: 200px">
+          <el-form-item :label="$t('table.collation')">
+            <el-select v-model="tableForm.collation" :placeholder="$t('table.collationPlaceholder')" style="width: 200px">
               <el-option
                 v-for="c in filteredCollations"
                 :key="c.collation"
@@ -49,8 +49,8 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="注释">
-            <el-input v-model="tableForm.comment" placeholder="表注释" style="width: 200px" />
+          <el-form-item :label="$t('table.comment')">
+            <el-input v-model="tableForm.comment" :placeholder="$t('table.tableCommentPlaceholder')" style="width: 200px" />
           </el-form-item>
         </el-form>
       </div>
@@ -58,13 +58,13 @@
       <!-- 页签：列定义 / 索引定义 -->
       <el-tabs v-model="activeTab" class="design-tabs">
         <!-- 列定义 -->
-        <el-tab-pane label="列定义" name="columns">
+        <el-tab-pane :label="$t('table.columnsDefinition')" name="columns">
           <div class="columns-toolbar">
             <el-button size="small" type="primary" @click="addColumn">
-              <el-icon><Plus /></el-icon> 添加列
+              <el-icon><Plus /></el-icon> {{ $t('table.addColumn') }}
             </el-button>
             <el-button size="small" type="danger" @click="removeSelectedColumns" :disabled="selectedColumns.length === 0">
-              <el-icon><Delete /></el-icon> 删除选中
+              <el-icon><Delete /></el-icon> {{ $t('common.deleteSelected') }}
             </el-button>
           </div>
           
@@ -78,18 +78,18 @@
             @selection-change="handleColumnSelectionChange"
           >
             <el-table-column type="selection" width="40" />
-            <el-table-column label="列名" min-width="120">
+            <el-table-column :label="$t('table.columnName')" min-width="120">
               <template #default="{ row }">
-                <el-input v-model="row.name" size="small" placeholder="列名" />
+                <el-input v-model="row.name" size="small" :placeholder="$t('table.columnNamePlaceholder')" />
               </template>
             </el-table-column>
-            <el-table-column label="类型" width="120">
+            <el-table-column :label="$t('table.type')" width="120">
               <template #default="{ row }">
                 <el-select v-model="row.type" size="small" filterable @change="handleTypeChange(row)">
                   <el-option-group
                     v-for="(types, group) in dataTypeGroups"
                     :key="group"
-                    :label="group"
+                    :label="$t(`table.dataTypeGroups.${group}`)"
                   >
                     <el-option
                       v-for="t in types"
@@ -101,7 +101,7 @@
                 </el-select>
               </template>
             </el-table-column>
-            <el-table-column label="长度" width="80">
+            <el-table-column :label="$t('table.length')" width="80">
               <template #default="{ row }">
                 <el-input-number
                   v-if="typeNeedsFsp(row.type)"
@@ -111,7 +111,7 @@
                   :max="6"
                   :controls="false"
                   style="width: 100%"
-                  placeholder="精度"
+                  :placeholder="$t('table.precision')"
                 />
                 <el-input-number
                   v-else-if="typeNeedsLength(row.type)"
@@ -124,7 +124,7 @@
                 <span v-else class="disabled-cell">-</span>
               </template>
             </el-table-column>
-            <el-table-column label="小数" width="70">
+            <el-table-column :label="$t('table.decimalPlaces')" width="70">
               <template #default="{ row }">
                 <el-input-number
                   v-if="typeNeedsDecimals(row.type)"
@@ -137,48 +137,48 @@
                 <span v-else class="disabled-cell">-</span>
               </template>
             </el-table-column>
-            <el-table-column label="非空" width="60" align="center">
+            <el-table-column :label="$t('table.notNull')" width="60" align="center">
               <template #default="{ row }">
                 <el-checkbox v-model="row.notNull" />
               </template>
             </el-table-column>
-            <el-table-column label="主键" width="60" align="center">
+            <el-table-column :label="$t('table.primaryKey')" width="60" align="center">
               <template #default="{ row }">
                 <el-checkbox v-model="row.primaryKey" @change="handlePrimaryKeyChange(row)" />
               </template>
             </el-table-column>
-            <el-table-column label="自增" width="60" align="center">
+            <el-table-column :label="$t('table.autoIncrement')" width="60" align="center">
               <template #default="{ row }">
                 <el-checkbox v-model="row.autoIncrement" :disabled="!row.primaryKey" />
               </template>
             </el-table-column>
-            <el-table-column label="无符号" width="70" align="center">
+            <el-table-column :label="$t('table.unsigned')" width="70" align="center">
               <template #default="{ row }">
                 <el-checkbox v-if="typeSupportsUnsigned(row.type)" v-model="row.unsigned" />
                 <span v-else class="disabled-cell">-</span>
               </template>
             </el-table-column>
-            <el-table-column label="默认值" min-width="100">
+            <el-table-column :label="$t('table.defaultValue')" min-width="100">
               <template #default="{ row }">
-                <el-input v-model="row.defaultValue" size="small" placeholder="默认值" />
+                <el-input v-model="row.defaultValue" size="small" :placeholder="$t('table.defaultValuePlaceholder')" />
               </template>
             </el-table-column>
-            <el-table-column label="注释" min-width="120">
+            <el-table-column :label="$t('table.comment')" min-width="120">
               <template #default="{ row }">
-                <el-input v-model="row.comment" size="small" placeholder="注释" />
+                <el-input v-model="row.comment" size="small" :placeholder="$t('table.commentPlaceholder')" />
               </template>
             </el-table-column>
           </el-table>
         </el-tab-pane>
         
         <!-- 索引定义 -->
-        <el-tab-pane label="索引定义" name="indexes">
+        <el-tab-pane :label="$t('table.indexesDefinition')" name="indexes">
           <div class="indexes-toolbar">
             <el-button size="small" type="primary" @click="addIndex">
-              <el-icon><Plus /></el-icon> 添加索引
+              <el-icon><Plus /></el-icon> {{ $t('table.addIndex') }}
             </el-button>
             <el-button size="small" type="danger" @click="removeSelectedIndexes" :disabled="selectedIndexes.length === 0">
-              <el-icon><Delete /></el-icon> 删除选中
+              <el-icon><Delete /></el-icon> {{ $t('common.deleteSelected') }}
             </el-button>
           </div>
           
@@ -192,12 +192,12 @@
             @selection-change="handleIndexSelectionChange"
           >
             <el-table-column type="selection" width="40" />
-            <el-table-column label="索引名" min-width="150">
+            <el-table-column :label="$t('table.indexName')" min-width="150">
               <template #default="{ row }">
-                <el-input v-model="row.name" size="small" placeholder="索引名" :disabled="row.type === 'PRIMARY'" />
+                <el-input v-model="row.name" size="small" :placeholder="$t('table.indexNamePlaceholder')" :disabled="row.type === 'PRIMARY'" />
               </template>
             </el-table-column>
-            <el-table-column label="类型" width="120">
+            <el-table-column :label="$t('table.type')" width="120">
               <template #default="{ row }">
                 <el-select v-model="row.type" size="small" :disabled="row.type === 'PRIMARY'">
                   <el-option label="PRIMARY" value="PRIMARY" />
@@ -207,13 +207,13 @@
                 </el-select>
               </template>
             </el-table-column>
-            <el-table-column label="列" min-width="250">
+            <el-table-column :label="$t('table.columns')" min-width="250">
               <template #default="{ row }">
                 <el-select
                   v-model="row.columnNames"
                   multiple
                   size="small"
-                  placeholder="选择列"
+                  :placeholder="$t('table.indexColumnsPlaceholder')"
                   style="width: 100%"
                 >
                   <el-option
@@ -232,9 +232,9 @@
       <!-- SQL 预览 -->
       <div class="sql-preview-section">
         <div class="preview-header">
-          <span>SQL 预览</span>
+          <span>{{ $t('table.sqlPreview') }}</span>
           <el-button size="small" text @click="refreshPreview">
-            <el-icon><Refresh /></el-icon> 刷新
+            <el-icon><Refresh /></el-icon> {{ $t('common.refresh') }}
           </el-button>
         </div>
         <pre class="sql-preview">{{ generatedSql }}</pre>
@@ -243,9 +243,9 @@
     
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleClose">取消</el-button>
+        <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="handleExecute" :loading="executing">
-          {{ isEditMode ? '修改表' : '创建表' }}
+          {{ isEditMode ? $t('table.alterTable') : $t('table.createTable') }}
         </el-button>
       </div>
     </template>
@@ -254,11 +254,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, Plus, Delete, Refresh } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
 import { MySQLDataTypes, typeNeedsLength, typeNeedsDecimals, typeSupportsUnsigned, typeNeedsFsp } from '@shared/types/database'
 
+const { t } = useI18n()
 const connectionStore = useConnectionStore()
 
 // 对话框可见性
@@ -275,11 +277,11 @@ const isEditMode = computed(() => connectionStore.tableDesignMode === 'edit')
 // 对话框标题
 const dialogTitle = computed(() => {
   const info = connectionStore.tableDesignInfo
-  if (!info) return '表设计'
+  if (!info) return t('table.designTitle')
   if (isEditMode.value) {
-    return `修改表 - ${info.database}.${info.table}`
+    return t('table.editTitle', { database: info.database, table: info.table })
   }
-  return `创建表 - ${info.database}`
+  return t('table.createTitle', { database: info.database })
 })
 
 // 当前激活的页签
@@ -300,14 +302,14 @@ const filteredCollations = computed(() => {
   return collations.value.filter(c => c.charset === tableForm.charset)
 })
 
-// 数据类型分组
+// 数据类型分组（用于下拉框分组）
 const dataTypeGroups = {
-  '整数': MySQLDataTypes.INTEGER,
-  '浮点': MySQLDataTypes.FLOAT,
-  '字符串': MySQLDataTypes.STRING,
-  '二进制': MySQLDataTypes.BINARY,
-  '日期时间': MySQLDataTypes.DATETIME,
-  '其他': MySQLDataTypes.OTHER
+  'integer': MySQLDataTypes.INTEGER,
+  'float': MySQLDataTypes.FLOAT,
+  'string': MySQLDataTypes.STRING,
+  'binary': MySQLDataTypes.BINARY,
+  'datetime': MySQLDataTypes.DATETIME,
+  'other': MySQLDataTypes.OTHER
 }
 
 // 用于生成唯一 key
@@ -642,8 +644,8 @@ function refreshPreview() {
 
 // 生成 SQL
 function generateSQL(): string {
-  if (!tableForm.name) return '-- 请输入表名'
-  if (tableForm.columns.length === 0) return '-- 请添加至少一列'
+  if (!tableForm.name) return t('table.pleaseInputTableName')
+  if (tableForm.columns.length === 0) return t('table.pleaseAddColumn')
   
   const info = connectionStore.tableDesignInfo
   if (!info) return ''
@@ -842,7 +844,7 @@ function generateAlterSQL(database: string): string {
   }
   
   if (statements.length === 0) {
-    return '-- 没有检测到变更'
+    return t('table.noChangesDetected')
   }
   
   return statements.join('\n\n')
@@ -940,11 +942,11 @@ function handleClose() {
 async function handleExecute() {
   // 验证
   if (!tableForm.name) {
-    ElMessage.warning('请输入表名')
+    ElMessage.warning(t('table.tableNameRequired'))
     return
   }
   if (tableForm.columns.filter(c => c.name).length === 0) {
-    ElMessage.warning('请添加至少一列')
+    ElMessage.warning(t('table.atLeastOneColumn'))
     return
   }
   
@@ -957,8 +959,8 @@ async function handleExecute() {
     : generateCreateSQL(info.database)
   
   // 检查是否有变更
-  if (isEditMode.value && sql === '-- 没有检测到变更') {
-    ElMessage.info('没有检测到变更')
+  if (isEditMode.value && sql === t('table.noChangesDetected')) {
+    ElMessage.info(t('table.noChanges'))
     return
   }
   
@@ -966,10 +968,10 @@ async function handleExecute() {
   try {
     await ElMessageBox.confirm(
       `<div style="max-height: 400px; overflow: auto;"><pre style="white-space: pre-wrap; word-break: break-all; font-size: 12px;">${sql}</pre></div>`,
-      isEditMode.value ? '确认修改表' : '确认创建表',
+      isEditMode.value ? t('table.confirmAlter') : t('table.confirmCreate'),
       {
-        confirmButtonText: '执行',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.execute'),
+        cancelButtonText: t('common.cancel'),
         dangerouslyUseHTMLString: true,
         customClass: 'sql-confirm-dialog'
       }
@@ -987,12 +989,12 @@ async function handleExecute() {
       const result = await connectionStore.executeDDL(info.connectionId, trimmedStmt + ';')
       
       if (!result.success) {
-        ElMessage.error(result.message || '执行失败')
+        ElMessage.error(result.message || t('common.executeFailed'))
         return
       }
     }
     
-    ElMessage.success(isEditMode.value ? '表修改成功' : '表创建成功')
+    ElMessage.success(isEditMode.value ? t('table.alterSuccess') : t('table.createSuccess'))
     connectionStore.closeTableDesignDialog()
     
     // 刷新表列表

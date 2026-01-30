@@ -11,7 +11,7 @@
     </el-tooltip>
     
     <!-- 还原按钮 -->
-    <el-tooltip content="还原所有修改" placement="top">
+    <el-tooltip :content="$t('result.rollbackChanges')" placement="top">
       <el-button
         :icon="RefreshLeft"
         size="small"
@@ -38,8 +38,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Plus, RefreshLeft, Delete, Check } from '@element-plus/icons-vue'
 import type { UseDataOperationsReturn } from '../composables/useDataOperations'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   dataOps: UseDataOperationsReturn
@@ -54,12 +57,12 @@ const emit = defineEmits<{
 // 新增按钮 tooltip
 const addButtonTooltip = computed(() => {
   if (props.dataOps.isJoinQuery.value) {
-    return '联表查询不支持新增'
+    return t('result.noEditableTable')
   }
   if (!props.dataOps.addButtonEnabled.value) {
-    return '当前查询不支持新增'
+    return t('result.noEditableTable')
   }
-  return '新增行'
+  return t('result.addRow')
 })
 
 // 操作按钮图标
@@ -77,11 +80,15 @@ const operationButtonTooltip = computed(() => {
   const state = props.dataOps.operationButtonState.value
   if (!props.dataOps.canOperate.value) {
     if (props.dataOps.isJoinQuery.value) {
-      return '联表查询不支持操作'
+      return t('result.noEditableTable')
     }
-    return '无主键，不支持操作'
+    return t('result.noEditableTable')
   }
-  return state.tooltip
+  // 返回本地化的按钮提示
+  if (state.mode === 'delete') {
+    return t('result.deleteRow')
+  }
+  return t('result.commitChanges')
 })
 
 // 新增行

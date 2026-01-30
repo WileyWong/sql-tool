@@ -1,5 +1,6 @@
-import { Menu, BrowserWindow, app, dialog, MenuItemConstructorOptions } from 'electron'
+import { Menu, BrowserWindow, app, dialog, MenuItemConstructorOptions, ipcMain } from 'electron'
 import { IpcChannels } from '@shared/constants'
+import { t, setLocale, getLocale, type SupportedLocale } from './i18n'
 
 let mainWindow: BrowserWindow | null = null
 let recentFiles: string[] = []
@@ -11,7 +12,7 @@ const isMac = process.platform === 'darwin'
  */
 function getRecentFilesSubmenu(): MenuItemConstructorOptions[] {
   if (recentFiles.length === 0) {
-    return [{ label: '(无)', enabled: false }]
+    return [{ label: t('menu.noRecentFiles'), enabled: false }]
   }
   
   // 最多显示10个
@@ -35,7 +36,7 @@ function buildMenuTemplate(): MenuItemConstructorOptions[] {
     template.push({
       label: app.name,
       submenu: [
-        { label: '关于 SQL Tool', click: showAboutDialog },
+        { label: t('menu.aboutApp'), click: showAboutDialog },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -43,72 +44,77 @@ function buildMenuTemplate(): MenuItemConstructorOptions[] {
         { role: 'hideOthers' },
         { role: 'unhide' },
         { type: 'separator' },
-        { role: 'quit', label: '退出' }
+        { role: 'quit', label: t('menu.exit') }
       ]
     })
   }
   
   // 文件菜单
   template.push({
-    label: '文件(&F)',
+    label: t('menu.file'),
     submenu: [
       {
-        label: '新建连接',
+        label: t('menu.newConnection'),
         accelerator: 'CmdOrCtrl+N',
         click: () => mainWindow?.webContents.send(IpcChannels.MENU_NEW_CONNECTION)
       },
       {
-        label: '新建查询',
+        label: t('menu.newQuery'),
         accelerator: 'CmdOrCtrl+T',
         click: () => mainWindow?.webContents.send(IpcChannels.MENU_NEW_QUERY)
       },
       { type: 'separator' },
       {
-        label: '最近打开的文件',
+        label: t('menu.recentFiles'),
         submenu: getRecentFilesSubmenu()
       },
       { type: 'separator' },
       {
-        label: '打开文件',
+        label: t('menu.openFile'),
         accelerator: 'CmdOrCtrl+O',
         click: () => mainWindow?.webContents.send(IpcChannels.MENU_OPEN_FILE)
       },
       {
-        label: '保存',
+        label: t('menu.save'),
         accelerator: 'CmdOrCtrl+S',
         click: () => mainWindow?.webContents.send(IpcChannels.MENU_SAVE)
       },
       {
-        label: '另存为',
+        label: t('menu.saveAs'),
         accelerator: 'CmdOrCtrl+Shift+S',
         click: () => mainWindow?.webContents.send(IpcChannels.MENU_SAVE_AS)
       },
       { type: 'separator' },
+      {
+        label: t('menu.settings'),
+        click: () => mainWindow?.webContents.send(IpcChannels.MENU_OPEN_SETTINGS)
+      },
+      { type: 'separator' },
       isMac
-        ? { role: 'close', label: '关闭窗口' }
-        : { label: '退出', accelerator: 'Alt+F4', role: 'quit' }
+        ? { role: 'close', label: t('menu.closeWindow') }
+        : { label: t('menu.exit'), accelerator: 'Alt+F4', role: 'quit' }
     ]
   })
   
   // 编辑菜单
   template.push({
-    label: '编辑(&E)',
+    label: t('menu.edit'),
     submenu: [
-      { label: '撤销', accelerator: 'CmdOrCtrl+Z', role: 'undo' },
-      { label: '重做', accelerator: isMac ? 'Cmd+Shift+Z' : 'Ctrl+Y', role: 'redo' },
+      { label: t('menu.undo'), accelerator: 'CmdOrCtrl+Z', role: 'undo' },
+      { label: t('menu.redo'), accelerator: isMac ? 'Cmd+Shift+Z' : 'Ctrl+Y', role: 'redo' },
       { type: 'separator' },
-      { label: '剪切', accelerator: 'CmdOrCtrl+X', role: 'cut' },
-      { label: '复制', accelerator: 'CmdOrCtrl+C', role: 'copy' },
-      { label: '粘贴', accelerator: 'CmdOrCtrl+V', role: 'paste' }
+      { label: t('menu.cut'), accelerator: 'CmdOrCtrl+X', role: 'cut' },
+      { label: t('menu.copy'), accelerator: 'CmdOrCtrl+C', role: 'copy' },
+      { label: t('menu.paste'), accelerator: 'CmdOrCtrl+V', role: 'paste' }
     ]
   })
   
   // 帮助菜单
   template.push({
-    label: '帮助(&H)',
+    label: t('menu.help'),
     submenu: [
       // macOS 的关于在应用程序菜单中，Windows/Linux 在帮助菜单
-      ...(isMac ? [] : [{ label: '关于', click: showAboutDialog }])
+      ...(isMac ? [] : [{ label: t('menu.about'), click: showAboutDialog }])
     ]
   })
   
@@ -123,9 +129,9 @@ function showAboutDialog() {
   
   dialog.showMessageBox(mainWindow, {
     type: 'info',
-    title: '关于 SQL Tool',
-    message: 'SQL Tool',
-    detail: `版本: ${app.getVersion()}`
+    title: t('dialog.about.title'),
+    message: t('dialog.about.message'),
+    detail: `${t('dialog.about.version')}: ${app.getVersion()}`
   })
 }
 
@@ -145,4 +151,28 @@ export function updateRecentFilesMenu(files: string[]): void {
   recentFiles = files.slice(0, 10)
   const menu = Menu.buildFromTemplate(buildMenuTemplate())
   Menu.setApplicationMenu(menu)
+}
+
+/**
+ * 更新菜单语言并重建菜单
+ */
+export function updateMenuLocale(locale: SupportedLocale): void {
+  setLocale(locale)
+  const menu = Menu.buildFromTemplate(buildMenuTemplate())
+  Menu.setApplicationMenu(menu)
+}
+
+/**
+ * 设置国际化相关的 IPC 处理
+ */
+export function setupI18nIpc(): void {
+  // 语言切换
+  ipcMain.handle(IpcChannels.LOCALE_CHANGED, (_event, locale: string) => {
+    updateMenuLocale(locale as SupportedLocale)
+  })
+  
+  // 获取当前保存的语言
+  ipcMain.handle(IpcChannels.LOCALE_GET, () => {
+    return getLocale()
+  })
 }

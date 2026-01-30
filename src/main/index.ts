@@ -5,7 +5,8 @@ import { setupDatabaseHandlers } from './ipc/database'
 import { setupQueryHandlers } from './ipc/query'
 import { setupFileHandlers } from './ipc/file'
 import { initSqlLanguageServer } from './sql-language-server'
-import { createApplicationMenu, updateRecentFilesMenu } from './menu'
+import { createApplicationMenu, updateRecentFilesMenu, setupI18nIpc } from './menu'
+import { initI18n } from './i18n'
 import { IpcChannels } from '@shared/constants'
 
 // 禁用硬件加速（解决某些系统上的渲染问题）
@@ -65,6 +66,9 @@ function setupIpcHandlers() {
   setupQueryHandlers(ipcMain)
   setupFileHandlers(ipcMain)
   
+  // 设置国际化相关 IPC
+  setupI18nIpc()
+  
   // 窗口关闭确认
   ipcMain.on(IpcChannels.WINDOW_CLOSE_CONFIRMED, () => {
     forceClose = true
@@ -81,6 +85,9 @@ function setupIpcHandlers() {
 }
 
 app.whenReady().then(() => {
+  // 初始化国际化
+  initI18n()
+  
   setupIpcHandlers()
   createWindow()
 

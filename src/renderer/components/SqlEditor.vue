@@ -19,13 +19,13 @@
     <!-- 连接信息栏 -->
     <div class="connection-info">
       <div class="info-item">
-        <span class="label">服务器:</span>
+        <span class="label">{{ $t('editor.server') }}:</span>
         <el-select 
           v-model="selectedConnectionId" 
           class="info-select"
           filterable
           clearable
-          placeholder="请选择连接"
+          :placeholder="$t('editor.selectConnection')"
           popper-class="info-select-dropdown"
           :filter-method="filterConnections"
           @visible-change="handleConnectionDropdownVisibleChange"
@@ -39,13 +39,13 @@
         </el-select>
       </div>
       <div class="info-item">
-        <span class="label">数据库:</span>
+        <span class="label">{{ $t('editor.database') }}:</span>
         <el-select 
           v-model="selectedDatabase" 
           class="info-select"
           filterable
           clearable
-          placeholder="请选择数据库"
+          :placeholder="$t('editor.selectDatabase')"
           popper-class="info-select-dropdown"
           :filter-method="filterDatabases"
           @visible-change="handleDatabaseDropdownVisibleChange"
@@ -59,11 +59,11 @@
         </el-select>
       </div>
       <div class="info-item">
-        <span class="label">用户:</span>
+        <span class="label">{{ $t('editor.user') }}:</span>
         <span class="value">{{ currentUser }}</span>
       </div>
       <div class="info-item">
-        <span class="label">最大行数:</span>
+        <span class="label">{{ $t('editor.maxRows') }}:</span>
         <input 
           type="text" 
           v-model="maxRowsInput" 
@@ -81,6 +81,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
+import { useI18n } from 'vue-i18n'
 import * as monaco from 'monaco-editor'
 import { ElMessage } from 'element-plus'
 import { useEditorStore } from '../stores/editor'
@@ -92,6 +93,7 @@ import { useLanguageServer } from '../composables/useLanguageServer'
 import { useEditorModel } from '../composables/useEditorModel'
 import { DEFAULT_MAX_ROWS } from '../constants/layout'
 
+const { t } = useI18n()
 const editorStore = useEditorStore()
 const connectionStore = useConnectionStore()
 const resultStore = useResultStore()
@@ -283,7 +285,7 @@ watch(selectedConnectionId, async (newId) => {
     if (conn && conn.status !== 'connected') {
       const result = await connectionStore.connect(newId)
       if (!result.success) {
-        ElMessage.error(`连接失败: ${result.message || '未知错误'}`)
+        ElMessage.error(t('error.connectionFailed', { message: result.message || t('error.unknown') }))
         return
       }
     }

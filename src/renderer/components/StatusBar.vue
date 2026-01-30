@@ -22,9 +22,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
 
+const { t } = useI18n()
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
 
@@ -37,12 +39,12 @@ const currentTabConnection = computed(() => {
 
 const connectionStatus = computed(() => {
   const conn = currentTabConnection.value
-  if (!conn) return '🔴 未连接'
+  if (!conn) return `🔴 ${t('status.disconnected')}`
   switch (conn.status) {
-    case 'connected': return '🟢 已连接'
-    case 'connecting': return '🟡 连接中...'
-    case 'error': return '🔴 连接错误'
-    default: return '⚪ 未连接'
+    case 'connected': return `🟢 ${t('connection.connected')}`
+    case 'connecting': return `🟡 ${t('connection.connecting')}`
+    case 'error': return `🔴 ${t('error.connectionFailed', { message: '' }).replace('：', '')}`
+    default: return `⚪ ${t('status.disconnected')}`
   }
 })
 
@@ -55,7 +57,7 @@ const serverVersion = computed(() => {
 })
 
 const cursorPosition = computed(() => {
-  return `行: 1, 列: 1`
+  return t('status.position', { line: 1, column: 1 })
 })
 
 // hover 提示

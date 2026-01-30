@@ -9,21 +9,21 @@
   >
     <el-tabs v-model="activeTab" class="table-tabs">
       <!-- 建表语句页签 -->
-      <el-tab-pane label="建表语句" name="createSql">
+      <el-tab-pane :label="$t('table.createSql')" name="createSql">
         <div class="sql-container">
           <div v-if="loading.createSql" class="loading-container">
             <el-icon class="is-loading"><Loading /></el-icon>
-            <span>加载中...</span>
+            <span>{{ $t('common.loading') }}</span>
           </div>
           <pre v-else class="sql-content">{{ createSql }}</pre>
         </div>
       </el-tab-pane>
       
       <!-- 列信息页签 -->
-      <el-tab-pane label="列" name="columns">
+      <el-tab-pane :label="$t('table.columns')" name="columns">
         <div v-if="loading.columns" class="loading-container">
           <el-icon class="is-loading"><Loading /></el-icon>
-          <span>加载中...</span>
+          <span>{{ $t('common.loading') }}</span>
         </div>
         <el-table
           v-else
@@ -34,21 +34,21 @@
           class="columns-table"
           max-height="400"
         >
-          <el-table-column prop="name" label="列名" min-width="120" fixed />
-          <el-table-column prop="columnType" label="类型" min-width="120" />
-          <el-table-column prop="defaultValue" label="默认值" min-width="100">
+          <el-table-column prop="name" :label="$t('table.columnName')" min-width="120" fixed />
+          <el-table-column prop="columnType" :label="$t('table.type')" min-width="120" />
+          <el-table-column prop="defaultValue" :label="$t('table.defaultValue')" min-width="100">
             <template #default="{ row }">
               {{ row.defaultValue ?? 'NULL' }}
             </template>
           </el-table-column>
-          <el-table-column prop="nullable" label="允许空" width="80" align="center">
+          <el-table-column prop="nullable" :label="$t('table.allowNull')" width="80" align="center">
             <template #default="{ row }">
               <el-tag :type="row.nullable ? 'success' : 'danger'" size="small">
-                {{ row.nullable ? '是' : '否' }}
+                {{ row.nullable ? $t('common.yes') : $t('common.no') }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="characterSet" label="字符编码" width="100">
+          <el-table-column prop="characterSet" :label="$t('table.characterSet')" width="100">
             <template #default="{ row }">
               {{ row.characterSet || '-' }}
             </template>
@@ -58,19 +58,19 @@
               {{ row.collation || '-' }}
             </template>
           </el-table-column>
-          <el-table-column prop="primaryKey" label="主键" width="70" align="center">
+          <el-table-column prop="primaryKey" :label="$t('table.primaryKey')" width="70" align="center">
             <template #default="{ row }">
               <el-tag v-if="row.primaryKey" type="warning" size="small">PK</el-tag>
               <span v-else>-</span>
             </template>
           </el-table-column>
-          <el-table-column prop="autoIncrement" label="自增" width="70" align="center">
+          <el-table-column prop="autoIncrement" :label="$t('table.autoIncrement')" width="70" align="center">
             <template #default="{ row }">
               <el-tag v-if="row.autoIncrement" type="info" size="small">AI</el-tag>
               <span v-else>-</span>
             </template>
           </el-table-column>
-          <el-table-column prop="comment" label="注释" min-width="150">
+          <el-table-column prop="comment" :label="$t('table.comment')" min-width="150">
             <template #default="{ row }">
               {{ row.comment || '-' }}
             </template>
@@ -79,15 +79,15 @@
       </el-tab-pane>
       
       <!-- 索引信息页签 -->
-      <el-tab-pane label="索引" name="indexes">
+      <el-tab-pane :label="$t('table.indexes')" name="indexes">
         <div v-if="loading.indexes" class="loading-container">
           <el-icon class="is-loading"><Loading /></el-icon>
-          <span>加载中...</span>
+          <span>{{ $t('common.loading') }}</span>
         </div>
         <div v-else class="indexes-container">
           <!-- 左侧索引列表 -->
           <div class="index-list">
-            <div class="index-list-header">索引列表</div>
+            <div class="index-list-header">{{ $t('table.indexList') }}</div>
             <div
               v-for="index in indexes"
               :key="index.name"
@@ -100,13 +100,13 @@
               </el-tag>
             </div>
             <div v-if="indexes.length === 0" class="no-data">
-              暂无索引
+              {{ $t('common.noIndex') }}
             </div>
           </div>
           
           <!-- 右侧索引详情 -->
           <div class="index-detail">
-            <div class="index-detail-header">索引列信息</div>
+            <div class="index-detail-header">{{ $t('table.indexColumnInfo') }}</div>
             <el-table
               v-if="selectedIndex"
               :data="selectedIndex.columns"
@@ -115,28 +115,28 @@
               size="small"
               class="index-columns-table"
             >
-              <el-table-column prop="seqInIndex" label="序号" width="60" align="center" />
-              <el-table-column prop="columnName" label="列名" min-width="120" />
-              <el-table-column prop="order" label="排序" width="80" align="center">
+              <el-table-column prop="seqInIndex" :label="$t('table.seqInIndex')" width="60" align="center" />
+              <el-table-column prop="columnName" :label="$t('table.columnName')" min-width="120" />
+              <el-table-column prop="order" :label="$t('table.order')" width="80" align="center">
                 <template #default="{ row }">
                   <el-tag :type="row.order === 'ASC' ? 'primary' : 'warning'" size="small">
                     {{ row.order }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="subPart" label="前缀长度" width="100" align="center">
+              <el-table-column prop="subPart" :label="$t('table.prefixLength')" width="100" align="center">
                 <template #default="{ row }">
                   {{ row.subPart ?? '-' }}
                 </template>
               </el-table-column>
-              <el-table-column prop="cardinality" label="基数" width="100" align="right">
+              <el-table-column prop="cardinality" :label="$t('table.cardinality')" width="100" align="right">
                 <template #default="{ row }">
                   {{ row.cardinality ?? '-' }}
                 </template>
               </el-table-column>
             </el-table>
             <div v-else class="no-selection">
-              请选择左侧索引查看详情
+              {{ $t('common.selectIndex') }}
             </div>
           </div>
         </div>
@@ -145,7 +145,7 @@
     
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleClose">关闭</el-button>
+        <el-button @click="handleClose">{{ $t('common.close') }}</el-button>
       </div>
     </template>
   </el-dialog>
@@ -153,10 +153,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Loading } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
 import type { ColumnMeta, IndexMeta } from '@shared/types'
 
+const { t } = useI18n()
 const connectionStore = useConnectionStore()
 
 // 对话框可见性
@@ -170,8 +172,8 @@ const visible = computed({
 // 对话框标题
 const dialogTitle = computed(() => {
   const info = connectionStore.tableManageInfo
-  if (!info) return '表管理'
-  return `表管理 - ${info.database}.${info.table}`
+  if (!info) return t('table.manageTitle')
+  return t('table.manageFullTitle', { database: info.database, table: info.table })
 })
 
 // 当前激活的页签

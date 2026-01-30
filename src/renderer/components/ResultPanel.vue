@@ -27,7 +27,7 @@
         </el-tab-pane>
         
         <!-- 消息标签页 -->
-        <el-tab-pane label="消息" name="message">
+        <el-tab-pane :label="$t('result.message')" name="message">
           <div class="message-list">
             <div
               v-for="(msg, index) in messages"
@@ -38,7 +38,7 @@
               <span class="text">{{ msg.text }}</span>
             </div>
             <div v-if="messages.length === 0" class="empty-message">
-              暂无消息
+              {{ $t('result.noData') }}
             </div>
           </div>
         </el-tab-pane>
@@ -59,7 +59,7 @@
       <div class="export-buttons" v-if="canExport">
         <el-dropdown trigger="hover" @command="handleExport">
           <button class="export-btn">
-            📥 导出 <span class="dropdown-arrow">▼</span>
+            📥 {{ $t('result.export') }} <span class="dropdown-arrow">▼</span>
           </button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -86,6 +86,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useResultStore } from '../stores/result'
 import { useEditorStore } from '../stores/editor'
@@ -97,6 +98,7 @@ import ConfirmSqlDialog from './ConfirmSqlDialog.vue'
 import { useDataOperations } from '../composables/useDataOperations'
 import type { QueryResultSet, ExplainResult } from '@shared/types'
 
+const { t } = useI18n()
 const resultStore = useResultStore()
 const editorStore = useEditorStore()
 
@@ -169,7 +171,7 @@ function handleAddRow() {
 // 还原
 function handleRevert() {
   dataOps.revertAll()
-  ElMessage.info('已还原所有修改')
+  ElMessage.info(t('result.discardChanges'))
 }
 
 // 操作按钮点击（接收来自工具栏的操作类型）
@@ -205,25 +207,25 @@ async function handleConfirmExecute() {
       const result = await dataOps.executeDelete()
       
       if (result.success) {
-        ElMessage.success('删除成功')
+        ElMessage.success(t('message.deleteSuccess'))
         // 删除成功后，直接从当前结果集中移除已删除的行
         if (result.deletedRowKeys && result.deletedRowKeys.length > 0) {
           removeDeletedRows(result.deletedRowKeys)
         }
       } else {
-        ElMessage.error(result.message || '删除失败')
+        ElMessage.error(result.message || t('message.operationFailed'))
       }
     } else {
       const result = await dataOps.executeSubmit()
       
       if (result.success) {
-        ElMessage.success('提交成功')
+        ElMessage.success(t('result.commitSuccess', { count: confirmDialog.sqls.length }))
         // 合并新增行到结果集（UPDATE 修改已在 executeSubmit 内部应用）
         if (result.committedNewRows && result.committedNewRows.length > 0) {
           mergeNewRowsToResult(result.committedNewRows)
         }
       } else {
-        ElMessage.error(result.message || '提交失败')
+        ElMessage.error(result.message || t('result.commitFailed'))
       }
     }
   } finally {
@@ -351,7 +353,7 @@ function deepSerialize<T>(data: T): T {
 async function handleExport(format: 'csv' | 'json' | 'xlsx') {
   const data = currentResultSet.value
   if (!data) {
-    ElMessage.warning('没有可导出的数据')
+    ElMessage.warning(t('result.noData'))
     return
   }
   
@@ -370,9 +372,9 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
   
   const result = await window.api.file.export(columns, rows, format)
   if (result.success) {
-    ElMessage.success(`导出成功: ${result.filePath}`)
+    ElMessage.success(`${t('result.exportSuccess')}: ${result.filePath}`)
   } else if (!result.canceled) {
-    ElMessage.error(result.message || '导出失败')
+    ElMessage.error(result.message || t('result.exportFailed'))
   }
 }
 </script>

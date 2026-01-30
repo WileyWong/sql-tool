@@ -51,5 +51,12 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist'
+  },
+  // 定义环境变量，启用 vue-i18n 的运行时编译功能（使用 JIT 编译）
+  define: {
+    __VUE_I18N_FULL_INSTALL__: true,
+    __VUE_I18N_LEGACY_API__: false,
+    __INTLIFY_JIT_COMPILATION__: true,
+    __INTLIFY_DROP_MESSAGE_COMPILER__: false
   }
 })

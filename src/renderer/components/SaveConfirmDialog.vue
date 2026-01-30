@@ -2,15 +2,15 @@
   <div v-if="visible" class="dialog-overlay" @click.self="handleCancel">
     <div class="dialog">
       <div class="dialog-header">
-        <h3>保存更改</h3>
+        <h3>{{ $t('dialog.saveConfirm.title') }}</h3>
       </div>
       <div class="dialog-body">
-        <p>文件 "{{ fileName }}" 已修改，是否保存更改？</p>
+        <p>{{ $t('dialog.saveConfirm.message', { name: fileName }) }}</p>
       </div>
       <div class="dialog-footer">
-        <button class="btn btn-primary" @click="handleSave">保存</button>
-        <button class="btn btn-secondary" @click="handleDontSave">不保存</button>
-        <button class="btn btn-cancel" @click="handleCancel">取消</button>
+        <button class="btn btn-primary" @click="handleSave">{{ $t('dialog.saveConfirm.save') }}</button>
+        <button class="btn btn-secondary" @click="handleDontSave">{{ $t('dialog.saveConfirm.dontSave') }}</button>
+        <button class="btn btn-cancel" @click="handleCancel">{{ $t('common.cancel') }}</button>
       </div>
     </div>
   </div>
@@ -18,6 +18,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // 对话框状态
 const visible = ref(false)
@@ -32,7 +35,7 @@ const fileName = computed(() => {
   if (currentFilePath.value) {
     return currentFilePath.value.split(/[/\\]/).pop() || currentTitle.value
   }
-  return currentTitle.value || '未命名'
+  return currentTitle.value || t('editor.untitled')
 })
 
 // 显示对话框

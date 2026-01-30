@@ -195,6 +195,9 @@ const api = {
     onSaveAs: (callback: () => void): void => {
       ipcRenderer.on(IpcChannels.MENU_SAVE_AS, callback)
     },
+    onOpenSettings: (callback: () => void): void => {
+      ipcRenderer.on(IpcChannels.MENU_OPEN_SETTINGS, callback)
+    },
     // 更新最近文件菜单
     updateRecentFiles: (files: string[]): Promise<void> =>
       ipcRenderer.invoke(IpcChannels.MENU_UPDATE_RECENT_FILES, files),
@@ -206,7 +209,16 @@ const api = {
       ipcRenderer.removeAllListeners(IpcChannels.MENU_OPEN_RECENT)
       ipcRenderer.removeAllListeners(IpcChannels.MENU_SAVE)
       ipcRenderer.removeAllListeners(IpcChannels.MENU_SAVE_AS)
+      ipcRenderer.removeAllListeners(IpcChannels.MENU_OPEN_SETTINGS)
     }
+  },
+
+  // 国际化相关
+  locale: {
+    setLocale: (locale: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannels.LOCALE_CHANGED, locale),
+    getLocale: (): Promise<string> =>
+      ipcRenderer.invoke(IpcChannels.LOCALE_GET)
   }
 }
 

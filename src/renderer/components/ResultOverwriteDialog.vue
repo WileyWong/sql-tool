@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="未保存的修改"
+    :title="$t('dialog.resultOverwrite.title')"
     width="400px"
     :close-on-click-modal="false"
     :close-on-press-escape="false"
@@ -10,15 +10,15 @@
   >
     <div class="dialog-content">
       <div class="warning-icon">⚠️</div>
-      <p class="message">当前查询结果有未保存的修改，是否继续执行新的查询？</p>
-      <p class="hint">继续执行将覆盖当前结果。</p>
+      <p class="message">{{ $t('dialog.resultOverwrite.message') }}</p>
+      <p class="hint">{{ $t('dialog.resultOverwrite.hint') }}</p>
     </div>
     
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleCancel">取消</el-button>
-        <el-button type="warning" @click="handleDiscard">放弃</el-button>
-        <el-button type="primary" @click="handleSubmit">提交</el-button>
+        <el-button @click="handleCancel">{{ $t('dialog.resultOverwrite.cancel') }}</el-button>
+        <el-button type="warning" @click="handleDiscard">{{ $t('dialog.resultOverwrite.discard') }}</el-button>
+        <el-button type="primary" @click="handleSubmit">{{ $t('dialog.resultOverwrite.submit') }}</el-button>
       </div>
     </template>
   </el-dialog>

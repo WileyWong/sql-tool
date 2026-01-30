@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="isEdit ? '编辑连接' : '新建连接'"
+    :title="isEdit ? $t('connection.editConnection') : $t('connection.newConnection')"
     width="500px"
     :close-on-click-modal="false"
     @close="handleClose"
@@ -13,12 +13,12 @@
       label-width="100px"
       label-position="right"
     >
-      <el-form-item label="连接名称" prop="name">
-        <el-input v-model="form.name" placeholder="请输入连接名称" />
+      <el-form-item :label="$t('connection.connectionName')" prop="name">
+        <el-input v-model="form.name" :placeholder="$t('connection.connectionNamePlaceholder')" />
       </el-form-item>
       
-      <el-form-item label="服务地址" prop="host">
-        <el-input v-model="form.host" placeholder="localhost">
+      <el-form-item :label="$t('connection.host')" prop="host">
+        <el-input v-model="form.host" :placeholder="$t('connection.hostPlaceholder')">
           <template #append>
             <el-input-number
               v-model="form.port"
@@ -32,33 +32,33 @@
         </el-input>
       </el-form-item>
       
-      <el-form-item label="用户名" prop="username">
-        <el-input v-model="form.username" placeholder="root" />
+      <el-form-item :label="$t('connection.username')" prop="username">
+        <el-input v-model="form.username" :placeholder="$t('connection.usernamePlaceholder')" />
       </el-form-item>
       
-      <el-form-item label="密码" prop="password">
+      <el-form-item :label="$t('connection.password')" prop="password">
         <el-input
           v-model="form.password"
           type="password"
           show-password
-          placeholder="请输入密码"
+          :placeholder="$t('connection.passwordPlaceholder')"
         />
       </el-form-item>
       
-      <el-form-item label="默认数据库">
-        <el-input v-model="form.database" placeholder="可选，连接后默认选中的数据库" />
+      <el-form-item :label="$t('connection.database')">
+        <el-input v-model="form.database" :placeholder="$t('connection.databasePlaceholder')" />
       </el-form-item>
     </el-form>
     
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleTest" :loading="testing">
-          测试连接
+          {{ $t('connection.testConnection') }}
         </el-button>
         <div class="footer-right">
-          <el-button @click="handleClose">取消</el-button>
+          <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
           <el-button type="primary" @click="handleSave" :loading="saving">
-            保存
+            {{ $t('common.save') }}
           </el-button>
         </div>
       </div>
@@ -68,10 +68,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useConnectionStore } from '../stores/connection'
 import { Defaults } from '@shared/constants'
 
+const { t } = useI18n()
 const connectionStore = useConnectionStore()
 
 const formRef = ref<FormInstance>()
@@ -96,21 +98,21 @@ const form = ref({
   database: ''
 })
 
-const rules: FormRules = {
+const rules = computed<FormRules>(() => ({
   name: [
-    { required: true, message: '请输入连接名称', trigger: 'blur' },
-    { max: 50, message: '连接名称最多50字符', trigger: 'blur' }
+    { required: true, message: t('connection.connectionRequired'), trigger: 'blur' },
+    { max: 50, message: t('connection.connectionRequired'), trigger: 'blur' }
   ],
   host: [
-    { required: true, message: '请输入服务地址', trigger: 'blur' }
+    { required: true, message: t('connection.hostRequired'), trigger: 'blur' }
   ],
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' }
+    { required: true, message: t('connection.usernameRequired'), trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' }
+    { required: true, message: t('connection.passwordPlaceholder'), trigger: 'blur' }
   ]
-}
+}))
 
 // 监听编辑连接变化
 watch(() => connectionStore.editingConnection, (conn) => {
@@ -156,7 +158,7 @@ async function handleTest() {
     })
     
     if (result.success) {
-      ElMessage.success(`连接成功！服务器版本: ${result.serverVersion}`)
+      ElMessage.success(`${t('connection.testSuccess')}! ${t('connection.serverVersion')}: ${result.serverVersion}`)
     } else {
       ElMessage.error(result.message)
     }
@@ -186,10 +188,10 @@ async function handleSave() {
     )
     
     if (result.success) {
-      ElMessage.success('保存成功')
+      ElMessage.success(t('message.saveSuccess'))
       connectionStore.closeDialog()
     } else {
-      ElMessage.error(result.message || '保存失败')
+      ElMessage.error(result.message || t('error.saveFailed', { message: '' }))
     }
   } finally {
     saving.value = false

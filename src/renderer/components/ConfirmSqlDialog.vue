@@ -15,10 +15,10 @@
       <div class="sql-preview" :class="{ scrollable: sqls.length > 10 }">
         <pre><code>{{ sqls.join('\n') }}</code></pre>
       </div>
-      <p class="count-text">共 {{ sqls.length }} 条语句</p>
+      <p class="count-text">{{ $t('dialog.confirmSql.statementCount', { count: sqls.length }) }}</p>
     </div>
     <template #footer>
-      <el-button @click="handleCancel">取消</el-button>
+      <el-button @click="handleCancel">{{ $t('common.cancel') }}</el-button>
       <el-button 
         :type="confirmButtonType" 
         @click="handleConfirm"
@@ -32,7 +32,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { WarningFilled, InfoFilled } from '@element-plus/icons-vue'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   modelValue: boolean
@@ -54,19 +57,19 @@ const visible = computed({
 
 const title = computed(() => {
   switch (props.type) {
-    case 'delete': return '确认删除'
-    case 'update': return '确认修改'
-    case 'insert': return '确认新增'
-    case 'mixed': return '确认提交'
+    case 'delete': return t('dialog.confirmSql.deleteTitle')
+    case 'update': return t('dialog.confirmSql.updateTitle')
+    case 'insert': return t('dialog.confirmSql.insertTitle')
+    case 'mixed': return t('dialog.confirmSql.mixedTitle')
   }
 })
 
 const warningText = computed(() => {
   switch (props.type) {
-    case 'delete': return '删除后不可恢复，是否继续？'
-    case 'update': return '即将执行以下 UPDATE 语句，是否继续？'
-    case 'insert': return '即将执行以下 INSERT 语句，是否继续？'
-    case 'mixed': return '即将执行以下 SQL 语句，是否继续？'
+    case 'delete': return t('dialog.confirmSql.deleteWarning')
+    case 'update': return t('dialog.confirmSql.updateWarning')
+    case 'insert': return t('dialog.confirmSql.insertWarning')
+    case 'mixed': return t('dialog.confirmSql.mixedWarning')
   }
 })
 
@@ -76,10 +79,10 @@ const confirmButtonType = computed(() => {
 
 const confirmButtonText = computed(() => {
   switch (props.type) {
-    case 'delete': return '确认删除'
-    case 'update': return '确认修改'
-    case 'insert': return '确认新增'
-    case 'mixed': return '确认提交'
+    case 'delete': return t('dialog.confirmSql.confirmDelete')
+    case 'update': return t('dialog.confirmSql.confirmUpdate')
+    case 'insert': return t('dialog.confirmSql.confirmInsert')
+    case 'mixed': return t('dialog.confirmSql.confirmSubmit')
   }
 })
 

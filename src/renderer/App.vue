@@ -1,61 +1,70 @@
 <template>
-  <div class="app-container">
-    <!-- 工具栏 -->
-    <div class="app-toolbar">
-      <Toolbar />
+  <el-config-provider :locale="elementLocale">
+    <div class="app-container">
+      <!-- 工具栏 -->
+      <div class="app-toolbar">
+        <Toolbar />
+      </div>
+      
+      <!-- 主内容区 -->
+      <main class="app-main">
+        <!-- 左侧边栏：连接树 -->
+        <aside class="sidebar" :style="{ width: sidebarWidth + 'px' }">
+          <div class="sidebar-header">{{ $t('connection.title') }}</div>
+          <ConnectionTree />
+        </aside>
+        
+        <!-- 左右分隔条 -->
+        <div class="resizer-horizontal" @mousedown="startResizeH"></div>
+        
+        <!-- 右侧内容区 -->
+        <section class="content">
+          <!-- SQL 编辑器 -->
+          <div class="editor-area">
+            <SqlEditor ref="sqlEditorRef" />
+          </div>
+          
+          <!-- 上下分隔条 -->
+          <div class="resize-handle" @mousedown="startResizeV"></div>
+          
+          <!-- 结果面板 -->
+          <div class="result-area" :style="{ height: resultHeight + 'px' }">
+            <ResultPanel ref="resultPanelRef" />
+          </div>
+        </section>
+      </main>
+      
+      <!-- 状态栏 -->
+      <StatusBar />
+      
+      <!-- 连接对话框 -->
+      <ConnectionDialog />
+      
+      <!-- 表管理对话框 -->
+      <TableManageDialog />
+      
+      <!-- 表设计对话框（创建/修改表） -->
+      <TableDesignDialog />
+      
+      <!-- 保存确认对话框 -->
+      <SaveConfirmDialog ref="saveConfirmDialogRef" />
+      
+      <!-- 结果覆盖确认对话框 -->
+      <ResultOverwriteDialog ref="resultOverwriteDialogRef" />
+      
+      <!-- 设置对话框 -->
+      <SettingsDialog ref="settingsDialogRef" />
     </div>
-    
-    <!-- 主内容区 -->
-    <main class="app-main">
-      <!-- 左侧边栏：连接树 -->
-      <aside class="sidebar" :style="{ width: sidebarWidth + 'px' }">
-        <div class="sidebar-header">数据库连接</div>
-        <ConnectionTree />
-      </aside>
-      
-      <!-- 左右分隔条 -->
-      <div class="resizer-horizontal" @mousedown="startResizeH"></div>
-      
-      <!-- 右侧内容区 -->
-      <section class="content">
-        <!-- SQL 编辑器 -->
-        <div class="editor-area">
-          <SqlEditor ref="sqlEditorRef" />
-        </div>
-        
-        <!-- 上下分隔条 -->
-        <div class="resize-handle" @mousedown="startResizeV"></div>
-        
-        <!-- 结果面板 -->
-        <div class="result-area" :style="{ height: resultHeight + 'px' }">
-          <ResultPanel ref="resultPanelRef" />
-        </div>
-      </section>
-    </main>
-    
-    <!-- 状态栏 -->
-    <StatusBar />
-    
-    <!-- 连接对话框 -->
-    <ConnectionDialog />
-    
-    <!-- 表管理对话框 -->
-    <TableManageDialog />
-    
-    <!-- 表设计对话框（创建/修改表） -->
-    <TableDesignDialog />
-    
-    <!-- 保存确认对话框 -->
-    <SaveConfirmDialog ref="saveConfirmDialogRef" />
-    
-    <!-- 结果覆盖确认对话框 -->
-    <ResultOverwriteDialog ref="resultOverwriteDialogRef" />
-  </div>
+  </el-config-provider>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, provide } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, computed, onMounted, onUnmounted, provide } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { ElMessage, ElConfigProvider } from 'element-plus'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import zhTw from 'element-plus/es/locale/lang/zh-tw'
+import en from 'element-plus/es/locale/lang/en'
 import Toolbar from './components/Toolbar.vue'
 import ConnectionTree from './components/ConnectionTree.vue'
 import SqlEditor from './components/SqlEditor.vue'
@@ -66,9 +75,11 @@ import TableDesignDialog from './components/TableDesignDialog.vue'
 import StatusBar from './components/StatusBar.vue'
 import SaveConfirmDialog from './components/SaveConfirmDialog.vue'
 import ResultOverwriteDialog from './components/ResultOverwriteDialog.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
 import { useEditorStore } from './stores/editor'
 import { useConnectionStore } from './stores/connection'
 
+const { locale, t } = useI18n()
 const editorStore = useEditorStore()
 const connectionStore = useConnectionStore()
 const resultHeight = ref(200)
@@ -77,6 +88,19 @@ const saveConfirmDialogRef = ref<InstanceType<typeof SaveConfirmDialog> | null>(
 const resultOverwriteDialogRef = ref<InstanceType<typeof ResultOverwriteDialog> | null>(null)
 const sqlEditorRef = ref<InstanceType<typeof SqlEditor> | null>(null)
 const resultPanelRef = ref<InstanceType<typeof ResultPanel> | null>(null)
+const settingsDialogRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
+
+// Element Plus 语言映射
+const elementLocaleMap = {
+  'zh-CN': zhCn,
+  'zh-TW': zhTw,
+  'en-US': en
+}
+
+// Element Plus 当前语言
+const elementLocale = computed(() => {
+  return elementLocaleMap[locale.value as keyof typeof elementLocaleMap] || en
+})
 
 // 提供保存确认对话框给子组件使用
 provide('saveConfirmDialog', {
@@ -157,7 +181,7 @@ function setupMenuListeners() {
     const result = await editorStore.openRecentFile(filePath)
     if (!result.success) {
       // 提示文件不存在，并更新菜单
-      ElMessage.warning(`文件不存在：${filePath}`)
+      ElMessage.warning(t('error.fileNotFound', { path: filePath }))
       const recentFiles = await window.api.file.getRecentFiles()
       await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
     }
@@ -171,6 +195,10 @@ function setupMenuListeners() {
     await editorStore.saveFileAs()
     const recentFiles = await window.api.file.getRecentFiles()
     await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
+  })
+  // 设置对话框
+  window.api.menu.onOpenSettings(() => {
+    settingsDialogRef.value?.show()
   })
 }
 

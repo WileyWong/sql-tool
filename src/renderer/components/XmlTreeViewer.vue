@@ -5,8 +5,8 @@
     </template>
     <template v-else-if="root">
       <div class="tree-toolbar">
-        <el-button size="small" @click="expandAll">全部展开</el-button>
-        <el-button size="small" @click="collapseAll">全部折叠</el-button>
+        <el-button size="small" @click="expandAll">{{ $t('common.expandAll') }}</el-button>
+        <el-button size="small" @click="collapseAll">{{ $t('common.collapseAll') }}</el-button>
       </div>
       <div class="tree-content">
         <XmlTreeNode 

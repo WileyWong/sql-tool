@@ -125,7 +125,7 @@
               class="table-cell checkbox-cell"
               :style="{ width: CHECKBOX_COLUMN_WIDTH + 'px' }"
             >
-              <span class="new-row-badge">新</span>
+              <span class="new-row-badge">{{ $t('common.new') }}</span>
             </div>
             <!-- 数据单元格 -->
             <div
@@ -157,18 +157,18 @@
           </div>
         </div>
         <!-- 空数据提示 -->
-        <div v-if="data.rows.length === 0 && (!dataOps?.state.newRows || dataOps.state.newRows.length === 0)" class="empty-text">查询返回 0 行</div>
+        <div v-if="data.rows.length === 0 && (!dataOps?.state.newRows || dataOps.state.newRows.length === 0)" class="empty-text">{{ $t('result.noData') }}</div>
       </div>
     </div>
     
     <!-- 状态栏 -->
     <div class="status-bar">
-      <span>{{ data.rowCount }} 行</span>
-      <span v-if="dataOps?.state.newRows?.length">+ {{ dataOps.state.newRows.length }} 新增</span>
-      <span v-if="dataOps?.state.pendingChanges?.size">{{ dataOps.state.pendingChanges.size }} 处修改</span>
-      <span>耗时 {{ data.executionTime }}ms</span>
-      <span v-if="editingCell" class="editing-hint">按回车退出编辑</span>
-      <span v-else-if="data.editable" class="editable-hint">可编辑</span>
+      <span>{{ $t('result.totalRows', { count: data.rowCount }) }}</span>
+      <span v-if="dataOps?.state.newRows?.length">+ {{ dataOps.state.newRows.length }} {{ $t('result.addRow') }}</span>
+      <span v-if="dataOps?.state.pendingChanges?.size">{{ dataOps.state.pendingChanges.size }} {{ $t('editor.modified') }}</span>
+      <span>{{ $t('result.executionTime') }} {{ data.executionTime }}ms</span>
+      <span v-if="editingCell" class="editing-hint">{{ $t('common.confirm') }}</span>
+      <span v-else-if="data.editable" class="editable-hint">{{ $t('result.editMode') }}</span>
     </div>
     
     <!-- 右键菜单 -->
@@ -177,13 +177,13 @@
       class="context-menu"
       :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
     >
-      <div class="context-menu-item" @click="handleViewCell">查看</div>
+      <div class="context-menu-item" @click="handleViewCell">{{ $t('contextMenu.viewData') }}</div>
     </div>
     
     <!-- 查看弹出层 -->
     <el-dialog
       v-model="viewDialog.visible"
-      title="查看内容"
+      :title="$t('contextMenu.viewData')"
       width="600px"
       :close-on-press-escape="true"
       @close="closeViewDialog"
@@ -191,7 +191,7 @@
       <div class="view-dialog-content">
         <div class="view-format-tabs">
           <el-radio-group v-model="viewDialog.format" size="small">
-            <el-radio-button value="raw">原始值</el-radio-button>
+            <el-radio-button value="raw">Raw</el-radio-button>
             <el-radio-button value="json">JSON</el-radio-button>
             <el-radio-button value="xml">XML</el-radio-button>
           </el-radio-group>
@@ -206,7 +206,7 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="closeViewDialog">关闭</el-button>
+        <el-button @click="closeViewDialog">{{ $t('common.close') }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -214,6 +214,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { ElMessage } from 'element-plus'
 import type { QueryResultSet, ColumnDef } from '@shared/types'
@@ -222,6 +223,8 @@ import JsonTreeViewer from './JsonTreeViewer.vue'
 import XmlTreeViewer from './XmlTreeViewer.vue'
 import type { UseDataOperationsReturn } from '../composables/useDataOperations'
 import { useResultStore } from '../stores/result'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   data: QueryResultSet
@@ -552,7 +555,7 @@ function handleCellDblClick(_row: Record<string, unknown>, column: ColumnDef, ro
   
   // 不允许编辑主键列
   if (props.data.primaryKeys.includes(column.name)) {
-    ElMessage.warning('主键列不可编辑')
+    ElMessage.warning(t('result.noEditableTable'))
     return
   }
   

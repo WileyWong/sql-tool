@@ -4,7 +4,7 @@
     <div class="tree-toolbar">
       <el-button size="small" @click="handleNewConnection">
         <el-icon><Plus /></el-icon>
-        新建连接
+        {{ $t('tree.newConnection') }}
       </el-button>
       <el-button size="small" @click="handleRefresh" :loading="refreshing">
         <el-icon><Refresh /></el-icon>
@@ -46,7 +46,7 @@
                   :ref="el => treeFilter.setFilterInputRef(data, el)"
                   v-model="treeFilter.getFilterState(data).keyword"
                   class="filter-input"
-                  :placeholder="data.type === 'connection' ? '过滤数据库' : '过滤表/视图/函数'"
+                  :placeholder="data.type === 'connection' ? $t('tree.filterDatabase') : $t('tree.filterTableViewFunc')"
                   @keydown.enter.stop="handleApplyFilter(data)"
                   @keydown.esc.stop="treeFilter.exitFilterMode(data)"
                   @blur="handleFilterInputBlur(data)"
@@ -59,7 +59,7 @@
                 :class="{ active: treeFilter.hasActiveFilter(data) }"
                 @click.stop="treeFilter.enterFilterMode(data)"
               >
-                {{ treeFilter.hasActiveFilter(data) ? '已过滤' : '过滤' }}
+                {{ treeFilter.hasActiveFilter(data) ? $t('tree.filtered') : $t('tree.filter') }}
               </span>
             </template>
           </span>
@@ -69,8 +69,8 @@
       <!-- 空状态 -->
       <div v-else class="empty-state" @click="handleNewConnection">
         <el-icon :size="48" color="#c0c4cc"><FolderOpened /></el-icon>
-        <p>暂无连接</p>
-        <p class="hint">点击新建连接</p>
+        <p>{{ $t('tree.noConnections') }}</p>
+        <p class="hint">{{ $t('tree.clickToCreate') }}</p>
       </div>
     </div>
     
@@ -94,6 +94,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, FolderOpened, Connection, Coin, Grid, View, Operation, Folder } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
@@ -103,6 +104,7 @@ import { useTreeFilter } from '../composables/useTreeFilter'
 import type { TreeNode, TreeNodeType } from '@shared/types'
 import type Node from 'element-plus/es/components/tree/src/model/node'
 
+const { t } = useI18n()
 const connectionStore = useConnectionStore()
 const editorStore = useEditorStore()
 
@@ -154,7 +156,7 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
       // 需要先连接
       const result = await connectionStore.connect(data.connectionId!)
       if (!result.success) {
-        ElMessage.error(`连接失败: ${result.message || '未知错误'}`)
+        ElMessage.error(t('error.connectionFailed', { message: result.message || t('error.unknown') }))
         resolve([])
         return
       }
@@ -185,7 +187,7 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
     resolve([
       {
         id: `${data.connectionId}-${data.databaseName}-tables`,
-        label: '表',
+        label: t('tree.tables'),
         type: 'tables' as TreeNodeType,
         connectionId: data.connectionId,
         databaseName: data.databaseName,
@@ -193,7 +195,7 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
       },
       {
         id: `${data.connectionId}-${data.databaseName}-views`,
-        label: '视图',
+        label: t('tree.views'),
         type: 'views' as TreeNodeType,
         connectionId: data.connectionId,
         databaseName: data.databaseName,
@@ -201,7 +203,7 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
       },
       {
         id: `${data.connectionId}-${data.databaseName}-functions`,
-        label: '函数',
+        label: t('tree.functions'),
         type: 'functions' as TreeNodeType,
         connectionId: data.connectionId,
         databaseName: data.databaseName,
@@ -317,31 +319,31 @@ const contextMenuItems = computed(() => {
     case 'connection':
       return isConnected
         ? [
-            { key: 'disconnect', label: '断开连接' },
-            { key: 'edit', label: '编辑连接' },
-            { key: 'delete', label: '删除连接' },
-            { key: 'refresh', label: '刷新' }
+            { key: 'disconnect', label: t('contextMenu.disconnect') },
+            { key: 'edit', label: t('contextMenu.editConnection') },
+            { key: 'delete', label: t('contextMenu.deleteConnection') },
+            { key: 'refresh', label: t('contextMenu.refresh') }
           ]
         : [
-            { key: 'connect', label: '连接' },
-            { key: 'edit', label: '编辑连接' },
-            { key: 'delete', label: '删除连接' }
+            { key: 'connect', label: t('contextMenu.connect') },
+            { key: 'edit', label: t('contextMenu.editConnection') },
+            { key: 'delete', label: t('contextMenu.deleteConnection') }
           ]
     case 'database':
     case 'views':
     case 'functions':
-      return [{ key: 'refresh', label: '刷新' }]
+      return [{ key: 'refresh', label: t('contextMenu.refresh') }]
     case 'tables':
       return [
-        { key: 'createTable', label: '创建表' },
-        { key: 'refresh', label: '刷新' }
+        { key: 'createTable', label: t('contextMenu.createTable') },
+        { key: 'refresh', label: t('contextMenu.refresh') }
       ]
     case 'table':
       return [
-        { key: 'query100', label: '查询前100行' },
-        { key: 'manage', label: '管理' },
-        { key: 'editTable', label: '修改表' },
-        { key: 'dropTable', label: '删除表' }
+        { key: 'query100', label: t('contextMenu.query100') },
+        { key: 'manage', label: t('contextMenu.manage') },
+        { key: 'editTable', label: t('contextMenu.editTable') },
+        { key: 'dropTable', label: t('contextMenu.dropTable') }
       ]
     default:
       return []
@@ -413,7 +415,7 @@ async function handleNodeClick(data: TreeNode) {
       // 点击连接
       const result = await connectionStore.connect(data.connectionId!)
       if (!result.success) {
-        ElMessage.error(`连接失败: ${result.message || '未知错误'}`)
+        ElMessage.error(t('error.connectionFailed', { message: result.message || t('error.unknown') }))
         return
       }
     }
@@ -428,7 +430,7 @@ async function handleNodeDblClick(data: TreeNode) {
     connectionStore.setCurrentConnection(data.connectionId)
     connectionStore.setCurrentDatabase(data.databaseName)
     editorStore.updateTabConnection(data.connectionId, data.databaseName)
-    ElMessage.success(`已切换到数据库: ${data.databaseName}`)
+    ElMessage.success(t('tree.switchedToDatabase', { database: data.databaseName }))
   }
 }
 
@@ -509,7 +511,7 @@ async function handleMenuClick(key: string) {
     case 'connect': {
       const result = await connectionStore.connect(node.connectionId!)
       if (!result.success) {
-        ElMessage.error(`连接失败: ${result.message || '未知错误'}`)
+        ElMessage.error(t('error.connectionFailed', { message: result.message || t('error.unknown') }))
       }
       break
     }
@@ -523,13 +525,13 @@ async function handleMenuClick(key: string) {
       }
       break
     case 'delete':
-      ElMessageBox.confirm('确定要删除此连接吗？', '删除连接', {
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
+      ElMessageBox.confirm(t('tree.confirmDeleteConnection'), t('tree.deleteConnectionTitle'), {
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning'
       }).then(async () => {
         await connectionStore.deleteConnection(node.connectionId!)
-        ElMessage.success('删除成功')
+        ElMessage.success(t('message.deleteSuccess'))
       }).catch(() => {})
       break
     case 'refresh':
@@ -580,14 +582,14 @@ async function handleDropTable(node: TreeNode) {
   try {
     await ElMessageBox.confirm(
       `<div>
-        <p style="margin-bottom: 12px;">确定要删除表 <strong>${node.databaseName}.${node.label}</strong> 吗？</p>
-        <p style="color: #f56c6c; margin-bottom: 12px;">此操作不可恢复！</p>
+        <p style="margin-bottom: 12px;">${t('tree.deleteTableConfirm', { database: node.databaseName, table: node.label })}</p>
+        <p style="color: #f56c6c; margin-bottom: 12px;">${t('tree.deleteTableWarning')}</p>
         <pre style="background: #1e1e1e; padding: 12px; border-radius: 4px; color: #d4d4d4; font-size: 12px;">${sql}</pre>
       </div>`,
-      '删除表',
+      t('tree.deleteTableTitle'),
       {
-        confirmButtonText: '执行删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('tree.executeDelete'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
         dangerouslyUseHTMLString: true
       }
@@ -596,7 +598,7 @@ async function handleDropTable(node: TreeNode) {
     const result = await connectionStore.executeDDL(node.connectionId!, sql)
     
     if (result.success) {
-      ElMessage.success('表已删除')
+      ElMessage.success(t('tree.tableDeleted'))
       // 刷新表列表
       await connectionStore.loadTables(node.connectionId!, node.databaseName!)
       // 刷新树节点
@@ -607,7 +609,7 @@ async function handleDropTable(node: TreeNode) {
         treeNode.expand()
       }
     } else {
-      ElMessage.error(result.message || '删除失败')
+      ElMessage.error(result.message || t('message.operationFailed'))
     }
   } catch {
     // 用户取消

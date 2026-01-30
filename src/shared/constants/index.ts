@@ -73,5 +73,10 @@ export const IpcChannels = {
   MENU_SAVE: 'menu:save',
   MENU_SAVE_AS: 'menu:save-as',
   MENU_ABOUT: 'menu:about',
-  MENU_UPDATE_RECENT_FILES: 'menu:update-recent-files'
+  MENU_UPDATE_RECENT_FILES: 'menu:update-recent-files',
+  MENU_OPEN_SETTINGS: 'menu:open-settings',
+  
+  // 国际化相关
+  LOCALE_CHANGED: 'locale:changed',
+  LOCALE_GET: 'locale:get'
 } as const
