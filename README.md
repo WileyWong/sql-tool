@@ -2,6 +2,8 @@
 
 English | [中文](./README_CN.md)
 
+The Mac and Windows versions of the application can be downloaded and used directly from the release directory.
+
 A MySQL database client tool built with Electron + Vue 3.
 
 Fully developed with AI assistance. I created this because existing database management tools always had some aspects I wasn't satisfied with. It will continue to be optimized as issues are discovered during use.
