@@ -17,6 +17,7 @@
     "no": "No",
     "ok": "OK",
     "copy": "Copy",
+    "copied": "Copied",
     "refresh": "Refresh",
     "search": "Search",
     "filter": "Filter",
@@ -140,6 +141,7 @@
     "rowsAffected": "{count} rows affected",
     "querySuccess": "Query successful, {count} rows affected",
     "executionTime": "Execution Time",
+    "executing": "Executing...",
     "queryResult": "Query returned {rows} rows, took {time}ms",
     "nonQueryResult": "{message}, took {time}ms",
     "noData": "No Data",
@@ -385,7 +387,8 @@
     "invalidSql": "Invalid SQL statement",
     "noDatabase": "Please connect to a database first",
     "noSql": "Please enter SQL statement",
-    "connectionNotExist": "Connection does not exist"
+    "connectionNotExist": "Connection does not exist",
+    "copyFailed": "Copy failed"
   },
   "message": {
     "saveSuccess": "Saved successfully",

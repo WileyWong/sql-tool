@@ -141,8 +141,8 @@ async function handleExecute() {
   }
   
   resultStore.setExecutionStatus('running')
+  resultStore.setCurrentExecutingSql(sql)
   resultStore.clearResults()
-  resultStore.addMessage('info', t('status.executing'))
   
   try {
     const maxRows = editorStore.activeTab?.maxRows || 5000

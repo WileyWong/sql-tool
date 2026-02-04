@@ -29,15 +29,38 @@
         <!-- 消息标签页 -->
         <el-tab-pane :label="$t('result.message')" name="message">
           <div class="message-list">
+            <!-- 执行历史记录 -->
+            <div
+              v-for="item in executionHistory"
+              :key="item.id"
+              :class="['history-item', item.status]"
+            >
+              <div class="history-header">
+                <span class="time">{{ formatTimestamp(item.timestamp) }}</span>
+                <span class="sql-text">{{ $t('result.executing') }} {{ item.sqlDisplay }}</span>
+                <button
+                  class="copy-btn"
+                  :class="{ 'copied': copiedId === item.id }"
+                  @click="handleCopySql(item.sql, item.id)"
+                >
+                  {{ copiedId === item.id ? $t('common.copied') : $t('common.copy') }}
+                </button>
+              </div>
+              <div class="history-result">
+                <span class="time">{{ formatTimestamp(item.timestamp) }}</span>
+                <span class="result-text">{{ item.message }}</span>
+              </div>
+            </div>
+            <!-- 普通消息（非执行相关） -->
             <div
               v-for="(msg, index) in messages"
-              :key="index"
+              :key="`msg-${index}`"
               :class="['message-item', msg.type]"
             >
               <span class="time">{{ formatTime(msg.time) }}</span>
               <span class="text">{{ msg.text }}</span>
             </div>
-            <div v-if="messages.length === 0" class="empty-message">
+            <div v-if="executionHistory.length === 0 && messages.length === 0" class="empty-message">
               {{ $t('result.noData') }}
             </div>
           </div>
@@ -85,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, watch, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useResultStore } from '../stores/result'
@@ -104,6 +127,29 @@ const editorStore = useEditorStore()
 
 const resultTabs = computed(() => resultStore.tabs)
 const messages = computed(() => resultStore.messages)
+const executionHistory = computed(() => resultStore.executionHistory)
+
+// 复制按钮状态
+const copiedId = ref<string | null>(null)
+let copyTimeout: ReturnType<typeof setTimeout> | null = null
+
+// 复制 SQL
+async function handleCopySql(sql: string, id: string) {
+  const success = await resultStore.copySqlToClipboard(sql)
+  if (success) {
+    copiedId.value = id
+    // 清除之前的定时器
+    if (copyTimeout) {
+      clearTimeout(copyTimeout)
+    }
+    // 2 秒后恢复按钮文字
+    copyTimeout = setTimeout(() => {
+      copiedId.value = null
+    }, 2000)
+  } else {
+    ElMessage.error(t('error.copyFailed'))
+  }
+}
 
 const activeTabId = computed({
   get: () => resultStore.activeTabId,
@@ -333,6 +379,15 @@ function formatTime(date: Date): string {
   })
 }
 
+function formatTimestamp(timestamp: number): string {
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
 // 深度序列化，确保数据可以通过 IPC 传输
 function deepSerialize<T>(data: T): T {
   return JSON.parse(JSON.stringify(data, (_key, value) => {
@@ -499,6 +554,8 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
   padding: 8px;
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 12px;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 .message-item {
@@ -526,6 +583,77 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
 
 .message-item.error .text {
   color: #f48771;
+}
+
+/* 执行历史样式 */
+.history-item {
+  padding: 6px 0;
+  border-bottom: 1px solid #333;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.history-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 0;
+}
+
+.history-item .time {
+  color: #858585;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.history-item .sql-text {
+  color: #d4d4d4;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item .result-text {
+  color: #4ec9b0;
+  flex: 1;
+}
+
+.history-item.error .result-text {
+  color: #f48771;
+}
+
+.copy-btn {
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid #555;
+  color: #0e639c;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  background: #0e639c;
+  color: #fff;
+  border-color: #0e639c;
+}
+
+.copy-btn.copied {
+  background: #388a34;
+  border-color: #388a34;
+  color: #fff;
 }
 
 .empty-message {

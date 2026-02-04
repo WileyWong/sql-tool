@@ -17,6 +17,7 @@
     "no": "否",
     "ok": "確定",
     "copy": "複製",
+    "copied": "已複製",
     "refresh": "重新整理",
     "search": "搜尋",
     "filter": "篩選",
@@ -140,6 +141,7 @@
     "rowsAffected": "影響 {count} 列",
     "querySuccess": "查詢成功，影響 {count} 列",
     "executionTime": "執行時間",
+    "executing": "執行中...",
     "queryResult": "查詢傳回 {rows} 列，耗時 {time}ms",
     "nonQueryResult": "{message}，耗時 {time}ms",
     "noData": "無資料",
@@ -385,7 +387,8 @@
     "invalidSql": "無效的 SQL 陳述式",
     "noDatabase": "請先連線到資料庫",
     "noSql": "請輸入 SQL 陳述式",
-    "connectionNotExist": "連線不存在"
+    "connectionNotExist": "連線不存在",
+    "copyFailed": "複製失敗"
   },
   "message": {
     "saveSuccess": "儲存成功",

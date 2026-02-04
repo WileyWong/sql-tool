@@ -17,6 +17,7 @@
     "no": "否",
     "ok": "确定",
     "copy": "复制",
+    "copied": "已复制",
     "refresh": "刷新",
     "search": "搜索",
     "filter": "筛选",
@@ -140,6 +141,7 @@
     "rowsAffected": "影响 {count} 行",
     "querySuccess": "查询成功，影响 {count} 行",
     "executionTime": "执行时间",
+    "executing": "执行中...",
     "queryResult": "查询返回 {rows} 行，耗时 {time}ms",
     "nonQueryResult": "{message}，耗时 {time}ms",
     "noData": "无数据",
@@ -385,7 +387,8 @@
     "invalidSql": "无效的 SQL 语句",
     "noDatabase": "请先连接数据库",
     "noSql": "请输入 SQL 语句",
-    "connectionNotExist": "连接不存在"
+    "connectionNotExist": "连接不存在",
+    "copyFailed": "复制失败"
   },
   "message": {
     "saveSuccess": "保存成功",
