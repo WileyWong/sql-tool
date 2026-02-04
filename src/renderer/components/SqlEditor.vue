@@ -367,7 +367,7 @@ function initEditor() {
   // 注册执行 SQL 右键菜单
   editor.addAction({
     id: 'sql.execute',
-    label: '执行',
+    label: t('common.execute'),
     contextMenuGroupId: 'navigation',
     contextMenuOrder: 0,
     run: () => {

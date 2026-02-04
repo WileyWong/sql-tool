@@ -30,5 +30,10 @@ export default {
       message: 'SQL Tool',
       version: '版本'
     }
+  },
+  result: {
+    rowAffected: '影响 {count} 行',
+    rowsAffected: '影响 {count} 行',
+    querySuccess: '查询成功，影响 {count} 行'
   }
 }

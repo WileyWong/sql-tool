@@ -30,5 +30,10 @@ export default {
       message: 'SQL Tool',
       version: 'Version'
     }
+  },
+  result: {
+    rowAffected: '{count} row affected',
+    rowsAffected: '{count} rows affected',
+    querySuccess: 'Query successful, {count} rows affected'
   }
 }

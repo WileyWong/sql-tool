@@ -2,6 +2,7 @@ import type { QueryResult, QueryResultSet, QueryMessage, QueryError, ExplainResu
 import { getConnectionWithReconnect } from './connection-manager'
 import { Defaults } from '@shared/constants'
 import { splitStatementsToTexts } from '../sql-language-server/services/sqlParserService'
+import { t } from '../i18n'
 
 // 正在执行的查询（用于取消）
 const runningQueries = new Map<string, { connectionId: string; threadId: number }>()
@@ -184,10 +185,12 @@ export async function executeQuery(
         } else {
           // INSERT/UPDATE/DELETE 结果
           const result = rows as { affectedRows: number; insertId?: number }
+          const affectedRowsKey = result.affectedRows === 1 ? 'result.rowAffected' : 'result.rowsAffected'
+          const affectedRowsText = t(affectedRowsKey).replace('{count}', String(result.affectedRows))
           const message: QueryMessage = {
             type: 'message',
             affectedRows: result.affectedRows,
-            message: `影响 ${result.affectedRows} 行${result.insertId ? `，插入 ID: ${result.insertId}` : ''}`,
+            message: `${affectedRowsText}${result.insertId ? `, Insert ID: ${result.insertId}` : ''}`,
             executionTime
           }
           results.push(message)
