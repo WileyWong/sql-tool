@@ -115,6 +115,7 @@
     "queryTab": "查询",
     "untitled": "无标题",
     "modified": "已修改",
+    "unsaved": "未保存",
     "placeholder": "在此输入 SQL 语句...",
     "closeTab": "关闭标签",
     "closeOtherTabs": "关闭其他标签",

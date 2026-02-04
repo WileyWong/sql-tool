@@ -220,12 +220,19 @@ function startResizeV(e: MouseEvent) {
   const startY = e.clientY
   const startHeight = resultHeight.value
   
+  // 获取内容区域总高度，确保编辑区最小高度为 100px
+  const contentSection = document.querySelector('.content') as HTMLElement
+  const totalHeight = contentSection?.clientHeight || 600
+  const minEditorHeight = 100
+  const maxResultHeight = Math.max(80, totalHeight - minEditorHeight)
+  
   document.body.style.cursor = 'ns-resize'
   document.body.style.userSelect = 'none'
   
   function onMouseMove(e: MouseEvent) {
     const delta = startY - e.clientY
-    resultHeight.value = Math.max(80, Math.min(600, startHeight + delta))
+    // 限制结果面板高度：最小 80px，最大为总高度减去编辑区最小高度
+    resultHeight.value = Math.max(80, Math.min(maxResultHeight, startHeight + delta))
   }
   
   function onMouseUp() {

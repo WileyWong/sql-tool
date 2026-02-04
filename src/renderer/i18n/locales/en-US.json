@@ -115,6 +115,7 @@
     "queryTab": "Query",
     "untitled": "Untitled",
     "modified": "Modified",
+    "unsaved": "Unsaved",
     "placeholder": "Enter SQL statement here...",
     "closeTab": "Close Tab",
     "closeOtherTabs": "Close Other Tabs",

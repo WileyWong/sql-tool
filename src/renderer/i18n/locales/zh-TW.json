@@ -115,6 +115,7 @@
     "queryTab": "查詢",
     "untitled": "未命名",
     "modified": "已修改",
+    "unsaved": "未儲存",
     "placeholder": "在此輸入 SQL 陳述式...",
     "closeTab": "關閉分頁",
     "closeOtherTabs": "關閉其他分頁",

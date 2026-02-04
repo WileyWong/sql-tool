@@ -11,9 +11,19 @@
       <el-tab-pane
         v-for="tab in tabs"
         :key="tab.id"
-        :label="tab.title + (tab.isDirty ? ' *' : '')"
+        :label="(tab.isDirty ? '* ' : '') + tab.title"
         :name="tab.id"
-      />
+      >
+        <template #label>
+          <el-tooltip
+            :content="getTabTooltip(tab)"
+            placement="bottom"
+            :show-after="300"
+          >
+            <span>{{ (tab.isDirty ? '* ' : '') + tab.title }}</span>
+          </el-tooltip>
+        </template>
+      </el-tab-pane>
     </el-tabs>
     
     <!-- 连接信息栏 -->
@@ -382,6 +392,20 @@ function initEditor() {
       languageServer.clearHoverState()
     }
   })
+}
+
+// 获取标签页 Tooltip 内容
+function getTabTooltip(tab: typeof editorStore.tabs[0]): string {
+  if (!tab.filePath) {
+    // 从未保存的文件
+    return t('editor.unsaved')
+  }
+  if (tab.isDirty) {
+    // 已保存但被修改
+    return `${tab.filePath} (${t('editor.modified')})`
+  }
+  // 已保存且未修改
+  return tab.filePath
 }
 
 // 标签页移除（带保存确认）
