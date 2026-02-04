@@ -94,6 +94,7 @@ import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as monaco from 'monaco-editor'
 import { ElMessage } from 'element-plus'
+import Sortable from 'sortablejs'
 import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
 import { useResultStore } from '../stores/result'
@@ -117,6 +118,7 @@ const saveConfirmDialog = inject<{ show: (tabId: string, title: string, filePath
 
 const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
+let sortableInstance: Sortable | null = null
 
 // 获取选中的文本（如果有选中则返回选中内容，否则返回全部）
 function getSelectedText(): string {
@@ -557,44 +559,91 @@ function handleConnectionTreeRefresh(payload: EventBusEvents['connectionTree:ref
   }
 }
 
+// 初始化标签页拖拽排序
+function initTabSortable() {
+  // 等待 DOM 更新
+  setTimeout(() => {
+    const tabNav = document.querySelector('.sql-editor .el-tabs__nav') as HTMLElement
+    if (!tabNav) return
+
+    sortableInstance = new Sortable(tabNav, {
+      animation: 150,
+      draggable: '.el-tabs__item',
+      ghostClass: 'sortable-ghost',
+      dragClass: 'sortable-drag',
+      delay: 0,
+      onEnd: (evt) => {
+
+        // 如果位置没有变化，不做任何操作
+        if (evt.oldIndex === evt.newIndex) return
+
+        // 获取新的标签页顺序
+        const newOrder: string[] = []
+        const tabItems = tabNav.querySelectorAll('.el-tabs__item')
+        tabItems.forEach((item) => {
+          // 从 data-name 属性获取 tab id
+          const tabId = item.getAttribute('data-name')
+          if (tabId) {
+            newOrder.push(tabId)
+          }
+        })
+
+        // 更新 store 中的标签页顺序
+        if (newOrder.length > 0) {
+          editorStore.reorderTabs(newOrder)
+        }
+      }
+    })
+  }, 100)
+}
+
 onMounted(async () => {
   editorStore.init()
   initEditor()
   // 添加键盘快捷键监听
   window.addEventListener('keydown', handleSaveShortcut)
-  
+
   // 添加 hover widget 点击监听
   document.addEventListener('click', handleHoverClick)
-  
+
   // 添加鼠标移动监听，用于检测 hover widget 关闭
   document.addEventListener('mousemove', handleMouseMove)
-  
+
   // 监听连接树刷新事件
   eventBus.on('connectionTree:refresh', handleConnectionTreeRefresh)
-  
+
   // 初始化 Language Server 元数据
   await languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value)
+
+  // 初始化标签页拖拽排序
+  initTabSortable()
 })
 
 onUnmounted(() => {
   // 清理 Language Server 资源
   languageServer.dispose()
-  
+
   // 清理所有 Model
   editorModelManager.disposeAllModels()
-  
+
   editor?.dispose()
   // 移除键盘快捷键监听
   window.removeEventListener('keydown', handleSaveShortcut)
-  
+
   // 移除 hover widget 点击监听
   document.removeEventListener('click', handleHoverClick)
-  
+
   // 移除鼠标移动监听
   document.removeEventListener('mousemove', handleMouseMove)
-  
+
   // 移除事件总线监听
   eventBus.off('connectionTree:refresh', handleConnectionTreeRefresh)
+
+  // 销毁 Sortable 实例
+  if (sortableInstance) {
+    sortableInstance.destroy()
+    sortableInstance = null
+  }
 })
 </script>
 
@@ -750,6 +799,25 @@ onUnmounted(() => {
 .editor-container {
   flex: 1;
   min-height: 0;
+}
+
+/* 拖拽排序样式 - 保持默认鼠标样式 */
+.sql-editor :deep(.el-tabs__item) {
+  user-select: none;
+}
+
+/* Sortable 拖拽时的占位符样式 */
+.sql-editor :deep(.sortable-ghost) {
+  opacity: 0.4;
+  background: #094771 !important;
+  border: 1px dashed #0e639c !important;
+}
+
+/* Sortable 拖拽中的元素样式 */
+.sql-editor :deep(.sortable-drag) {
+  opacity: 0.8;
+  background: #1e1e1e !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 </style>
 

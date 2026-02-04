@@ -280,7 +280,24 @@ export const useEditorStore = defineStore('editor', () => {
   function setHoverHint(hint: string | null) {
     hoverHint.value = hint
   }
-  
+
+  // 重新排序标签页
+  function reorderTabs(newOrder: string[]) {
+    // 根据新的 ID 顺序重新排列 tabs 数组
+    const tabMap = new Map(tabs.value.map(t => [t.id, t]))
+    const reorderedTabs: EditorTab[] = []
+
+    for (const tabId of newOrder) {
+      const tab = tabMap.get(tabId)
+      if (tab) {
+        reorderedTabs.push(tab)
+      }
+    }
+
+    // 更新 tabs 数组
+    tabs.value = reorderedTabs
+  }
+
   return {
     // 状态
     tabs,
@@ -307,6 +324,7 @@ export const useEditorStore = defineStore('editor', () => {
     saveTabById,
     getSelectedSql,
     setHoverHint,
+    reorderTabs,
     isTabEmpty,
     hasUnsavedChanges,
     getUnsavedTabs
