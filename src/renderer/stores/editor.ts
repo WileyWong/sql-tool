@@ -294,8 +294,8 @@ export const useEditorStore = defineStore('editor', () => {
       }
     }
 
-    // 更新 tabs 数组
-    tabs.value = reorderedTabs
+    // 使用 splice 原地修改数组，保持响应式
+    tabs.value.splice(0, tabs.value.length, ...reorderedTabs)
   }
 
   return {
