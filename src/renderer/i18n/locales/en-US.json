@@ -73,6 +73,7 @@
     "editConnection": "Edit Connection",
     "connectionName": "Connection Name",
     "connectionNamePlaceholder": "Enter connection name",
+    "databaseType": "Database Type",
     "host": "Host",
     "hostPlaceholder": "Enter host address",
     "port": "Port",
@@ -101,7 +102,11 @@
     "serverVersion": "Server Version",
     "connectionRequired": "Please enter connection name",
     "hostRequired": "Please enter host address",
-    "usernameRequired": "Please enter username"
+    "usernameRequired": "Please enter username",
+    "sqlServerOptions": "SQL Server Options",
+    "encrypt": "Encrypt Connection",
+    "trustServerCertificate": "Trust Server Certificate",
+    "domain": "Windows Domain"
   },
   "toolbar": {
     "newConnection": "New Connection",

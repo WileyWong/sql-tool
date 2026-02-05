@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannels } from '../shared/constants'
-import type { ConnectionConfig, ConnectionForm, QueryResult, ExplainResult } from '../shared/types'
+import type { ConnectionConfig, ConnectionForm, QueryResult, ExplainResult, DatabaseType } from '../shared/types'
 
 // 暴露给渲染进程的 API
 const api = {
@@ -32,6 +32,9 @@ const api = {
     
     tables: (connectionId: string, database: string) =>
       ipcRenderer.invoke(IpcChannels.DATABASE_TABLES, { connectionId, database }),
+    
+    tablesWithColumns: (connectionId: string, database: string) =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_TABLES_WITH_COLUMNS, { connectionId, database }),
     
     columns: (connectionId: string, database: string, table: string) =>
       ipcRenderer.invoke(IpcChannels.DATABASE_COLUMNS, { connectionId, database, table }),
@@ -168,6 +171,10 @@ const api = {
     // 设置数据库版本（用于过滤函数列表）
     setDatabaseVersion: (version: string | null): Promise<{ success: boolean; functionsCount?: number; error?: string }> =>
       ipcRenderer.invoke('sql-ls:setDatabaseVersion', version),
+    
+    // 设置数据库类型（用于加载对应的函数列表）
+    setDatabaseType: (dbType: DatabaseType): Promise<{ success: boolean; functionsCount?: number; error?: string }> =>
+      ipcRenderer.invoke('sql-ls:setDatabaseType', dbType),
     
     // 清空元数据
     clear: () =>

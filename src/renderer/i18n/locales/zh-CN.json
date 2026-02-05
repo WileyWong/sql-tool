@@ -73,6 +73,7 @@
     "editConnection": "编辑连接",
     "connectionName": "连接名称",
     "connectionNamePlaceholder": "请输入连接名称",
+    "databaseType": "数据库类型",
     "host": "主机",
     "hostPlaceholder": "请输入主机地址",
     "port": "端口",
@@ -101,7 +102,11 @@
     "serverVersion": "服务器版本",
     "connectionRequired": "请选择连接名称",
     "hostRequired": "请输入主机地址",
-    "usernameRequired": "请输入用户名"
+    "usernameRequired": "请输入用户名",
+    "sqlServerOptions": "SQL Server 选项",
+    "encrypt": "加密连接",
+    "trustServerCertificate": "信任服务器证书",
+    "domain": "Windows 域"
   },
   "toolbar": {
     "newConnection": "新建连接",

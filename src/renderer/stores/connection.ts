@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ConnectionConfig, ConnectionInfo, ConnectionStatus, DatabaseMeta, TableMeta, ColumnMeta, ViewMeta, FunctionMeta, IndexMeta } from '@shared/types'
+import type { ConnectionConfig, ConnectionInfo, ConnectionStatus, DatabaseMeta, TableMeta, ColumnMeta, ViewMeta, FunctionMeta, IndexMeta, DatabaseType, ConnectionForm } from '@shared/types'
 
 export const useConnectionStore = defineStore('connection', () => {
   // 连接列表
@@ -52,7 +52,7 @@ export const useConnectionStore = defineStore('connection', () => {
   }
   
   // 保存连接
-  async function saveConnection(form: { name: string; host: string; port: number; username: string; password: string; database?: string }, id?: string) {
+  async function saveConnection(form: ConnectionForm, id?: string) {
     const result = await window.api.connection.save(form, id)
     if (result.success && result.connections) {
       connections.value = result.connections.map(c => {
@@ -105,6 +105,16 @@ export const useConnectionStore = defineStore('connection', () => {
       conn.serverVersion = result.serverVersion
       currentConnectionId.value = connectionId
       
+      // 获取连接的数据库类型，默认为 mysql（向后兼容）
+      const dbType: DatabaseType = conn.type || 'mysql'
+      
+      // 通知 Language Server 数据库类型
+      try {
+        await window.api.sqlLanguageServer.setDatabaseType(dbType)
+      } catch (e) {
+        console.warn('设置 Language Server 数据库类型失败:', e)
+      }
+      
       // 通知 Language Server 数据库版本
       if (result.serverVersion) {
         try {
@@ -144,6 +154,13 @@ export const useConnectionStore = defineStore('connection', () => {
       } catch (e) {
         console.warn('清除 Language Server 数据库版本失败:', e)
       }
+      
+      // 重置数据库类型为默认值 (MySQL)
+      try {
+        await window.api.sqlLanguageServer.setDatabaseType('mysql')
+      } catch (e) {
+        console.warn('重置 Language Server 数据库类型失败:', e)
+      }
     }
     
     return result
@@ -170,6 +187,21 @@ export const useConnectionStore = defineStore('connection', () => {
   // 加载表列表
   async function loadTables(connectionId: string, database: string) {
     const result = await window.api.database.tables(connectionId, database)
+    if (result.success && result.tables) {
+      const dbMap = databaseCache.value.get(connectionId)
+      if (dbMap) {
+        const dbMeta = dbMap.get(database)
+        if (dbMeta) {
+          dbMeta.tables = result.tables as TableMeta[]
+        }
+      }
+    }
+    return result
+  }
+  
+  // 加载表列表（包含列信息）- 用于 Language Server 元数据
+  async function loadTablesWithColumns(connectionId: string, database: string) {
+    const result = await window.api.database.tablesWithColumns(connectionId, database)
     if (result.success && result.tables) {
       const dbMap = databaseCache.value.get(connectionId)
       if (dbMap) {
@@ -360,6 +392,7 @@ export const useConnectionStore = defineStore('connection', () => {
     disconnect,
     loadDatabases,
     loadTables,
+    loadTablesWithColumns,
     loadColumns,
     loadViews,
     loadFunctions,

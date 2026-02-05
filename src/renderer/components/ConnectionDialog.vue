@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     :title="isEdit ? $t('connection.editConnection') : $t('connection.newConnection')"
-    width="500px"
+    width="520px"
     :close-on-click-modal="false"
     @close="handleClose"
   >
@@ -10,9 +10,22 @@
       ref="formRef"
       :model="form"
       :rules="rules"
-      label-width="100px"
+      label-width="120px"
       label-position="right"
     >
+      <!-- 数据库类型选择 -->
+      <el-form-item :label="$t('connection.databaseType')" prop="type">
+        <el-radio-group v-model="form.type" @change="handleTypeChange">
+          <el-radio-button
+            v-for="dbType in DatabaseTypes"
+            :key="dbType.type"
+            :value="dbType.type"
+          >
+            {{ dbType.name }}
+          </el-radio-button>
+        </el-radio-group>
+      </el-form-item>
+      
       <el-form-item :label="$t('connection.connectionName')" prop="name">
         <el-input v-model="form.name" :placeholder="$t('connection.connectionNamePlaceholder')" />
       </el-form-item>
@@ -26,7 +39,7 @@
               :max="65535"
               :controls="false"
               style="width: 80px"
-              placeholder="3306"
+              :placeholder="String(getDefaultPort(form.type))"
             />
           </template>
         </el-input>
@@ -48,6 +61,27 @@
       <el-form-item :label="$t('connection.database')">
         <el-input v-model="form.database" :placeholder="$t('connection.databasePlaceholder')" />
       </el-form-item>
+      
+      <!-- SQL Server 特有选项 -->
+      <template v-if="form.type === 'sqlserver'">
+        <el-divider content-position="left">{{ $t('connection.sqlServerOptions') }}</el-divider>
+        
+        <el-form-item :label="$t('connection.encrypt')">
+          <el-switch v-model="form.options.encrypt" />
+        </el-form-item>
+        
+        <el-form-item :label="$t('connection.trustServerCertificate')">
+          <el-switch v-model="form.options.trustServerCertificate" />
+        </el-form-item>
+        
+        <el-form-item :label="$t('connection.domain')">
+          <el-input 
+            v-model="form.options.domain" 
+            placeholder="Optional, for Windows Authentication"
+            clearable
+          />
+        </el-form-item>
+      </template>
     </el-form>
     
     <template #footer>
@@ -71,7 +105,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useConnectionStore } from '../stores/connection'
-import { Defaults } from '@shared/constants'
+import { DatabaseTypes, getDefaultPort, type DatabaseType, type SqlServerOptions } from '@shared/types/connection'
 
 const { t } = useI18n()
 const connectionStore = useConnectionStore()
@@ -89,13 +123,29 @@ const visible = computed({
 
 const isEdit = computed(() => !!connectionStore.editingConnection)
 
-const form = ref({
+// 表单数据
+const form = ref<{
+  type: DatabaseType
+  name: string
+  host: string
+  port: number
+  username: string
+  password: string
+  database: string
+  options: SqlServerOptions
+}>({
+  type: 'mysql',
   name: '',
   host: '',
-  port: Defaults.PORT as number,
+  port: 3306,
   username: '',
   password: '',
-  database: ''
+  database: '',
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+    domain: ''
+  }
 })
 
 const rules = computed<FormRules>(() => ({
@@ -114,25 +164,42 @@ const rules = computed<FormRules>(() => ({
   ]
 }))
 
+// 切换数据库类型时更新默认端口
+function handleTypeChange(type: DatabaseType) {
+  form.value.port = getDefaultPort(type)
+}
+
 // 监听编辑连接变化
 watch(() => connectionStore.editingConnection, (conn) => {
   if (conn) {
     form.value = {
+      type: conn.type || 'mysql',
       name: conn.name,
       host: conn.host,
       port: conn.port,
       username: conn.username,
       password: conn.password,
-      database: conn.database || ''
+      database: conn.database || '',
+      options: {
+        encrypt: conn.options?.encrypt ?? false,
+        trustServerCertificate: conn.options?.trustServerCertificate ?? true,
+        domain: conn.options?.domain || ''
+      }
     }
   } else {
     form.value = {
+      type: 'mysql',
       name: '',
       host: '',
-      port: Defaults.PORT,
+      port: 3306,
       username: '',
       password: '',
-      database: ''
+      database: '',
+      options: {
+        encrypt: false,
+        trustServerCertificate: true,
+        domain: ''
+      }
     }
   }
 }, { immediate: true })
@@ -147,12 +214,18 @@ async function handleTest() {
   try {
     const result = await connectionStore.testConnection({
       id: connectionStore.editingConnection?.id || '',
+      type: form.value.type,
       name: form.value.name,
       host: form.value.host,
-      port: form.value.port || Defaults.PORT,
+      port: form.value.port || getDefaultPort(form.value.type),
       username: form.value.username,
       password: form.value.password,
       database: form.value.database || undefined,
+      options: form.value.type === 'sqlserver' ? {
+        encrypt: form.value.options.encrypt,
+        trustServerCertificate: form.value.options.trustServerCertificate,
+        domain: form.value.options.domain || undefined
+      } : undefined,
       createdAt: Date.now(),
       updatedAt: Date.now()
     })
@@ -177,12 +250,18 @@ async function handleSave() {
   try {
     const result = await connectionStore.saveConnection(
       {
+        type: form.value.type,
         name: form.value.name,
         host: form.value.host,
-        port: form.value.port || Defaults.PORT,
+        port: form.value.port || getDefaultPort(form.value.type),
         username: form.value.username,
         password: form.value.password,
-        database: form.value.database || undefined
+        database: form.value.database || undefined,
+        options: form.value.type === 'sqlserver' ? {
+          encrypt: form.value.options.encrypt,
+          trustServerCertificate: form.value.options.trustServerCertificate,
+          domain: form.value.options.domain || undefined
+        } : undefined
       },
       connectionStore.editingConnection?.id
     )
@@ -294,5 +373,49 @@ function handleClose() {
 :deep(.el-button--primary:hover) {
   background: #1177bb;
   border-color: #1177bb;
+}
+
+/* 单选按钮组样式 */
+:deep(.el-radio-group) {
+  display: flex;
+  gap: 0;
+}
+
+:deep(.el-radio-button__inner) {
+  background: #3c3c3c;
+  border-color: #555;
+  color: #d4d4d4;
+}
+
+:deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  background: #0e639c;
+  border-color: #0e639c;
+  color: #fff;
+}
+
+:deep(.el-radio-button__inner:hover) {
+  color: #fff;
+}
+
+/* 分隔线样式 */
+:deep(.el-divider) {
+  border-color: #555;
+}
+
+:deep(.el-divider__text) {
+  background: #2d2d2d;
+  color: #999;
+  font-size: 12px;
+}
+
+/* 开关样式 */
+:deep(.el-switch__core) {
+  background: #555;
+  border-color: #555;
+}
+
+:deep(.el-switch.is-checked .el-switch__core) {
+  background: #0e639c;
+  border-color: #0e639c;
 }
 </style>

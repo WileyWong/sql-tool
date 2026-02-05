@@ -2,10 +2,12 @@
  * 元数据服务
  * 管理数据库元数据（表、字段、视图、函数）
  * 函数列表从外部 JSON 配置文件加载，支持热更新和版本过滤
+ * 支持多数据库类型（MySQL、SQL Server）
  */
 
 import fs from 'fs'
 import type { TableMetadata, ViewMetadata, FunctionMetadata, ColumnMetadata } from '../types'
+import type { DatabaseType } from '@shared/types'
 import { getResourcePath } from '../../utils/resourcePath'
 
 /**
@@ -19,7 +21,7 @@ interface FunctionCategory {
 /**
  * JSON 配置文件结构
  */
-interface MySQLFunctionsConfig {
+interface FunctionsConfig {
   version: string
   description: string
   lastUpdated: string
@@ -39,8 +41,8 @@ interface FunctionLoadResult {
 
 /**
  * 解析版本号为数字数组，便于比较
- * @param version 版本字符串，如 "8.0.32", "5.7.44-log"
- * @returns 版本数字数组 [major, minor, patch]
+ * @param version 版本字符串，如 "8.0.32", "5.7.44-log", "15.0.2000.5"
+ * @returns 版本数字数组 [major, minor, patch, build]
  */
 function parseVersion(version: string): number[] {
   // 移除版本号后的非数字部分（如 "-log", "-community"）
@@ -49,7 +51,8 @@ function parseVersion(version: string): number[] {
   return [
     parseInt(parts[0] || '0', 10),
     parseInt(parts[1] || '0', 10),
-    parseInt(parts[2] || '0', 10)
+    parseInt(parts[2] || '0', 10),
+    parseInt(parts[3] || '0', 10)
   ]
 }
 
@@ -61,7 +64,7 @@ function compareVersions(v1: string, v2: string): number {
   const p1 = parseVersion(v1)
   const p2 = parseVersion(v2)
   
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     if (p1[i] < p2[i]) return -1
     if (p1[i] > p2[i]) return 1
   }
@@ -90,6 +93,19 @@ function isFunctionSupported(func: FunctionMetadata, dbVersion: string): boolean
   return true
 }
 
+/**
+ * 根据数据库类型获取函数配置文件路径
+ */
+function getFunctionsConfigPath(dbType: DatabaseType): string {
+  switch (dbType) {
+    case 'sqlserver':
+      return getResourcePath('sqlserver-functions.json')
+    case 'mysql':
+    default:
+      return getResourcePath('mysql-functions.json')
+  }
+}
+
 export class MetadataService {
   private tables: Map<string, TableMetadata> = new Map()
   private views: Map<string, ViewMetadata> = new Map()
@@ -99,6 +115,7 @@ export class MetadataService {
   private currentConnectionId: string | null = null
   private currentDatabase: string | null = null
   private currentDbVersion: string | null = null  // 当前数据库版本
+  private currentDbType: DatabaseType = 'mysql'   // 当前数据库类型
 
   constructor() {
     // 初始化时加载函数列表
@@ -106,14 +123,34 @@ export class MetadataService {
   }
 
   /**
-   * 从 JSON 配置文件加载 MySQL 函数列表
+   * 设置数据库类型，并重新加载函数列表
+   */
+  setDatabaseType(dbType: DatabaseType): void {
+    if (this.currentDbType === dbType) {
+      return // 类型未变化，无需重新加载
+    }
+    
+    this.currentDbType = dbType
+    this.loadFunctions()
+    console.log(`[MetadataService] Database type set to ${dbType}`)
+  }
+
+  /**
+   * 获取当前数据库类型
+   */
+  getDatabaseType(): DatabaseType {
+    return this.currentDbType
+  }
+
+  /**
+   * 从 JSON 配置文件加载函数列表
    */
   loadFunctions(): FunctionLoadResult {
-    const configPath = getResourcePath('mysql-functions.json')
+    const configPath = getFunctionsConfigPath(this.currentDbType)
     
     try {
       if (!fs.existsSync(configPath)) {
-        console.warn(`[MetadataService] MySQL functions config not found: ${configPath}`)
+        console.warn(`[MetadataService] Functions config not found: ${configPath}`)
         this.functionsLoadResult = {
           functions: [],
           loadedAt: new Date(),
@@ -124,7 +161,7 @@ export class MetadataService {
       }
 
       const content = fs.readFileSync(configPath, 'utf-8')
-      const config: MySQLFunctionsConfig = JSON.parse(content)
+      const config: FunctionsConfig = JSON.parse(content)
       
       // 从所有分类中提取函数
       const allFunctions: FunctionMetadata[] = []
@@ -147,14 +184,14 @@ export class MetadataService {
         source: configPath
       }
 
-      console.log(`[MetadataService] Loaded ${allFunctions.length} MySQL functions from ${configPath}`)
+      console.log(`[MetadataService] Loaded ${allFunctions.length} ${this.currentDbType} functions from ${configPath}`)
       if (this.currentDbVersion) {
         console.log(`[MetadataService] Filtered to ${this.functions.length} functions for version ${this.currentDbVersion}`)
       }
       return this.functionsLoadResult
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      console.error(`[MetadataService] Failed to load MySQL functions: ${errorMessage}`)
+      console.error(`[MetadataService] Failed to load functions: ${errorMessage}`)
       
       this.functionsLoadResult = {
         functions: [],
@@ -313,12 +350,12 @@ export class MetadataService {
    */
   getFunctionsByCategory(filterByVersion: boolean = true): Map<string, { label: string; functions: FunctionMetadata[] }> {
     const result = new Map<string, { label: string; functions: FunctionMetadata[] }>()
-    const configPath = getResourcePath('mysql-functions.json')
+    const configPath = getFunctionsConfigPath(this.currentDbType)
     
     try {
       if (fs.existsSync(configPath)) {
         const content = fs.readFileSync(configPath, 'utf-8')
-        const config: MySQLFunctionsConfig = JSON.parse(content)
+        const config: FunctionsConfig = JSON.parse(content)
         
         for (const [key, category] of Object.entries(config.categories)) {
           let functions = category.functions
@@ -374,11 +411,12 @@ export class MetadataService {
   /**
    * 获取当前上下文
    */
-  getContext(): { connectionId: string | null; database: string | null; dbVersion: string | null } {
+  getContext(): { connectionId: string | null; database: string | null; dbVersion: string | null; dbType: DatabaseType } {
     return {
       connectionId: this.currentConnectionId,
       database: this.currentDatabase,
-      dbVersion: this.currentDbVersion
+      dbVersion: this.currentDbVersion,
+      dbType: this.currentDbType
     }
   }
 }

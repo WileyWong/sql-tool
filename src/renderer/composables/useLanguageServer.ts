@@ -135,22 +135,17 @@ export function useLanguageServer() {
       // 先检查是否已有元数据
       let dbMeta = connectionStore.getDatabaseMeta(connectionId, databaseName)
       
-      // 如果没有表数据，主动加载
-      if (forceRefresh || !dbMeta || dbMeta.tables.length === 0) {
-        await connectionStore.loadTables(connectionId, databaseName)
+      // 如果没有表数据或列数据不完整，使用 tablesWithColumns 一次性加载
+      const needsFullLoad = forceRefresh || 
+        !dbMeta || 
+        dbMeta.tables.length === 0 || 
+        dbMeta.tables.some(t => !t.columns || t.columns.length === 0)
+      
+      if (needsFullLoad) {
+        // 使用新的 API 一次性获取所有表及其列信息
+        await connectionStore.loadTablesWithColumns(connectionId, databaseName)
         await connectionStore.loadViews(connectionId, databaseName)
         dbMeta = connectionStore.getDatabaseMeta(connectionId, databaseName)
-        
-        // 加载所有表的列信息
-        if (dbMeta && dbMeta.tables.length > 0) {
-          await Promise.all(
-            dbMeta.tables.map(table => 
-              connectionStore.loadColumns(connectionId!, databaseName!, table.name)
-            )
-          )
-          // 重新获取更新后的元数据
-          dbMeta = connectionStore.getDatabaseMeta(connectionId, databaseName)
-        }
       }
       
       if (dbMeta) {

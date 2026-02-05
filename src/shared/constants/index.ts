@@ -4,8 +4,10 @@ export * from './errors'
  * 默认配置
  */
 export const Defaults = {
-  /** 默认端口 */
+  /** 默认端口 (MySQL) */
   PORT: 3306,
+  /** SQL Server 默认端口 */
+  SQLSERVER_PORT: 1433,
   /** 默认最大行数 */
   MAX_ROWS: 5000,
   /** 执行超时时间（毫秒） */
@@ -31,6 +33,7 @@ export const IpcChannels = {
   // 数据库操作
   DATABASE_LIST: 'database:list',
   DATABASE_TABLES: 'database:tables',
+  DATABASE_TABLES_WITH_COLUMNS: 'database:tablesWithColumns',
   DATABASE_COLUMNS: 'database:columns',
   DATABASE_VIEWS: 'database:views',
   DATABASE_FUNCTIONS: 'database:functions',

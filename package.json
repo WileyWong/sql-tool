@@ -25,8 +25,10 @@
     "mitt": "^3.0.1",
     "monaco-editor": "^0.45.0",
     "monaco-languageclient": "^8.1.1",
+    "mssql": "^10.0.2",
     "mysql2": "^3.6.5",
     "pinia": "^2.1.7",
+    "sortablejs": "^1.15.6",
     "sql-formatter": "^15.3.0",
     "sql-parser-cst": "^0.27.0",
     "uuid": "^9.0.1",
@@ -40,6 +42,7 @@
   "devDependencies": {
     "@intlify/unplugin-vue-i18n": "^11.0.3",
     "@types/crypto-js": "^4.2.1",
+    "@types/mssql": "^9.1.5",
     "@types/node": "^20.10.6",
     "@types/sortablejs": "^1.15.9",
     "@types/uuid": "^9.0.7",

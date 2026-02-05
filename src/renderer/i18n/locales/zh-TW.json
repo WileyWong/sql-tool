@@ -73,6 +73,7 @@
     "editConnection": "編輯連線",
     "connectionName": "連線名稱",
     "connectionNamePlaceholder": "請輸入連線名稱",
+    "databaseType": "資料庫類型",
     "host": "主機",
     "hostPlaceholder": "請輸入主機位址",
     "port": "連接埠",
@@ -101,7 +102,11 @@
     "serverVersion": "伺服器版本",
     "connectionRequired": "請輸入連線名稱",
     "hostRequired": "請輸入主機位址",
-    "usernameRequired": "請輸入使用者名稱"
+    "usernameRequired": "請輸入使用者名稱",
+    "sqlServerOptions": "SQL Server 選項",
+    "encrypt": "加密連線",
+    "trustServerCertificate": "信任伺服器憑證",
+    "domain": "Windows 網域"
   },
   "toolbar": {
     "newConnection": "新建連線",

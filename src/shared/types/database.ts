@@ -26,11 +26,15 @@ export interface ColumnMeta {
   columnType: string     // 完整类型 (如 varchar(255))
   nullable: boolean
   primaryKey: boolean
-  autoIncrement: boolean // 是否自增
+  autoIncrement: boolean // 是否自增 (MySQL: auto_increment, SQL Server: identity)
   defaultValue?: string
   characterSet?: string  // 字符编码
   collation?: string     // 排序规则
   comment?: string
+  // SQL Server 特有
+  isIdentity?: boolean   // 是否为 identity 列
+  seed?: number          // identity seed
+  increment?: number     // identity increment
 }
 
 /**
@@ -209,4 +213,36 @@ export interface TreeNode {
   connectionId?: string
   databaseName?: string
   data?: TableMeta | ViewMeta | FunctionMeta
+}
+
+/**
+ * SQL Server 数据类型枚举
+ */
+export const SqlServerDataTypes = {
+  // 整数类型
+  INTEGER: ['TINYINT', 'SMALLINT', 'INT', 'BIGINT'],
+  // 浮点类型
+  FLOAT: ['FLOAT', 'REAL', 'DECIMAL', 'NUMERIC', 'MONEY', 'SMALLMONEY'],
+  // 字符串类型
+  STRING: ['CHAR', 'VARCHAR', 'NCHAR', 'NVARCHAR', 'TEXT', 'NTEXT'],
+  // 二进制类型
+  BINARY: ['BINARY', 'VARBINARY', 'IMAGE'],
+  // 日期时间类型
+  DATETIME: ['DATE', 'TIME', 'DATETIME', 'DATETIME2', 'SMALLDATETIME', 'DATETIMEOFFSET'],
+  // 其他类型
+  OTHER: ['BIT', 'UNIQUEIDENTIFIER', 'XML', 'SQL_VARIANT', 'GEOGRAPHY', 'GEOMETRY', 'HIERARCHYID']
+} as const
+
+/**
+ * 获取所有 SQL Server 数据类型
+ */
+export function getAllSqlServerDataTypes(): string[] {
+  return [
+    ...SqlServerDataTypes.INTEGER,
+    ...SqlServerDataTypes.FLOAT,
+    ...SqlServerDataTypes.STRING,
+    ...SqlServerDataTypes.BINARY,
+    ...SqlServerDataTypes.DATETIME,
+    ...SqlServerDataTypes.OTHER
+  ]
 }

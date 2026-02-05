@@ -8,6 +8,7 @@ import { initSqlLanguageServer } from './sql-language-server'
 import { createApplicationMenu, updateRecentFilesMenu, setupI18nIpc } from './menu'
 import { initI18n } from './i18n'
 import { IpcChannels } from '@shared/constants'
+import { initializeDrivers, cleanupDrivers } from './database/init'
 
 // 禁用硬件加速（解决某些系统上的渲染问题）
 app.disableHardwareAcceleration()
@@ -88,6 +89,9 @@ app.whenReady().then(() => {
   // 初始化国际化
   initI18n()
   
+  // 初始化数据库驱动
+  initializeDrivers()
+  
   setupIpcHandlers()
   createWindow()
 
@@ -102,4 +106,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// 应用程序退出前清理
+app.on('before-quit', async () => {
+  await cleanupDrivers()
 })

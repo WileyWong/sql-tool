@@ -10,6 +10,7 @@ import { HoverProvider } from './providers/hoverProvider'
 import { FormattingProvider } from './providers/formattingProvider'
 import { MetadataService } from './services/metadataService'
 import type { TableMetadata, ViewMetadata } from './types'
+import type { DatabaseType } from '../../shared/types'
 
 // 服务实例
 let metadataService: MetadataService
@@ -165,6 +166,20 @@ function registerIpcHandlers(): void {
       return { success: true, functionsCount: metadataService.getFunctions().length }
     } catch (error: any) {
       console.error('设置数据库版本失败:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 设置数据库类型（用于加载对应的函数列表）
+  ipcMain.handle('sql-ls:setDatabaseType', async (
+    _event: IpcMainInvokeEvent,
+    dbType: DatabaseType
+  ) => {
+    try {
+      metadataService.setDatabaseType(dbType)
+      return { success: true, functionsCount: metadataService.getFunctions().length }
+    } catch (error: any) {
+      console.error('设置数据库类型失败:', error)
       return { success: false, error: error.message }
     }
   })
