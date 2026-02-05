@@ -1,0 +1,174 @@
+{
+  "version": "1.0.0",
+  "description": "SQL Server T-SQL 函数列表",
+  "lastUpdated": "2025-02-05",
+  "source": "https://docs.microsoft.com/en-us/sql/t-sql/functions/",
+  "categories": {
+    "aggregate": {
+      "label": "聚合函数",
+      "functions": [
+        { "name": "AVG", "signature": "AVG([ALL | DISTINCT] expression)", "returnType": "numeric", "description": "返回组中值的平均值" },
+        { "name": "COUNT", "signature": "COUNT([ALL | DISTINCT] expression) | COUNT(*)", "returnType": "INT", "description": "返回组中的项数" },
+        { "name": "COUNT_BIG", "signature": "COUNT_BIG([ALL | DISTINCT] expression) | COUNT_BIG(*)", "returnType": "BIGINT", "description": "返回组中的项数（返回 BIGINT）" },
+        { "name": "MAX", "signature": "MAX(expression)", "returnType": "same as expression", "description": "返回组中的最大值" },
+        { "name": "MIN", "signature": "MIN(expression)", "returnType": "same as expression", "description": "返回组中的最小值" },
+        { "name": "SUM", "signature": "SUM([ALL | DISTINCT] expression)", "returnType": "numeric", "description": "返回组中所有值的总和" },
+        { "name": "STRING_AGG", "signature": "STRING_AGG(expression, separator) [WITHIN GROUP (ORDER BY...)]", "returnType": "VARCHAR/NVARCHAR", "description": "连接字符串值，用分隔符分隔" },
+        { "name": "GROUPING", "signature": "GROUPING(column)", "returnType": "TINYINT", "description": "指示是否聚合 GROUP BY 列表中的指定列表达式" },
+        { "name": "GROUPING_ID", "signature": "GROUPING_ID(column[,...n])", "returnType": "INT", "description": "计算分组级别" }
+      ]
+    },
+    "string": {
+      "label": "字符串函数",
+      "functions": [
+        { "name": "ASCII", "signature": "ASCII(character_expression)", "returnType": "INT", "description": "返回字符表达式最左侧字符的 ASCII 代码值" },
+        { "name": "CHAR", "signature": "CHAR(integer_expression)", "returnType": "CHAR(1)", "description": "将 INT ASCII 代码转换为字符" },
+        { "name": "CHARINDEX", "signature": "CHARINDEX(substring, string[, start_location])", "returnType": "INT", "description": "在第二个字符串表达式中搜索第一个字符串表达式" },
+        { "name": "CONCAT", "signature": "CONCAT(string_value1, string_value2[,...n])", "returnType": "STRING", "description": "连接两个或多个字符串值" },
+        { "name": "CONCAT_WS", "signature": "CONCAT_WS(separator, string_value1, string_value2[,...n])", "returnType": "STRING", "description": "用分隔符连接两个或多个字符串值" },
+        { "name": "DIFFERENCE", "signature": "DIFFERENCE(character_expression, character_expression)", "returnType": "INT", "description": "比较两个 SOUNDEX 值" },
+        { "name": "FORMAT", "signature": "FORMAT(value, format[, culture])", "returnType": "NVARCHAR", "description": "使用指定的格式和可选的区域性格式化值" },
+        { "name": "LEFT", "signature": "LEFT(character_expression, integer_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "返回字符串中从左边开始指定数量的字符" },
+        { "name": "LEN", "signature": "LEN(string_expression)", "returnType": "INT", "description": "返回字符串的字符数（不包括尾随空格）" },
+        { "name": "LOWER", "signature": "LOWER(character_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "将大写字符数据转换为小写" },
+        { "name": "LTRIM", "signature": "LTRIM(character_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "删除前导空格" },
+        { "name": "NCHAR", "signature": "NCHAR(integer_expression)", "returnType": "NCHAR(1)", "description": "根据 Unicode 标准返回具有指定整数代码的 Unicode 字符" },
+        { "name": "PATINDEX", "signature": "PATINDEX('%pattern%', expression)", "returnType": "INT", "description": "返回模式中第一次出现的起始位置" },
+        { "name": "QUOTENAME", "signature": "QUOTENAME(character_string[, quote_character])", "returnType": "NVARCHAR", "description": "返回带有分隔符的 Unicode 字符串" },
+        { "name": "REPLACE", "signature": "REPLACE(string_expression, string_pattern, string_replacement)", "returnType": "VARCHAR/NVARCHAR", "description": "用另一个字符串值替换所有出现的字符串值" },
+        { "name": "REPLICATE", "signature": "REPLICATE(string_expression, integer_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "将字符串值重复指定的次数" },
+        { "name": "REVERSE", "signature": "REVERSE(string_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "返回字符串值的反向顺序" },
+        { "name": "RIGHT", "signature": "RIGHT(character_expression, integer_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "返回字符串中从右边开始指定数量的字符" },
+        { "name": "RTRIM", "signature": "RTRIM(character_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "截断所有尾随空格" },
+        { "name": "SOUNDEX", "signature": "SOUNDEX(character_expression)", "returnType": "CHAR(4)", "description": "返回由四个字符组成的代码 (SOUNDEX) 以评估两个字符串的相似性" },
+        { "name": "SPACE", "signature": "SPACE(integer_expression)", "returnType": "VARCHAR", "description": "返回由重复空格组成的字符串" },
+        { "name": "STR", "signature": "STR(float_expression[, length[, decimal]])", "returnType": "VARCHAR", "description": "将数值数据转换为字符数据" },
+        { "name": "STRING_ESCAPE", "signature": "STRING_ESCAPE(text, type)", "returnType": "NVARCHAR", "description": "转义文本中的特殊字符" },
+        { "name": "STUFF", "signature": "STUFF(character_expression, start, length, replaceWith_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "删除指定长度的字符并在指定的起始点插入另一组字符" },
+        { "name": "SUBSTRING", "signature": "SUBSTRING(expression, start, length)", "returnType": "VARCHAR/NVARCHAR/VARBINARY", "description": "返回表达式的一部分" },
+        { "name": "TRANSLATE", "signature": "TRANSLATE(inputString, characters, translations)", "returnType": "VARCHAR/NVARCHAR", "description": "将第二个参数中的指定字符替换为第三个参数中的相应字符" },
+        { "name": "TRIM", "signature": "TRIM([characters FROM] string)", "returnType": "VARCHAR/NVARCHAR", "description": "删除字符串两侧的空格或指定字符" },
+        { "name": "UNICODE", "signature": "UNICODE(ncharacter_expression)", "returnType": "INT", "description": "按照 Unicode 标准返回输入表达式的第一个字符的整数值" },
+        { "name": "UPPER", "signature": "UPPER(character_expression)", "returnType": "VARCHAR/NVARCHAR", "description": "将小写字符数据转换为大写" }
+      ]
+    },
+    "datetime": {
+      "label": "日期时间函数",
+      "functions": [
+        { "name": "CURRENT_TIMESTAMP", "signature": "CURRENT_TIMESTAMP", "returnType": "DATETIME", "description": "返回当前数据库系统时间戳" },
+        { "name": "DATEADD", "signature": "DATEADD(datepart, number, date)", "returnType": "DATETIME", "description": "向指定的日期部分添加数值" },
+        { "name": "DATEDIFF", "signature": "DATEDIFF(datepart, startdate, enddate)", "returnType": "INT", "description": "返回两个日期之间的差值" },
+        { "name": "DATEDIFF_BIG", "signature": "DATEDIFF_BIG(datepart, startdate, enddate)", "returnType": "BIGINT", "description": "返回两个日期之间的差值（BIGINT）" },
+        { "name": "DATEFROMPARTS", "signature": "DATEFROMPARTS(year, month, day)", "returnType": "DATE", "description": "从指定的年、月、日返回日期值" },
+        { "name": "DATENAME", "signature": "DATENAME(datepart, date)", "returnType": "NVARCHAR", "description": "返回表示指定日期的指定日期部分的字符串" },
+        { "name": "DATEPART", "signature": "DATEPART(datepart, date)", "returnType": "INT", "description": "返回表示指定日期的指定日期部分的整数" },
+        { "name": "DATETIME2FROMPARTS", "signature": "DATETIME2FROMPARTS(year, month, day, hour, minute, seconds, fractions, precision)", "returnType": "DATETIME2", "description": "从指定的日期和时间部分返回 datetime2 值" },
+        { "name": "DATETIMEFROMPARTS", "signature": "DATETIMEFROMPARTS(year, month, day, hour, minute, seconds, milliseconds)", "returnType": "DATETIME", "description": "从指定的日期和时间部分返回 datetime 值" },
+        { "name": "DATETIMEOFFSETFROMPARTS", "signature": "DATETIMEOFFSETFROMPARTS(year, month, day, hour, minute, seconds, fractions, hour_offset, minute_offset, precision)", "returnType": "DATETIMEOFFSET", "description": "从指定的日期和时间部分返回 datetimeoffset 值" },
+        { "name": "DAY", "signature": "DAY(date)", "returnType": "INT", "description": "返回表示指定日期的天的整数" },
+        { "name": "EOMONTH", "signature": "EOMONTH(start_date[, month_to_add])", "returnType": "DATE", "description": "返回包含指定日期的月份的最后一天" },
+        { "name": "GETDATE", "signature": "GETDATE()", "returnType": "DATETIME", "description": "返回当前数据库系统时间戳" },
+        { "name": "GETUTCDATE", "signature": "GETUTCDATE()", "returnType": "DATETIME", "description": "返回当前 UTC 时间戳" },
+        { "name": "ISDATE", "signature": "ISDATE(expression)", "returnType": "INT", "description": "检查输入表达式是否为有效的日期" },
+        { "name": "MONTH", "signature": "MONTH(date)", "returnType": "INT", "description": "返回表示指定日期的月的整数" },
+        { "name": "SMALLDATETIMEFROMPARTS", "signature": "SMALLDATETIMEFROMPARTS(year, month, day, hour, minute)", "returnType": "SMALLDATETIME", "description": "从指定的日期和时间部分返回 smalldatetime 值" },
+        { "name": "SWITCHOFFSET", "signature": "SWITCHOFFSET(datetimeoffset_expression, time_zone)", "returnType": "DATETIMEOFFSET", "description": "返回一个 datetimeoffset 值，该值从存储的时区偏移量更改为指定的新时区偏移量" },
+        { "name": "SYSDATETIME", "signature": "SYSDATETIME()", "returnType": "DATETIME2", "description": "返回当前数据库系统时间戳（DATETIME2）" },
+        { "name": "SYSDATETIMEOFFSET", "signature": "SYSDATETIMEOFFSET()", "returnType": "DATETIMEOFFSET", "description": "返回当前数据库系统时间戳（DATETIMEOFFSET）" },
+        { "name": "SYSUTCDATETIME", "signature": "SYSUTCDATETIME()", "returnType": "DATETIME2", "description": "返回当前 UTC 时间戳（DATETIME2）" },
+        { "name": "TIMEFROMPARTS", "signature": "TIMEFROMPARTS(hour, minute, seconds, fractions, precision)", "returnType": "TIME", "description": "从指定的时间部分返回 time 值" },
+        { "name": "TODATETIMEOFFSET", "signature": "TODATETIMEOFFSET(datetime_expression, time_zone)", "returnType": "DATETIMEOFFSET", "description": "返回从 datetime2 表达式转换而来的 datetimeoffset 值" },
+        { "name": "YEAR", "signature": "YEAR(date)", "returnType": "INT", "description": "返回表示指定日期的年的整数" }
+      ]
+    },
+    "math": {
+      "label": "数学函数",
+      "functions": [
+        { "name": "ABS", "signature": "ABS(numeric_expression)", "returnType": "numeric", "description": "返回绝对值" },
+        { "name": "ACOS", "signature": "ACOS(float_expression)", "returnType": "FLOAT", "description": "返回余弦值为指定表达式的弧度角" },
+        { "name": "ASIN", "signature": "ASIN(float_expression)", "returnType": "FLOAT", "description": "返回正弦值为指定表达式的弧度角" },
+        { "name": "ATAN", "signature": "ATAN(float_expression)", "returnType": "FLOAT", "description": "返回正切值为指定表达式的弧度角" },
+        { "name": "ATN2", "signature": "ATN2(float_expression, float_expression)", "returnType": "FLOAT", "description": "返回正切值为两个指定表达式之商的弧度角" },
+        { "name": "CEILING", "signature": "CEILING(numeric_expression)", "returnType": "numeric", "description": "返回大于或等于指定表达式的最小整数" },
+        { "name": "COS", "signature": "COS(float_expression)", "returnType": "FLOAT", "description": "返回指定角度的三角余弦" },
+        { "name": "COT", "signature": "COT(float_expression)", "returnType": "FLOAT", "description": "返回指定角度的三角余切" },
+        { "name": "DEGREES", "signature": "DEGREES(numeric_expression)", "returnType": "numeric", "description": "将弧度转换为度" },
+        { "name": "EXP", "signature": "EXP(float_expression)", "returnType": "FLOAT", "description": "返回指定表达式的指数值" },
+        { "name": "FLOOR", "signature": "FLOOR(numeric_expression)", "returnType": "numeric", "description": "返回小于或等于指定表达式的最大整数" },
+        { "name": "LOG", "signature": "LOG(float_expression[, base])", "returnType": "FLOAT", "description": "返回指定浮点表达式的自然对数" },
+        { "name": "LOG10", "signature": "LOG10(float_expression)", "returnType": "FLOAT", "description": "返回以 10 为底的对数" },
+        { "name": "PI", "signature": "PI()", "returnType": "FLOAT", "description": "返回 PI 的常量值" },
+        { "name": "POWER", "signature": "POWER(float_expression, y)", "returnType": "FLOAT", "description": "返回指定表达式的指定幂的值" },
+        { "name": "RADIANS", "signature": "RADIANS(numeric_expression)", "returnType": "numeric", "description": "将度转换为弧度" },
+        { "name": "RAND", "signature": "RAND([seed])", "returnType": "FLOAT", "description": "返回 0 到 1 之间的随机值" },
+        { "name": "ROUND", "signature": "ROUND(numeric_expression, length[, function])", "returnType": "numeric", "description": "返回舍入到指定长度或精度的数值表达式" },
+        { "name": "SIGN", "signature": "SIGN(numeric_expression)", "returnType": "numeric", "description": "返回指定表达式的正号 (+1)、零 (0) 或负号 (-1)" },
+        { "name": "SIN", "signature": "SIN(float_expression)", "returnType": "FLOAT", "description": "返回指定角度的三角正弦" },
+        { "name": "SQRT", "signature": "SQRT(float_expression)", "returnType": "FLOAT", "description": "返回指定表达式的平方根" },
+        { "name": "SQUARE", "signature": "SQUARE(float_expression)", "returnType": "FLOAT", "description": "返回指定表达式的平方" },
+        { "name": "TAN", "signature": "TAN(float_expression)", "returnType": "FLOAT", "description": "返回指定角度的三角正切" }
+      ]
+    },
+    "conversion": {
+      "label": "转换函数",
+      "functions": [
+        { "name": "CAST", "signature": "CAST(expression AS data_type[(length)])", "returnType": "target_type", "description": "将表达式转换为另一种数据类型" },
+        { "name": "CONVERT", "signature": "CONVERT(data_type[(length)], expression[, style])", "returnType": "target_type", "description": "将表达式转换为另一种数据类型（SQL Server 特定）" },
+        { "name": "PARSE", "signature": "PARSE(string_value AS data_type[USING culture])", "returnType": "target_type", "description": "将字符串值转换为指定类型" },
+        { "name": "TRY_CAST", "signature": "TRY_CAST(expression AS data_type[(length)])", "returnType": "target_type/null", "description": "尝试将表达式转换为另一种数据类型" },
+        { "name": "TRY_CONVERT", "signature": "TRY_CONVERT(data_type[(length)], expression[, style])", "returnType": "target_type/null", "description": "尝试将表达式转换为另一种数据类型" },
+        { "name": "TRY_PARSE", "signature": "TRY_PARSE(string_value AS data_type[USING culture])", "returnType": "target_type/null", "description": "尝试将字符串值转换为指定类型" }
+      ]
+    },
+    "json": {
+      "label": "JSON 函数 (SQL Server 2016+)",
+      "functions": [
+        { "name": "ISJSON", "signature": "ISJSON(expression)", "returnType": "INT", "description": "测试字符串是否包含有效的 JSON" },
+        { "name": "JSON_VALUE", "signature": "JSON_VALUE(expression, path)", "returnType": "NVARCHAR", "description": "从 JSON 字符串中提取标量值" },
+        { "name": "JSON_QUERY", "signature": "JSON_QUERY(expression[, path])", "returnType": "NVARCHAR", "description": "从 JSON 字符串中提取对象或数组" },
+        { "name": "JSON_MODIFY", "signature": "JSON_MODIFY(expression, path, new_value)", "returnType": "NVARCHAR", "description": "修改 JSON 字符串中的值" },
+        { "name": "OPENJSON", "signature": "OPENJSON(json_expression[, path])", "returnType": "table", "description": "将 JSON 文档转换为行集" }
+      ]
+    },
+    "window": {
+      "label": "窗口函数",
+      "functions": [
+        { "name": "ROW_NUMBER", "signature": "ROW_NUMBER() OVER([PARTITION BY...] ORDER BY...)", "returnType": "BIGINT", "description": "返回分区中当前行的编号" },
+        { "name": "RANK", "signature": "RANK() OVER([PARTITION BY...] ORDER BY...)", "returnType": "BIGINT", "description": "返回分区中当前行的排名（有间隙）" },
+        { "name": "DENSE_RANK", "signature": "DENSE_RANK() OVER([PARTITION BY...] ORDER BY...)", "returnType": "BIGINT", "description": "返回分区中当前行的排名（无间隙）" },
+        { "name": "NTILE", "signature": "NTILE(integer_expression) OVER([PARTITION BY...] ORDER BY...)", "returnType": "BIGINT", "description": "将每个分区中的行分配到指定数量的组中" },
+        { "name": "LEAD", "signature": "LEAD(expression[, offset[, default]]) OVER([PARTITION BY...] ORDER BY...)", "returnType": "same as expression", "description": "访问当前行之后偏移量的行数据" },
+        { "name": "LAG", "signature": "LAG(expression[, offset[, default]]) OVER([PARTITION BY...] ORDER BY...)", "returnType": "same as expression", "description": "访问当前行之前偏移量的行数据" },
+        { "name": "FIRST_VALUE", "signature": "FIRST_VALUE(expression) OVER([PARTITION BY...] ORDER BY... [ROWS/RANGE...])", "returnType": "same as expression", "description": "返回有序值集中的第一个值" },
+        { "name": "LAST_VALUE", "signature": "LAST_VALUE(expression) OVER([PARTITION BY...] ORDER BY... [ROWS/RANGE...])", "returnType": "same as expression", "description": "返回有序值集中的最后一个值" }
+      ]
+    },
+    "system": {
+      "label": "系统函数",
+      "functions": [
+        { "name": "NEWID", "signature": "NEWID()", "returnType": "UNIQUEIDENTIFIER", "description": "创建唯一 GUID 值" },
+        { "name": "NEWSEQUENTIALID", "signature": "NEWSEQUENTIALID()", "returnType": "UNIQUEIDENTIFIER", "description": "创建顺序 GUID 值" },
+        { "name": "COALESCE", "signature": "COALESCE(expression[,...n])", "returnType": "varies", "description": "返回第一个非 NULL 表达式" },
+        { "name": "NULLIF", "signature": "NULLIF(expression, expression)", "returnType": "varies", "description": "如果两个表达式相等则返回 NULL" },
+        { "name": "IIF", "signature": "IIF(boolean_expression, true_value, false_value)", "returnType": "varies", "description": "条件返回值" },
+        { "name": "ISNULL", "signature": "ISNULL(check_expression, replacement_value)", "returnType": "varies", "description": "如果表达式为 NULL 则返回替代值" },
+        { "name": "ISNUMERIC", "signature": "ISNUMERIC(expression)", "returnType": "INT", "description": "检查表达式是否为有效的数字格式" },
+        { "name": "HOST_NAME", "signature": "HOST_NAME()", "returnType": "NVARCHAR", "description": "返回工作站名称" },
+        { "name": "SUSER_SNAME", "signature": "SUSER_SNAME([server_user_sid])", "returnType": "NVARCHAR", "description": "返回与登录名关联的登录标识名" },
+        { "name": "USER_NAME", "signature": "USER_NAME([id])", "returnType": "NVARCHAR", "description": "返回数据库用户名" },
+        { "name": "DB_NAME", "signature": "DB_NAME([database_id])", "returnType": "NVARCHAR", "description": "返回数据库名称" },
+        { "name": "OBJECT_NAME", "signature": "OBJECT_NAME(object_id[, database_id])", "returnType": "NVARCHAR", "description": "返回架构范围内对象的数据库对象名称" },
+        { "name": "SCHEMA_NAME", "signature": "SCHEMA_NAME([schema_id])", "returnType": "NVARCHAR", "description": "返回与架构 ID 关联的架构名称" },
+        { "name": "APP_NAME", "signature": "APP_NAME()", "returnType": "NVARCHAR", "description": "返回当前会话的应用程序名称" },
+        { "name": "@@VERSION", "signature": "@@VERSION", "returnType": "NVARCHAR", "description": "返回 SQL Server 版本信息" },
+        { "name": "@@SERVERNAME", "signature": "@@SERVERNAME", "returnType": "NVARCHAR", "description": "返回运行 SQL Server 的本地服务器名称" },
+        { "name": "@@SPID", "signature": "@@SPID", "returnType": "SMALLINT", "description": "返回当前用户进程的会话 ID" },
+        { "name": "@@ERROR", "signature": "@@ERROR", "returnType": "INT", "description": "返回最后执行的 Transact-SQL 语句的错误号" },
+        { "name": "@@ROWCOUNT", "signature": "@@ROWCOUNT", "returnType": "INT", "description": "返回受上一语句影响的行数" },
+        { "name": "@@IDENTITY", "signature": "@@IDENTITY", "returnType": "NUMERIC", "description": "返回最后插入的标识值" },
+        { "name": "SCOPE_IDENTITY", "signature": "SCOPE_IDENTITY()", "returnType": "NUMERIC", "description": "返回插入到同一作用域中的标识列内的最后一个标识值" },
+        { "name": "IDENT_CURRENT", "signature": "IDENT_CURRENT('table_name')", "returnType": "NUMERIC", "description": "返回为任何会话和任何作用域中的指定表或视图生成的最后一个标识值" }
+      ]
+    }
+  }
+}
