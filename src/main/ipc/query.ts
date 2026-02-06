@@ -75,32 +75,6 @@ export function setupQueryHandlers(ipcMain: IpcMain): void {
     }
   })
   
-  // 更新单元格
-  ipcMain.handle(IpcChannels.QUERY_UPDATE_CELL, async (_, data: {
-    connectionId: string
-    database: string
-    table: string
-    primaryKeys: { column: string; value: unknown }[]
-    column: string
-    newValue: unknown
-  }) => {
-    try {
-      const dbType = getConnectionDbType(data.connectionId)
-      const driver = DriverFactory.getDriver(dbType)
-      return driver.updateCell(
-        data.connectionId,
-        data.database,
-        data.table,
-        data.primaryKeys,
-        data.column,
-        data.newValue
-      )
-    } catch (error: unknown) {
-      const err = error as { message?: string }
-      return { success: false, message: err.message || '更新失败' }
-    }
-  })
-  
   // 批量执行 SQL
   ipcMain.handle(IpcChannels.QUERY_EXECUTE_BATCH, async (_, data: {
     connectionId: string

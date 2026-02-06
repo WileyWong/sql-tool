@@ -1,5 +1,5 @@
 import { reactive, computed, readonly, type Ref, type ComputedRef } from 'vue'
-import type { QueryResultSet } from '@shared/types'
+import type { QueryResultSet, DatabaseType } from '@shared/types'
 
 /**
  * 数据操作状态
@@ -29,6 +29,8 @@ export interface DataOperationsOptions {
   resultSet: Ref<QueryResultSet | null>
   // 连接ID
   connectionId: Ref<string | null>
+  // 数据库类型
+  dbType: Ref<DatabaseType | null>
 }
 
 /**
@@ -222,6 +224,27 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
     }
   }
   
+  // 获取标识符引用符（MySQL 用反引号，SQL Server 用方括号）
+  function quoteIdentifier(name: string): string {
+    const dbType = options.dbType.value
+    if (dbType === 'sqlserver') {
+      return `[${name}]`
+    }
+    // MySQL 及其他默认用反引号
+    return `\`${name}\``
+  }
+  
+  // 获取完整的表名（包含数据库/schema）
+  function getFullTableName(database: string, table: string): string {
+    const dbType = options.dbType.value
+    if (dbType === 'sqlserver') {
+      // SQL Server: [database].[dbo].[table]
+      return `[${database}].[dbo].[${table}]`
+    }
+    // MySQL: `database`.`table`
+    return `\`${database}\`.\`${table}\``
+  }
+  
   // 生成 DELETE SQL 语句
   function generateDeleteSQL(): string[] {
     const rs = options.resultSet.value
@@ -237,10 +260,10 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
       // 构建 WHERE 条件
       const whereConditions = rs.primaryKeys!.map(pk => {
         const value = row[pk]
-        return `\`${pk}\` = ${formatSqlValue(value)}`
+        return `${quoteIdentifier(pk)} = ${formatSqlValue(value)}`
       }).join(' AND ')
       
-      const sql = `DELETE FROM \`${rs.databaseName}\`.\`${rs.tableName}\` WHERE ${whereConditions};`
+      const sql = `DELETE FROM ${getFullTableName(rs.databaseName, rs.tableName)} WHERE ${whereConditions};`
       sqls.push(sql)
     }
     
@@ -261,16 +284,16 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
       // 构建 SET 子句
       const setClauses: string[] = []
       for (const [column, change] of changes) {
-        setClauses.push(`\`${column}\` = ${formatSqlValue(change.newValue)}`)
+        setClauses.push(`${quoteIdentifier(column)} = ${formatSqlValue(change.newValue)}`)
       }
       
       // 构建 WHERE 条件（使用主键）
       const whereConditions = rs.primaryKeys!.map(pk => {
         const value = row[pk]
-        return `\`${pk}\` = ${formatSqlValue(value)}`
+        return `${quoteIdentifier(pk)} = ${formatSqlValue(value)}`
       }).join(' AND ')
       
-      const sql = `UPDATE \`${rs.databaseName}\`.\`${rs.tableName}\` SET ${setClauses.join(', ')} WHERE ${whereConditions};`
+      const sql = `UPDATE ${getFullTableName(rs.databaseName, rs.tableName)} SET ${setClauses.join(', ')} WHERE ${whereConditions};`
       sqls.push(sql)
     }
     
@@ -290,7 +313,7 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
       const columns = Object.keys(newRow.data)
       const values = columns.map(col => formatSqlValue(newRow.data[col]))
       
-      const sql = `INSERT INTO \`${rs.databaseName}\`.\`${rs.tableName}\` (${columns.map(c => `\`${c}\``).join(', ')}) VALUES (${values.join(', ')});`
+      const sql = `INSERT INTO ${getFullTableName(rs.databaseName, rs.tableName)} (${columns.map(c => quoteIdentifier(c)).join(', ')}) VALUES (${values.join(', ')});`
       sqls.push(sql)
     }
     

@@ -133,18 +133,6 @@ export interface IDatabaseDriver {
   ): Promise<ExplainResult | QueryError>
 
   /**
-   * 更新单元格值
-   */
-  updateCell(
-    connectionId: string,
-    database: string,
-    table: string,
-    primaryKeys: { column: string; value: unknown }[],
-    column: string,
-    newValue: unknown
-  ): Promise<{ success: boolean; message?: string }>
-
-  /**
    * 批量执行 SQL
    */
   executeBatch(

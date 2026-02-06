@@ -362,54 +362,6 @@ function getTypeName(typeCode: number): string {
 }
 
 /**
- * 更新单元格值
- */
-export async function updateCell(
-  connectionId: string,
-  database: string,
-  table: string,
-  primaryKeys: { column: string; value: unknown }[],
-  column: string,
-  newValue: unknown
-): Promise<{ success: boolean; message?: string }> {
-  let connection
-  try {
-    connection = await getConnectionWithReconnect(connectionId)
-  } catch (error: unknown) {
-    const err = error as { message?: string }
-    return { success: false, message: err.message || '数据库连接已断开，重连失败' }
-  }
-  
-  if (!connection) {
-    return { success: false, message: '连接不存在' }
-  }
-  
-  try {
-    // 构建 WHERE 条件
-    const whereConditions = primaryKeys.map(pk => `\`${pk.column}\` = ?`).join(' AND ')
-    const whereValues = primaryKeys.map(pk => pk.value)
-    
-    // 构建 UPDATE 语句
-    const sql = `UPDATE \`${database}\`.\`${table}\` SET \`${column}\` = ? WHERE ${whereConditions}`
-    const values = [newValue, ...whereValues]
-    
-    const [result] = await connection.query(sql, values)
-    const res = result as { affectedRows: number }
-    
-    if (res.affectedRows === 1) {
-      return { success: true }
-    } else if (res.affectedRows === 0) {
-      return { success: false, message: '未找到匹配的记录' }
-    } else {
-      return { success: false, message: `影响了 ${res.affectedRows} 行，请检查主键是否唯一` }
-    }
-  } catch (error: unknown) {
-    const err = error as { message?: string }
-    return { success: false, message: err.message || '更新失败' }
-  }
-}
-
-/**
  * 批量执行 SQL 语句（带事务支持）
  */
 export async function executeBatch(

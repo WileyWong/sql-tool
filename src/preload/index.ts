@@ -78,16 +78,6 @@ const api = {
     explain: (connectionId: string, sql: string, database?: string): Promise<{ success: boolean; explain?: ExplainResult; error?: unknown }> =>
       ipcRenderer.invoke(IpcChannels.QUERY_EXPLAIN, { connectionId, sql, database }),
     
-    updateCell: (
-      connectionId: string,
-      database: string,
-      table: string,
-      primaryKeys: { column: string; value: unknown }[],
-      column: string,
-      newValue: unknown
-    ): Promise<{ success: boolean; message?: string }> =>
-      ipcRenderer.invoke(IpcChannels.QUERY_UPDATE_CELL, { connectionId, database, table, primaryKeys, column, newValue }),
-    
     executeBatch: (connectionId: string, sqls: string[]): Promise<{ success: boolean; message?: string; results?: Array<{ sql: string; affectedRows: number }> }> =>
       ipcRenderer.invoke(IpcChannels.QUERY_EXECUTE_BATCH, { connectionId, sqls })
   },

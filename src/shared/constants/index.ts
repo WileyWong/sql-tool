@@ -49,7 +49,6 @@ export const IpcChannels = {
   QUERY_EXECUTE: 'query:execute',
   QUERY_CANCEL: 'query:cancel',
   QUERY_EXPLAIN: 'query:explain',
-  QUERY_UPDATE_CELL: 'query:updateCell',
   QUERY_EXECUTE_BATCH: 'query:executeBatch',
   
   // 文件操作

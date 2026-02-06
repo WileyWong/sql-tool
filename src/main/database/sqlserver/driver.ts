@@ -940,63 +940,6 @@ export class SqlServerDriver implements IDatabaseDriver {
   }
 
   /**
-   * 更新单元格值
-   */
-  async updateCell(
-    connectionId: string,
-    database: string,
-    table: string,
-    primaryKeys: { column: string; value: unknown }[],
-    column: string,
-    newValue: unknown
-  ): Promise<{ success: boolean; message?: string }> {
-    let pool: sql.ConnectionPool | undefined
-    try {
-      pool = await this.getPoolWithReconnect(connectionId)
-    } catch (error: unknown) {
-      const err = error as { message?: string }
-      return { success: false, message: err.message || '数据库连接已断开，重连失败' }
-    }
-    
-    if (!pool) {
-      return { success: false, message: '连接不存在' }
-    }
-    
-    try {
-      // 切换到指定数据库
-      await pool.request().query(`USE [${database}]`)
-      
-      // 构建 WHERE 条件
-      const whereConditions = primaryKeys.map(pk => `[${pk.column}] = @pk_${pk.column}`).join(' AND ')
-      
-      // 构建 UPDATE 语句
-      const sqlText = `UPDATE [dbo].[${table}] SET [${column}] = @newValue WHERE ${whereConditions}`
-      
-      const request = pool.request()
-      request.input('newValue', newValue)
-      
-      // 添加主键参数
-      for (const pk of primaryKeys) {
-        request.input(`pk_${pk.column}`, pk.value)
-      }
-      
-      const result = await request.query(sqlText)
-      const affectedRows = result.rowsAffected[0] || 0
-      
-      if (affectedRows === 1) {
-        return { success: true }
-      } else if (affectedRows === 0) {
-        return { success: false, message: '未找到匹配的记录' }
-      } else {
-        return { success: false, message: `影响了 ${affectedRows} 行，请检查主键是否唯一` }
-      }
-    } catch (error: unknown) {
-      const err = error as { message?: string }
-      return { success: false, message: err.message || '更新失败' }
-    }
-  }
-
-  /**
    * 批量执行 SQL 语句（带事务支持）
    */
   async executeBatch(

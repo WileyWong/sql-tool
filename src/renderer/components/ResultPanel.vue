@@ -113,17 +113,19 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useResultStore } from '../stores/result'
 import { useEditorStore } from '../stores/editor'
+import { useConnectionStore } from '../stores/connection'
 import { formatValueForExport } from '../utils/formatters'
 import ResultTable from './ResultTable.vue'
 import ExplainView from './ExplainView.vue'
 import DataOperationsToolbar from './DataOperationsToolbar.vue'
 import ConfirmSqlDialog from './ConfirmSqlDialog.vue'
 import { useDataOperations } from '../composables/useDataOperations'
-import type { QueryResultSet, ExplainResult } from '@shared/types'
+import type { QueryResultSet, ExplainResult, DatabaseType } from '@shared/types'
 
 const { t } = useI18n()
 const resultStore = useResultStore()
 const editorStore = useEditorStore()
+const connectionStore = useConnectionStore()
 
 const resultTabs = computed(() => resultStore.tabs)
 const messages = computed(() => resultStore.messages)
@@ -185,7 +187,8 @@ const currentTabIsResultSet = computed(() => {
 // 数据操作
 const dataOps = useDataOperations({
   resultSet: currentResultSet,
-  connectionId: computed(() => editorStore.activeTab?.connectionId ?? null)
+  connectionId: computed(() => editorStore.activeTab?.connectionId ?? null),
+  dbType: computed(() => (connectionStore.currentConnection?.type ?? 'mysql') as DatabaseType)
 })
 
 // 确认对话框状态
