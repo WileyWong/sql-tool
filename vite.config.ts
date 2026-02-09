@@ -12,8 +12,9 @@ export default defineConfig({
         vite: {
           build: {
             outDir: 'dist-electron',
+            sourcemap: true, // 启用 sourcemap 以便调试
             rollupOptions: {
-              external: ['electron', 'mysql2', 'crypto-js', 'uuid']
+              external: ['electron', 'mysql2', 'crypto-js', 'uuid', 'mssql']
             }
           },
           resolve: {
@@ -21,6 +22,10 @@ export default defineConfig({
               '@shared': resolve(__dirname, 'src/shared')
             }
           }
+        },
+        onstart(args) {
+          // 启动 Electron 时开启调试端口
+          args.startup(['--inspect=9229', '.'])
         }
       },
       {

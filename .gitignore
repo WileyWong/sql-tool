@@ -7,7 +7,6 @@ dist-electron/
 release/
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
