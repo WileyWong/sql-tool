@@ -3,15 +3,26 @@
  */
 
 import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver'
-import { parse } from 'sql-parser-cst'
-import { splitStatements } from '../services/sqlParserService'
+import { Parser } from 'node-sql-parser'
+import { splitStatements, mapToParserDialect } from '../services/sqlParserService'
+import { MetadataService } from '../services/metadataService'
 
 export class DiagnosticProvider {
+  private metadataService: MetadataService
+  private parser: Parser
+
+  constructor(metadataService: MetadataService) {
+    this.metadataService = metadataService
+    this.parser = new Parser()
+  }
+
   /**
    * 验证 SQL 文档
    */
   validate(documentText: string): Diagnostic[] {
     const diagnostics: Diagnostic[] = []
+    const dbType = this.metadataService.getDatabaseType()
+    const dialect = mapToParserDialect(dbType)
 
     // 按语句分割
     const statements = splitStatements(documentText)
@@ -21,7 +32,7 @@ export class DiagnosticProvider {
 
       try {
         // 尝试解析
-        parse(stmt.text, { dialect: 'mysql' })
+        this.parser.astify(stmt.text, { database: dialect })
       } catch (error: any) {
         // 解析失败，生成诊断信息
         const diagnostic = this.createDiagnostic(error, stmt, documentText)
@@ -42,12 +53,11 @@ export class DiagnosticProvider {
     stmt: { text: string; start: number; end: number },
     fullText: string
   ): Diagnostic | null {
-    // 尝试从错误中提取位置信息
     let errorOffset = stmt.start
     let errorLength = 1
 
+    // node-sql-parser 错误位置提取
     if (error.location) {
-      // sql-parser-cst 提供位置信息
       const loc = error.location
       if (loc.start) {
         errorOffset = stmt.start + (loc.start.offset || 0)
@@ -55,8 +65,14 @@ export class DiagnosticProvider {
       if (loc.end && loc.start) {
         errorLength = (loc.end.offset || 0) - (loc.start.offset || 0)
       }
-    } else if (error.offset !== undefined) {
-      errorOffset = stmt.start + error.offset
+    } else if (error.message) {
+      // 从错误消息中提取位置: "... at line X column Y"
+      const posMatch = error.message.match(/line\s+(\d+)\s+column\s+(\d+)/i)
+      if (posMatch) {
+        const errorLine = parseInt(posMatch[1], 10) - 1
+        const errorCol = parseInt(posMatch[2], 10) - 1
+        errorOffset = stmt.start + this.lineColToOffset(stmt.text, errorLine, errorCol)
+      }
     }
 
     // 确保 errorLength 至少为 1
@@ -67,8 +83,6 @@ export class DiagnosticProvider {
 
     // 提取错误消息
     let message = error.message || '语法错误'
-    
-    // 清理错误消息
     message = this.cleanErrorMessage(message)
 
     return {
@@ -77,6 +91,19 @@ export class DiagnosticProvider {
       message,
       source: 'sql'
     }
+  }
+
+  /**
+   * 行列号转偏移量
+   */
+  private lineColToOffset(text: string, line: number, col: number): number {
+    const lines = text.split('\n')
+    let offset = 0
+    for (let i = 0; i < line && i < lines.length; i++) {
+      offset += lines[i].length + 1
+    }
+    offset += col
+    return Math.min(offset, text.length)
   }
 
   /**
@@ -121,8 +148,10 @@ export class DiagnosticProvider {
    * 清理错误消息
    */
   private cleanErrorMessage(message: string): string {
-    // 移除技术细节，保留用户友好的消息
     let cleaned = message
+
+    // 移除位置信息前缀
+    cleaned = cleaned.replace(/^Syntax error at line \d+ column \d+\s*/i, '')
 
     // 替换常见的技术术语
     cleaned = cleaned.replace(/Unexpected token/gi, '意外的符号')

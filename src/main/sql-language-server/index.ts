@@ -26,9 +26,9 @@ export function initSqlLanguageServer(): void {
   // 创建服务实例
   metadataService = new MetadataService()
   completionProvider = new CompletionProvider(metadataService)
-  diagnosticProvider = new DiagnosticProvider()
+  diagnosticProvider = new DiagnosticProvider(metadataService)
   hoverProvider = new HoverProvider(metadataService)
-  formattingProvider = new FormattingProvider()
+  formattingProvider = new FormattingProvider(metadataService)
 
   // 注册 IPC 处理器
   registerIpcHandlers()

@@ -68,7 +68,8 @@ export class HoverProvider {
     }
 
     // 查找字段（无前缀，从上下文推断表）
-    const tables = this.sqlParser.extractTablesFromSql(documentText)
+    const dbType = this.metadataService.getDatabaseType()
+    const tables = this.sqlParser.extractTablesFromSql(documentText, dbType)
     for (const tableRef of tables) {
       const columns = this.metadataService.getColumns(tableRef.name)
       const column = columns.find(c => c.name.toLowerCase() === word.toLowerCase())
@@ -123,7 +124,8 @@ export class HoverProvider {
    * 解析表别名
    */
   private resolveTableAlias(sql: string, alias: string): string {
-    const tables = this.sqlParser.extractTablesFromSql(sql)
+    const dbType = this.metadataService.getDatabaseType()
+    const tables = this.sqlParser.extractTablesFromSql(sql, dbType)
     for (const table of tables) {
       if (table.alias?.toLowerCase() === alias.toLowerCase()) {
         return table.name

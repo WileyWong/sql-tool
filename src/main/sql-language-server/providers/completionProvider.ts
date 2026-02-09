@@ -8,7 +8,6 @@ import {
   InsertTextFormat,
   Position,
 } from 'vscode-languageserver'
-import { parse } from 'sql-parser-cst'
 import { SqlParserService, isInStringOrComment, findLastSemicolonPosition } from '../services/sqlParserService'
 import { MetadataService } from '../services/metadataService'
 import type { TableRef } from '../types'
@@ -53,7 +52,7 @@ export class CompletionProvider {
   ): CompletionItem[] {
     const offset = this.getOffset(documentText, position)
 
-    // 使用 sql-parser-cst 检查是否应该提供补全
+    // 检查是否应该提供补全
     if (!this.shouldProvideCompletion(documentText, offset)) {
       return []
     }
@@ -331,7 +330,8 @@ export class CompletionProvider {
     documentText: string
   ): void {
     // 先从 SQL 中提取所有表引用
-    const tables = this.sqlParser.extractTablesFromSql(documentText)
+    const dbType = this.metadataService.getDatabaseType()
+    const tables = this.sqlParser.extractTablesFromSql(documentText, dbType)
     
     // 查找匹配的表引用
     const matchedTable = tables.find(
@@ -484,7 +484,7 @@ export class CompletionProvider {
   }
 
   /**
-   * 使用 sql-parser-cst 判断是否应该提供补全
+   * 判断是否应该提供补全
    * 过滤掉以下情况：
    * 1. 光标前没有有效内容（空白或空文档）
    * 2. 光标在注释内
@@ -509,75 +509,17 @@ export class CompletionProvider {
       }
     }
 
-    // 使用 sql-parser-cst 进行更精确的判断
-    try {
-      const cst = parse(documentText, {
-        dialect: 'mysql',
-        includeRange: true,
-        includeComments: true
-      })
-
-      // 找到光标所在的节点
-      const node = this.findNodeAtOffset(cst, offset)
-
-      if (node) {
-        // 在注释内不补全
-        if (node.type === 'line_comment' || node.type === 'block_comment') {
-          return false
-        }
-
-        // 在字符串内不补全
-        if (node.type === 'string_literal' || node.type === 'string') {
-          return false
-        }
-      }
-
-      return true
-    } catch {
-      // 解析失败时（可能是不完整的 SQL），使用简单的字符检查
-      // 如果最后一个有效字符是分号，不补全
-      if (trimmedBefore.endsWith(';')) {
-        return false
-      }
-
-      // 检查是否在字符串或注释内（简单检查）
-      if (isInStringOrComment(textBefore)) {
-        return false
-      }
-
-      // 其他情况允许补全（可能是正在输入的不完整 SQL）
-      return true
-    }
-  }
-
-  /**
-   * 在 CST 中查找包含指定偏移量的节点
-   */
-  private findNodeAtOffset(root: unknown, targetOffset: number): { type: string } | null {
-    let result: { type: string } | null = null
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const visitNode = (node: any): void => {
-      if (!node || typeof node !== 'object') return
-
-      if (node.range && targetOffset >= node.range[0] && targetOffset <= node.range[1]) {
-        result = node
-      }
-
-      // 递归遍历所有属性
-      for (const key of Object.keys(node)) {
-        const value = node[key]
-        if (Array.isArray(value)) {
-          for (const item of value) {
-            visitNode(item)
-          }
-        } else if (value && typeof value === 'object') {
-          visitNode(value)
-        }
-      }
+    // 如果最后一个有效字符是分号，不补全
+    if (trimmedBefore.endsWith(';')) {
+      return false
     }
 
-    visitNode(root)
-    return result
+    // 检查是否在字符串或注释内
+    if (isInStringOrComment(textBefore)) {
+      return false
+    }
+
+    // 其他情况允许补全
+    return true
   }
 }

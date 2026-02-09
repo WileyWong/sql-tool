@@ -3,16 +3,38 @@
  */
 
 import { TextEdit, Range } from 'vscode-languageserver'
-import { format } from 'sql-formatter'
+import { format, type SqlLanguage } from 'sql-formatter'
+import { MetadataService } from '../services/metadataService'
 
 export class FormattingProvider {
+  private metadataService: MetadataService
+
+  constructor(metadataService: MetadataService) {
+    this.metadataService = metadataService
+  }
+
+  /**
+   * 获取 sql-formatter 的 language
+   */
+  private getFormatterLanguage(): SqlLanguage {
+    const dbType = this.metadataService.getDatabaseType()
+    switch (dbType) {
+      case 'sqlserver':
+        return 'tsql'
+      case 'mysql':
+      default:
+        return 'mysql'
+    }
+  }
+
   /**
    * 格式化整个文档
    */
   formatDocument(documentText: string): TextEdit[] {
     try {
+      const language = this.getFormatterLanguage()
       const formatted = format(documentText, {
-        language: 'mysql',
+        language,
         tabWidth: 2,
         useTabs: false,
         keywordCase: 'upper',
@@ -64,9 +86,10 @@ export class FormattingProvider {
       }
 
       const selectedText = selectedLines.join('\n')
+      const language = this.getFormatterLanguage()
 
       const formatted = format(selectedText, {
-        language: 'mysql',
+        language,
         tabWidth: 2,
         useTabs: false,
         keywordCase: 'upper',
