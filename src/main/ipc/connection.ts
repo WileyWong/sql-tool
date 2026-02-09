@@ -1,6 +1,6 @@
 import { IpcMain } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
-import { IpcChannels, Defaults } from '@shared/constants'
+import { IpcChannels } from '@shared/constants'
 import { loadConnections, saveConnection, deleteConnection, isConnectionNameExists } from '../storage/connection-store'
 import { DriverFactory } from '../database/core/factory'
 import { storeConnectionConfig, removeConnectionConfig } from '../database/core/config-store'
@@ -120,6 +120,16 @@ export function setupConnectionHandlers(ipcMain: IpcMain): void {
     const config = connections.find(c => c.id === connectionId)
     
     if (config) {
+      // 先清理该服务器下的所有编辑器会话
+      try {
+        const dbType = config.type || 'mysql'
+        const sessionManager = DriverFactory.getSessionManager(dbType)
+        await sessionManager.destroySessionsByConnection(connectionId)
+      } catch {
+        // 忽略会话清理错误
+      }
+
+      // 再断开系统共享连接
       try {
         const driver = DriverFactory.getDriverForConfig(config)
         await driver.disconnect(connectionId)

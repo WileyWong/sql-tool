@@ -15,7 +15,13 @@ export const Defaults = {
   /** 连接超时时间（毫秒） */
   CONNECTION_TIMEOUT: 10 * 1000,
   /** 联想列表最大条数 */
-  MAX_SUGGESTIONS: 20
+  MAX_SUGGESTIONS: 20,
+  /** 每个服务器最大编辑器会话数 */
+  MAX_SESSIONS_PER_CONNECTION: 20,
+  /** 会话空闲超时时间（毫秒），30 分钟 */
+  SESSION_IDLE_TIMEOUT: 30 * 60 * 1000,
+  /** 僵尸会话检测间隔（毫秒），60 秒 */
+  ZOMBIE_DETECTION_INTERVAL: 60 * 1000
 } as const
 
 /**
@@ -50,6 +56,13 @@ export const IpcChannels = {
   QUERY_CANCEL: 'query:cancel',
   QUERY_EXPLAIN: 'query:explain',
   QUERY_EXECUTE_BATCH: 'query:executeBatch',
+  
+  // 会话管理
+  SESSION_CREATE: 'session:create',
+  SESSION_DESTROY: 'session:destroy',
+  SESSION_STATUS: 'session:status',
+  SESSION_COUNT: 'session:count',
+  SESSION_CHECK_TAB_EXISTS: 'session:checkTabExists',
   
   // 文件操作
   FILE_OPEN: 'file:open',

@@ -69,17 +69,37 @@ const api = {
   
   // 查询执行
   query: {
-    execute: (connectionId: string, sql: string, maxRows?: number, database?: string): Promise<{ success: boolean; results?: QueryResult[] }> =>
-      ipcRenderer.invoke(IpcChannels.QUERY_EXECUTE, { connectionId, sql, maxRows, database }),
+    execute: (connectionId: string, tabId: string, sql: string, maxRows?: number, database?: string): Promise<{ success: boolean; results?: QueryResult[] }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_EXECUTE, { connectionId, tabId, sql, maxRows, database }),
     
-    cancel: (connectionId: string): Promise<{ success: boolean }> =>
-      ipcRenderer.invoke(IpcChannels.QUERY_CANCEL, connectionId),
+    cancel: (connectionId: string, tabId: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_CANCEL, { connectionId, tabId }),
     
-    explain: (connectionId: string, sql: string, database?: string): Promise<{ success: boolean; explain?: ExplainResult; error?: unknown }> =>
-      ipcRenderer.invoke(IpcChannels.QUERY_EXPLAIN, { connectionId, sql, database }),
+    explain: (connectionId: string, tabId: string, sql: string, database?: string): Promise<{ success: boolean; explain?: ExplainResult; error?: unknown }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_EXPLAIN, { connectionId, tabId, sql, database }),
     
-    executeBatch: (connectionId: string, sqls: string[]): Promise<{ success: boolean; message?: string; results?: Array<{ sql: string; affectedRows: number }> }> =>
-      ipcRenderer.invoke(IpcChannels.QUERY_EXECUTE_BATCH, { connectionId, sqls })
+    executeBatch: (connectionId: string, tabId: string, sqls: string[], database?: string): Promise<{ success: boolean; message?: string; results?: Array<{ sql: string; affectedRows: number }> }> =>
+      ipcRenderer.invoke(IpcChannels.QUERY_EXECUTE_BATCH, { connectionId, tabId, sqls, database })
+  },
+
+  // 会话管理
+  session: {
+    create: (tabId: string, connectionId: string, database?: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.SESSION_CREATE, { tabId, connectionId, database }),
+    
+    destroy: (tabId: string, connectionId: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.SESSION_DESTROY, { tabId, connectionId }),
+    
+    status: (tabId: string, connectionId: string): Promise<{ success: boolean; session?: unknown }> =>
+      ipcRenderer.invoke(IpcChannels.SESSION_STATUS, { tabId, connectionId }),
+    
+    count: (connectionId: string): Promise<{ success: boolean; count?: number }> =>
+      ipcRenderer.invoke(IpcChannels.SESSION_COUNT, { connectionId }),
+
+    // 渲染进程响应：检查 Tab 是否存在（用于主进程僵尸检测回调）
+    onCheckTabExists: (callback: (_event: unknown, tabId: string) => boolean): void => {
+      ipcRenderer.on(IpcChannels.SESSION_CHECK_TAB_EXISTS, callback)
+    }
   },
   
   // 文件操作

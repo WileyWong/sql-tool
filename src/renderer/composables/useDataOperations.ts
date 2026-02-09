@@ -29,6 +29,8 @@ export interface DataOperationsOptions {
   resultSet: Ref<QueryResultSet | null>
   // 连接ID
   connectionId: Ref<string | null>
+  // Tab ID（用于会话级查询）
+  tabId: Ref<string | null>
   // 数据库类型
   dbType: Ref<DatabaseType | null>
 }
@@ -333,6 +335,7 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
     // 执行 SQL
     const result = await window.api.query.executeBatch(
       options.connectionId.value!,
+      options.tabId.value!,
       sqls
     )
     
@@ -363,6 +366,7 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
     // 执行 SQL
     const result = await window.api.query.executeBatch(
       options.connectionId.value!,
+      options.tabId.value!,
       allSqls
     )
     

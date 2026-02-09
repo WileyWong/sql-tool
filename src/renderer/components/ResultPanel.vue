@@ -188,6 +188,7 @@ const currentTabIsResultSet = computed(() => {
 const dataOps = useDataOperations({
   resultSet: currentResultSet,
   connectionId: computed(() => editorStore.activeTab?.connectionId ?? null),
+  tabId: computed(() => editorStore.activeTab?.id ?? null),
   dbType: computed(() => (connectionStore.currentConnection?.type ?? 'mysql') as DatabaseType)
 })
 
@@ -351,6 +352,7 @@ async function refreshData() {
   // 重新执行查询
   const result = await window.api.query.execute(
     activeTab.connectionId,
+    activeTab.id,
     sql,
     undefined,
     activeTab.databaseName

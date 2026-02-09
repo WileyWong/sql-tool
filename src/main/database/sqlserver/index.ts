@@ -3,3 +3,4 @@
  */
 
 export { SqlServerDriver } from './driver'
+export { SqlServerSessionManager } from './session'

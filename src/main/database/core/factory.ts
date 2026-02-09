@@ -4,18 +4,27 @@
 
 import type { DatabaseType, ConnectionConfig } from '@shared/types'
 import type { IDatabaseDriver } from './interface'
+import type { ISessionManager } from './session-interface'
 
 /**
  * 驱动工厂
  */
 export class DriverFactory {
   private static drivers = new Map<DatabaseType, IDatabaseDriver>()
+  private static sessionManagers = new Map<DatabaseType, ISessionManager>()
 
   /**
    * 注册驱动
    */
   static registerDriver(type: DatabaseType, driver: IDatabaseDriver): void {
     this.drivers.set(type, driver)
+  }
+
+  /**
+   * 注册会话管理器
+   */
+  static registerSessionManager(type: DatabaseType, manager: ISessionManager): void {
+    this.sessionManagers.set(type, manager)
   }
 
   /**
@@ -27,6 +36,17 @@ export class DriverFactory {
       throw new Error(`不支持的数据库类型: ${type}`)
     }
     return driver
+  }
+
+  /**
+   * 获取会话管理器
+   */
+  static getSessionManager(type: DatabaseType): ISessionManager {
+    const manager = this.sessionManagers.get(type)
+    if (!manager) {
+      throw new Error(`不支持的数据库类型: ${type}`)
+    }
+    return manager
   }
 
   /**
@@ -54,10 +74,32 @@ export class DriverFactory {
   }
 
   /**
+   * 获取所有已注册的会话管理器类型
+   */
+  static getRegisteredSessionTypes(): DatabaseType[] {
+    return Array.from(this.sessionManagers.keys())
+  }
+
+  /**
    * 清除所有驱动实例
    */
   static clearDrivers(): void {
     this.drivers.clear()
+  }
+
+  /**
+   * 清除所有会话管理器
+   */
+  static clearSessionManagers(): void {
+    this.sessionManagers.clear()
+  }
+
+  /**
+   * 清除所有（驱动 + 会话管理器）
+   */
+  static clearAll(): void {
+    this.drivers.clear()
+    this.sessionManagers.clear()
   }
 }
 
@@ -73,4 +115,11 @@ export function getDriver(type: DatabaseType): IDatabaseDriver {
  */
 export function getDriverForConfig(config: ConnectionConfig | { type?: DatabaseType }): IDatabaseDriver {
   return DriverFactory.getDriverForConfig(config)
+}
+
+/**
+ * 便捷的会话管理器获取函数
+ */
+export function getSessionManager(type: DatabaseType): ISessionManager {
+  return DriverFactory.getSessionManager(type)
 }

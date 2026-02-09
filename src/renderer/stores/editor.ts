@@ -115,6 +115,15 @@ export const useEditorStore = defineStore('editor', () => {
     const index = tabs.value.findIndex(t => t.id === tabId)
     if (index === -1) return
     
+    const tab = tabs.value[index]
+    
+    // 通知后端销毁该 Tab 的独占会话连接
+    if (tab.connectionId) {
+      window.api.session.destroy(tabId, tab.connectionId).catch(() => {
+        // 忽略销毁会话时的错误
+      })
+    }
+    
     tabs.value.splice(index, 1)
     
     // 如果关闭的是当前标签页，切换到相邻标签页

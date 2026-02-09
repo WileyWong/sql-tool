@@ -23,12 +23,24 @@ function deepSerialize(obj: unknown): unknown {
 }
 
 export function setupQueryHandlers(ipcMain: IpcMain): void {
-  // 执行 SQL
-  ipcMain.handle(IpcChannels.QUERY_EXECUTE, async (_, data: { connectionId: string; sql: string; maxRows?: number; database?: string }) => {
+  // 执行 SQL（通过 SessionManager，使用 tabId 标识独占会话）
+  ipcMain.handle(IpcChannels.QUERY_EXECUTE, async (_, data: {
+    connectionId: string
+    tabId: string
+    sql: string
+    maxRows?: number
+    database?: string
+  }) => {
     try {
       const dbType = getConnectionDbType(data.connectionId)
-      const driver = DriverFactory.getDriver(dbType)
-      const results = await driver.executeQuery(data.connectionId, data.sql, {
+      const sessionManager = DriverFactory.getSessionManager(dbType)
+
+      // 懒初始化：如果该 Tab 还没有会话，自动创建
+      if (!sessionManager.getSessionInfo(data.tabId)) {
+        await sessionManager.createSession(data.tabId, data.connectionId, data.database)
+      }
+
+      const results = await sessionManager.executeQuery(data.tabId, data.sql, {
         maxRows: data.maxRows || Defaults.MAX_ROWS,
         currentDatabase: data.database
       })
@@ -43,24 +55,38 @@ export function setupQueryHandlers(ipcMain: IpcMain): void {
     }
   })
   
-  // 取消查询
-  ipcMain.handle(IpcChannels.QUERY_CANCEL, async (_, connectionId: string) => {
+  // 取消查询（通过 SessionManager，使用 tabId）
+  ipcMain.handle(IpcChannels.QUERY_CANCEL, async (_, data: {
+    connectionId: string
+    tabId: string
+  }) => {
     try {
-      const dbType = getConnectionDbType(connectionId)
-      const driver = DriverFactory.getDriver(dbType)
-      const cancelled = await driver.cancelQuery(connectionId)
+      const dbType = getConnectionDbType(data.connectionId)
+      const sessionManager = DriverFactory.getSessionManager(dbType)
+      const cancelled = await sessionManager.cancelQuery(data.tabId)
       return { success: cancelled }
     } catch {
       return { success: false }
     }
   })
   
-  // 获取执行计划
-  ipcMain.handle(IpcChannels.QUERY_EXPLAIN, async (_, data: { connectionId: string; sql: string; database?: string }) => {
+  // 获取执行计划（通过 SessionManager，使用 tabId）
+  ipcMain.handle(IpcChannels.QUERY_EXPLAIN, async (_, data: {
+    connectionId: string
+    tabId: string
+    sql: string
+    database?: string
+  }) => {
     try {
       const dbType = getConnectionDbType(data.connectionId)
-      const driver = DriverFactory.getDriver(dbType)
-      const result = await driver.explainQuery(data.connectionId, data.sql, data.database)
+      const sessionManager = DriverFactory.getSessionManager(dbType)
+
+      // 懒初始化
+      if (!sessionManager.getSessionInfo(data.tabId)) {
+        await sessionManager.createSession(data.tabId, data.connectionId, data.database)
+      }
+
+      const result = await sessionManager.explainQuery(data.tabId, data.sql, data.database)
       
       if ('type' in result && result.type === 'error') {
         return { success: false, error: result }
@@ -75,15 +101,23 @@ export function setupQueryHandlers(ipcMain: IpcMain): void {
     }
   })
   
-  // 批量执行 SQL
+  // 批量执行 SQL（通过 SessionManager，使用 tabId）
   ipcMain.handle(IpcChannels.QUERY_EXECUTE_BATCH, async (_, data: {
     connectionId: string
+    tabId: string
     sqls: string[]
+    database?: string
   }) => {
     try {
       const dbType = getConnectionDbType(data.connectionId)
-      const driver = DriverFactory.getDriver(dbType)
-      return driver.executeBatch(data.connectionId, data.sqls)
+      const sessionManager = DriverFactory.getSessionManager(dbType)
+
+      // 懒初始化
+      if (!sessionManager.getSessionInfo(data.tabId)) {
+        await sessionManager.createSession(data.tabId, data.connectionId, data.database)
+      }
+
+      return sessionManager.executeBatch(data.tabId, data.sqls)
     } catch (error: unknown) {
       const err = error as { message?: string }
       return { success: false, message: err.message || '批量执行失败' }

@@ -3,5 +3,6 @@
  */
 
 export * from './interface'
+export * from './session-interface'
 export * from './factory'
 export * from './config-store'

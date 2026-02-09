@@ -147,7 +147,8 @@ async function handleExecute() {
   try {
     const maxRows = editorStore.activeTab?.maxRows || 5000
     const database = editorStore.activeTab?.databaseName
-    const result = await window.api.query.execute(currentTabConnection.value.id, sql, maxRows, database)
+    const tabId = editorStore.activeTab?.id
+    const result = await window.api.query.execute(currentTabConnection.value.id, tabId!, sql, maxRows, database)
     if (result.success && result.results) {
       resultStore.handleQueryResults(result.results)
       resultStore.setExecutionStatus('success')
@@ -164,7 +165,10 @@ async function handleExecute() {
 async function handleStop() {
   if (!currentTabConnection.value) return
   
-  const result = await window.api.query.cancel(currentTabConnection.value.id)
+  const tabId = editorStore.activeTab?.id
+  if (!tabId) return
+  
+  const result = await window.api.query.cancel(currentTabConnection.value.id, tabId)
   if (result.success) {
     resultStore.addMessage('warning', t('message.queryCancelled'))
     resultStore.setExecutionStatus('cancelled')
@@ -189,7 +193,8 @@ async function handleExplain() {
   
   try {
     const database = editorStore.activeTab?.databaseName
-    const result = await window.api.query.explain(currentTabConnection.value.id, sql, database)
+    const tabId = editorStore.activeTab?.id
+    const result = await window.api.query.explain(currentTabConnection.value.id, tabId!, sql, database)
     if (result.success && result.explain) {
       resultStore.handleExplainResult(result.explain)
       resultStore.setExecutionStatus('success')

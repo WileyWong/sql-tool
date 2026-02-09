@@ -3,12 +3,14 @@ import { join } from 'path'
 import { setupConnectionHandlers } from './ipc/connection'
 import { setupDatabaseHandlers } from './ipc/database'
 import { setupQueryHandlers } from './ipc/query'
+import { setupSessionHandlers } from './ipc/session'
 import { setupFileHandlers } from './ipc/file'
 import { initSqlLanguageServer } from './sql-language-server'
 import { createApplicationMenu, updateRecentFilesMenu, setupI18nIpc } from './menu'
 import { initI18n } from './i18n'
 import { IpcChannels } from '@shared/constants'
-import { initializeDrivers, cleanupDrivers } from './database/init'
+import { initializeDrivers, cleanupDrivers, cleanupSessionsSync } from './database/init'
+import { DriverFactory } from './database/core/factory'
 
 // 禁用硬件加速（解决某些系统上的渲染问题）
 app.disableHardwareAcceleration()
@@ -58,6 +60,20 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+
+  // 渲染进程崩溃时清理所有会话
+  mainWindow.webContents.on('render-process-gone', async (_event, details) => {
+    console.error('[Main] Renderer process gone:', details.reason)
+    const sessionTypes = DriverFactory.getRegisteredSessionTypes()
+    for (const type of sessionTypes) {
+      try {
+        const sessionManager = DriverFactory.getSessionManager(type)
+        await sessionManager.destroyAllSessions()
+      } catch {
+        // 忽略
+      }
+    }
+  })
 }
 
 // 设置 IPC 处理器
@@ -65,6 +81,7 @@ function setupIpcHandlers() {
   setupConnectionHandlers(ipcMain)
   setupDatabaseHandlers(ipcMain)
   setupQueryHandlers(ipcMain)
+  setupSessionHandlers(ipcMain)
   setupFileHandlers(ipcMain)
   
   // 设置国际化相关 IPC
@@ -111,4 +128,11 @@ app.on('window-all-closed', () => {
 // 应用程序退出前清理
 app.on('before-quit', async () => {
   await cleanupDrivers()
+})
+
+// 未捕获异常：同步清理连接后退出
+process.on('uncaughtException', (err) => {
+  console.error('[Main] Uncaught exception, cleaning up connections...', err)
+  cleanupSessionsSync()
+  process.exit(1)
 })

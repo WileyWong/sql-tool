@@ -1,5 +1,7 @@
 /**
  * 数据库驱动接口定义
+ * 仅包含系统操作（连接管理 + 元数据查询）
+ * 用户查询操作已迁移到 ISessionManager（session-interface.ts）
  */
 
 import type { 
@@ -9,10 +11,7 @@ import type {
   ColumnMeta,
   ViewMeta,
   FunctionMeta,
-  IndexMeta,
-  QueryResult,
-  ExplainResult,
-  QueryError
+  IndexMeta
 } from '@shared/types'
 
 /**
@@ -27,6 +26,7 @@ export interface QueryOptions {
 /**
  * 数据库驱动接口
  * 所有数据库驱动必须实现此接口
+ * 仅负责系统操作（连接管理 + 元数据查询），使用共享连接/连接池
  */
 export interface IDatabaseDriver {
   /**
@@ -107,47 +107,9 @@ export interface IDatabaseDriver {
    */
   getTableCreateSql(connectionId: string, database: string, table: string): Promise<string>
 
-  // ==================== 查询操作 ====================
-
   /**
-   * 执行查询
-   */
-  executeQuery(
-    connectionId: string, 
-    sql: string, 
-    options?: QueryOptions
-  ): Promise<QueryResult[]>
-
-  /**
-   * 取消正在执行的查询
-   */
-  cancelQuery(connectionId: string): Promise<boolean>
-
-  /**
-   * 获取执行计划
-   */
-  explainQuery(
-    connectionId: string, 
-    sql: string, 
-    currentDatabase?: string
-  ): Promise<ExplainResult | QueryError>
-
-  /**
-   * 批量执行 SQL
-   */
-  executeBatch(
-    connectionId: string,
-    sqls: string[]
-  ): Promise<{ 
-    success: boolean; 
-    message?: string; 
-    results?: Array<{ sql: string; affectedRows: number }> 
-  }>
-
-  // ==================== DDL 操作 ====================
-
-  /**
-   * 执行 DDL 语句
+   * 执行 DDL 语句（系统级操作，使用共享连接）
+   * 用于不依赖编辑器 Tab 上下文的 DDL（如建表、改表等从连接树发起的操作）
    */
   executeDDL(connectionId: string, sql: string): Promise<{ success: boolean; message?: string }>
 

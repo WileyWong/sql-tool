@@ -3,3 +3,4 @@
  */
 
 export { MySQLDriver } from './driver'
+export { MySQLSessionManager } from './session'
