@@ -214,7 +214,7 @@ export class SqlServerSessionManager implements ISessionManager {
     const session = this.sessions.get(tabId)
     if (!session) return false
     try {
-      await session.pool.request().query('SELECT 1')
+      await session.pool.request().batch('SELECT 1')
       return true
     } catch {
       return false
@@ -257,7 +257,7 @@ export class SqlServerSessionManager implements ISessionManager {
 
     if (currentDatabase) {
       try {
-        await pool.request().query(`USE [${currentDatabase}]`)
+        await pool.request().batch(`USE [${currentDatabase}]`)
       } catch (error: unknown) {
         const err = error as { code?: string; message?: string }
         return [{
@@ -274,95 +274,87 @@ export class SqlServerSessionManager implements ISessionManager {
     for (const batch of batches) {
       if (!batch.trim()) continue
 
-      const statements = this.splitStatements(batch)
+      const batchStartTime = Date.now()
 
-      for (const statement of statements) {
-        if (!statement.trim()) continue
+      // 对整个 batch 做 SELECT TOP 改写（逐条处理 batch 内的 SELECT 语句）
+      const execBatch = this.rewriteSelectsInBatch(batch, maxRows)
 
-        const stmtStartTime = Date.now()
+      try {
+        const request = pool.request()
+        session.runningRequest = request
+        // 使用 batch() 而非 query()，底层走 execSqlBatch 而非 sp_executesql
+        // 这样 SET 命令在连接级别生效，临时表、会话状态都能跨 batch 保持
+        const result = await request.batch(execBatch)
+        const executionTime = Date.now() - batchStartTime
 
-        try {
-          const isSelect = /^\s*SELECT\s/i.test(statement)
-          let execSql = statement
+        const recordsets = result.recordsets as sql.IRecordSet<Record<string, unknown>>[]
+        if (recordsets && recordsets.length > 0) {
+          for (let i = 0; i < recordsets.length; i++) {
+            const recordset = recordsets[i]
+            const columns = recordset.columns
 
-          if (isSelect && !this.hasTop(statement) && !this.hasOffset(statement)) {
-            execSql = statement.replace(/^\s*SELECT\s/i, `SELECT TOP ${maxRows} `)
-          }
+            const tableInfo = this.parseSingleTableQuery(batch)
+            let editable = false
+            let primaryKeys: string[] = []
+            let tableName: string | undefined
+            let databaseName: string | undefined
 
-          const request = pool.request()
-          session.runningRequest = request
-          const result = await request.query(execSql)
-          const executionTime = Date.now() - stmtStartTime
-
-          const recordsets = result.recordsets as sql.IRecordSet<Record<string, unknown>>[]
-          if (recordsets && recordsets.length > 0) {
-            for (let i = 0; i < recordsets.length; i++) {
-              const recordset = recordsets[i]
-              const columns = recordset.columns
-
-              const tableInfo = this.parseSingleTableQuery(statement)
-              let editable = false
-              let primaryKeys: string[] = []
-              let tableName: string | undefined
-              let databaseName: string | undefined
-
-              if (tableInfo && currentDatabase) {
-                databaseName = tableInfo.databaseName || currentDatabase
-                tableName = tableInfo.tableName
-                primaryKeys = await this.getTablePrimaryKeys(pool, databaseName, tableName)
-                editable = primaryKeys.length > 0
-              }
-
-              const serializedRows = serializeRows(recordset as unknown as Record<string, unknown>[])
-              const serializedColumns: { name: string; type: string; isPrimaryKey: boolean }[] = []
-              if (columns) {
-                for (const name of Object.keys(columns)) {
-                  serializedColumns.push({
-                    name: String(name),
-                    type: this.getTypeName(columns[name].type),
-                    isPrimaryKey: primaryKeys.includes(name)
-                  })
-                }
-              }
-
-              const resultSet: QueryResultSet = {
-                type: 'resultset',
-                columns: serializedColumns,
-                rows: serializedRows,
-                rowCount: recordset.length,
-                executionTime: i === 0 ? executionTime : 0,
-                editable,
-                tableName: tableName ? String(tableName) : undefined,
-                databaseName: databaseName ? String(databaseName) : undefined,
-                primaryKeys: primaryKeys.length > 0 ? [...primaryKeys] : undefined
-              }
-              results.push(resultSet)
+            if (tableInfo && currentDatabase) {
+              databaseName = tableInfo.databaseName || currentDatabase
+              tableName = tableInfo.tableName
+              primaryKeys = await this.getTablePrimaryKeys(pool, databaseName, tableName)
+              editable = primaryKeys.length > 0
             }
-          } else {
-            const affectedRows = result.rowsAffected.reduce((a, b) => a + b, 0)
-            const affectedRowsKey = affectedRows === 1 ? 'result.rowAffected' : 'result.rowsAffected'
-            const affectedRowsText = t(affectedRowsKey).replace('{count}', String(affectedRows))
-            const message: QueryMessage = {
-              type: 'message',
-              affectedRows,
-              message: affectedRowsText,
-              executionTime
+
+            const serializedRows = serializeRows(recordset as unknown as Record<string, unknown>[])
+            const serializedColumns: { name: string; type: string; isPrimaryKey: boolean }[] = []
+            if (columns) {
+              for (const name of Object.keys(columns)) {
+                serializedColumns.push({
+                  name: String(name),
+                  type: this.getTypeName(columns[name].type),
+                  isPrimaryKey: primaryKeys.includes(name)
+                })
+              }
             }
-            results.push(message)
+
+            const resultSet: QueryResultSet = {
+              type: 'resultset',
+              columns: serializedColumns,
+              rows: serializedRows,
+              rowCount: recordset.length,
+              executionTime: i === 0 ? executionTime : 0,
+              editable,
+              tableName: tableName ? String(tableName) : undefined,
+              databaseName: databaseName ? String(databaseName) : undefined,
+              primaryKeys: primaryKeys.length > 0 ? [...primaryKeys] : undefined
+            }
+            results.push(resultSet)
           }
-        } catch (error: unknown) {
-          const err = error as { code?: string; message?: string; number?: number; state?: string }
-          const queryError: QueryError = {
-            type: 'error',
-            code: err.code || err.number?.toString() || 'E4004',
-            message: err.message || 'SQL 执行错误',
-            sqlState: err.state
+        } else {
+          const affectedRows = result.rowsAffected.reduce((a, b) => a + b, 0)
+          const affectedRowsKey = affectedRows === 1 ? 'result.rowAffected' : 'result.rowsAffected'
+          const affectedRowsText = t(affectedRowsKey).replace('{count}', String(affectedRows))
+          const message: QueryMessage = {
+            type: 'message',
+            affectedRows,
+            message: affectedRowsText,
+            executionTime
           }
-          results.push(queryError)
-          break
-        } finally {
-          session.runningRequest = undefined
+          results.push(message)
         }
+      } catch (error: unknown) {
+        const err = error as { code?: string; message?: string; number?: number; state?: string }
+        const queryError: QueryError = {
+          type: 'error',
+          code: err.code || err.number?.toString() || 'E4004',
+          message: err.message || 'SQL 执行错误',
+          sqlState: err.state
+        }
+        results.push(queryError)
+        break
+      } finally {
+        session.runningRequest = undefined
       }
     }
 
@@ -407,7 +399,7 @@ export class SqlServerSessionManager implements ISessionManager {
 
     if (currentDatabase) {
       try {
-        await pool.request().query(`USE [${currentDatabase}]`)
+        await pool.request().batch(`USE [${currentDatabase}]`)
       } catch (error: unknown) {
         const err = error as { code?: string; message?: string }
         return {
@@ -419,9 +411,9 @@ export class SqlServerSessionManager implements ISessionManager {
     }
 
     try {
-      await pool.request().query('SET SHOWPLAN_TEXT ON')
-      const result = await pool.request().query(sqlText)
-      await pool.request().query('SET SHOWPLAN_TEXT OFF')
+      await pool.request().batch('SET SHOWPLAN_TEXT ON')
+      const result = await pool.request().batch(sqlText)
+      await pool.request().batch('SET SHOWPLAN_TEXT OFF')
 
       const nodes: ExplainNode[] = []
       let nodeId = 0
@@ -451,7 +443,7 @@ export class SqlServerSessionManager implements ISessionManager {
         raw: recordsets as unknown as Record<string, unknown>[]
       }
     } catch (error: unknown) {
-      try { await pool.request().query('SET SHOWPLAN_TEXT OFF') } catch { /* 忽略 */ }
+      try { await pool.request().batch('SET SHOWPLAN_TEXT OFF') } catch { /* 忽略 */ }
       const err = error as { code?: string; message?: string }
       return {
         type: 'error',
@@ -521,7 +513,7 @@ export class SqlServerSessionManager implements ISessionManager {
     session.lastActiveAt = Date.now()
 
     try {
-      await pool.request().query(sqlText)
+      await pool.request().batch(sqlText)
       return { success: true }
     } catch (error: unknown) {
       const err = error as { message?: string }
@@ -581,7 +573,7 @@ export class SqlServerSessionManager implements ISessionManager {
     if (!session) throw new Error('会话不存在，请先执行查询以建立连接')
 
     try {
-      await session.pool.request().query('SELECT 1')
+      await session.pool.request().batch('SELECT 1')
       return session.pool
     } catch {
       session.status = 'reconnecting'
@@ -632,16 +624,15 @@ export class SqlServerSessionManager implements ISessionManager {
     table: string
   ): Promise<string[]> {
     try {
-      await pool.request().query(`USE [${database}]`)
+      await pool.request().batch(`USE [${database}]`)
       const result = await pool.request()
-        .input('table', sql.NVarChar, table)
         .query(`
           SELECT c.name AS column_name
           FROM sys.indexes i
           INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
           INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
           INNER JOIN sys.tables t ON i.object_id = t.object_id
-          WHERE t.name = @table AND i.is_primary_key = 1
+          WHERE t.name = '${table.replace(/'/g, "''")}' AND i.is_primary_key = 1
           ORDER BY ic.key_ordinal
         `)
       return result.recordset.map(r => r.column_name)
@@ -689,6 +680,22 @@ export class SqlServerSessionManager implements ISessionManager {
     }
 
     return statements
+  }
+
+  /**
+   * 对整个 batch 中的 SELECT 语句添加 TOP 限制
+   * 先用 splitStatements 拆分出各语句，对符合条件的 SELECT 加上 TOP，然后重新拼接
+   */
+  private rewriteSelectsInBatch(batchSql: string, maxRows: number): string {
+    const statements = this.splitStatements(batchSql)
+    const rewritten = statements.map(stmt => {
+      const isSelect = /^\s*SELECT\s/i.test(stmt)
+      if (isSelect && !this.hasTop(stmt) && !this.hasOffset(stmt)) {
+        return stmt.replace(/^\s*SELECT\s/i, `SELECT TOP ${maxRows} `)
+      }
+      return stmt
+    })
+    return rewritten.join(';\n')
   }
 
   private hasTop(sqlText: string): boolean {
