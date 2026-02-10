@@ -4,6 +4,7 @@
  */
 
 import sql from 'mssql'
+import { XMLParser } from 'fast-xml-parser'
 import type {
   ConnectionConfig,
   SqlServerOptions,
@@ -12,7 +13,7 @@ import type {
   QueryMessage,
   QueryError,
   ExplainResult,
-  ExplainNode
+  SqlServerExplainNode
 } from '@shared/types'
 import { Defaults } from '@shared/constants'
 import type { ISessionManager, SessionInfo } from '../core/session-interface'
@@ -72,6 +73,8 @@ interface SqlServerSession {
   /** 僵尸检测：渲染进程无响应计数 */
   suspiciousCount: number
 }
+
+const MAX_EXPLAIN_NODES = 2000
 
 /**
  * SQL Server 会话管理器实现
@@ -441,45 +444,160 @@ export class SqlServerSessionManager implements ISessionManager {
     }
 
     try {
-      await pool.request().batch('SET SHOWPLAN_TEXT ON')
+      await pool.request().batch('SET SHOWPLAN_XML ON')
       const result = await pool.request().batch(sqlText)
-      await pool.request().batch('SET SHOWPLAN_TEXT OFF')
-
-      const nodes: ExplainNode[] = []
-      let nodeId = 0
+      await pool.request().batch('SET SHOWPLAN_XML OFF')
 
       const recordsets = result.recordsets as sql.IRecordSet<Record<string, unknown>>[]
+      let planXml = ''
+
       if (recordsets && recordsets.length > 0) {
         for (const recordset of recordsets) {
           for (const row of recordset) {
-            const planText = row['StmtText'] || row[Object.keys(row)[0]]
-            if (planText) {
-              nodes.push({
-                id: nodeId++,
-                selectType: 'SIMPLE',
-                table: '',
-                type: 'TEXT',
-                rows: 0,
-                filtered: 0,
-                extra: String(planText)
-              })
-            }
+            const text = row['XML_F52E2B61-18A1-11d1-B105-00805F49916B'] || row[Object.keys(row)[0]]
+            if (text) planXml += String(text)
           }
         }
       }
 
+      const { nodes, truncated, totalCount } = this.parseShowPlanXML(planXml)
+
+      const raw = planXml.length > 1024 * 1024
+        ? `[XML too large: ${(planXml.length / 1024 / 1024).toFixed(2)}MB]`
+        : planXml
+
       return {
+        databaseType: 'sqlserver',
         nodes,
-        raw: recordsets as unknown as Record<string, unknown>[]
+        raw,
+        truncated,
+        totalCount
       }
     } catch (error: unknown) {
-      try { await pool.request().batch('SET SHOWPLAN_TEXT OFF') } catch { /* 忽略 */ }
+      try { await pool.request().batch('SET SHOWPLAN_XML OFF') } catch { /* 忽略 */ }
       const err = error as { code?: string; message?: string }
       return {
         type: 'error',
         code: err.code || 'E4004',
         message: err.message || '获取执行计划失败'
       }
+    }
+  }
+
+  private parseShowPlanXML(xml: string): {
+    nodes: SqlServerExplainNode[]
+    truncated: boolean
+    totalCount: number
+  } {
+    if (!xml) {
+      return { nodes: [], truncated: false, totalCount: 0 }
+    }
+
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_',
+      parseAttributeValue: false,
+      removeNSPrefix: true
+    })
+
+    const doc = parser.parse(xml)
+    const stmt = doc.ShowPlanXML?.BatchSequence?.Batch?.Statements?.StmtSimple
+
+    if (!stmt) {
+      return { nodes: [], truncated: false, totalCount: 0 }
+    }
+
+    const allNodes: SqlServerExplainNode[] = []
+
+    function extractRelOp(relOp: any, depth: number): SqlServerExplainNode | null {
+      if (!relOp) return null
+
+      const node: SqlServerExplainNode = {
+        id: allNodes.length,
+        nodeId: relOp['@_NodeId'] || '',
+        physicalOp: relOp['@_PhysicalOp'] || '',
+        logicalOp: relOp['@_LogicalOp'] || '',
+        estimateRows: parseFloat(relOp['@_EstimateRows'] || '0'),
+        estimateCpu: parseFloat(relOp['@_EstimateCPU'] || '0'),
+        estimateIo: parseFloat(relOp['@_EstimateIO'] || '0'),
+        estimatedTotalSubtreeCost: parseFloat(relOp['@_EstimatedTotalSubtreeCost'] || '0'),
+        actualRows: undefined,
+        actualExecutions: undefined,
+        outputList: [],
+        children: [],
+        depth
+      }
+
+      // 解析实际执行数据（并行查询可能有多个线程）
+      const runTimeItems = relOp.RunTimeInformation?.RunTimeCountersPerThread
+      if (runTimeItems) {
+        const items = Array.isArray(runTimeItems) ? runTimeItems : [runTimeItems]
+        node.actualRows = items.reduce((sum: number, rt: any) => sum + parseInt(rt['@_ActualRows'] || '0'), 0)
+        node.actualExecutions = items.reduce((sum: number, rt: any) => sum + parseInt(rt['@_ActualExecutions'] || '0'), 0)
+      }
+
+      // 解析输出列
+      const outputList = relOp.OutputList?.ColumnReference
+      if (outputList) {
+        const columns = Array.isArray(outputList) ? outputList : [outputList]
+        node.outputList = columns.map((c: any) =>
+          c['@_Column'] || `${c['@_Table']}.${c['@_Column']}`
+        ).filter(Boolean)
+      }
+
+      allNodes.push(node)
+
+      // 递归处理子节点
+      if (allNodes.length < MAX_EXPLAIN_NODES) {
+        // 通用方式：遍历 relOp 下所有子属性寻找嵌套的 RelOp
+        for (const key of Object.keys(relOp)) {
+          if (allNodes.length >= MAX_EXPLAIN_NODES) break
+          if (key.startsWith('@_') || key === 'OutputList' || key === 'RunTimeInformation') continue
+
+          const child = relOp[key]
+          if (!child || typeof child !== 'object') continue
+
+          // 情况1：属性本身就是 RelOp（直接子节点）
+          if (key === 'RelOp') {
+            const childArray = Array.isArray(child) ? child : [child]
+            for (const c of childArray) {
+              if (allNodes.length >= MAX_EXPLAIN_NODES) break
+              const childNode = extractRelOp(c, depth + 1)
+              if (childNode) node.children.push(childNode)
+            }
+          }
+          // 情况2：操作符节点内嵌套 RelOp（如 NestedLoops/RelOp、HashMatch/RelOp 等）
+          else if (child.RelOp) {
+            const nestedChildren = Array.isArray(child.RelOp) ? child.RelOp : [child.RelOp]
+            for (const c of nestedChildren) {
+              if (allNodes.length >= MAX_EXPLAIN_NODES) break
+              const childNode = extractRelOp(c, depth + 1)
+              if (childNode) node.children.push(childNode)
+            }
+          }
+        }
+      }
+
+      return node
+    }
+
+    // 支持多语句
+    const statements = Array.isArray(stmt) ? stmt : [stmt]
+    const roots: SqlServerExplainNode[] = []
+
+    for (const statement of statements) {
+      if (allNodes.length >= MAX_EXPLAIN_NODES) break
+      const queryPlan = statement.QueryPlan
+      if (queryPlan?.RelOp) {
+        const root = extractRelOp(queryPlan.RelOp, 0)
+        if (root) roots.push(root)
+      }
+    }
+
+    return {
+      nodes: roots,
+      truncated: allNodes.length >= MAX_EXPLAIN_NODES,
+      totalCount: allNodes.length
     }
   }
 

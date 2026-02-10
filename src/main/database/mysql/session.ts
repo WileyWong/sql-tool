@@ -6,6 +6,7 @@
 import mysql, { Connection } from 'mysql2/promise'
 import type {
   ConnectionConfig,
+  DatabaseType,
   QueryResult,
   QueryResultSet,
   QueryMessage,
@@ -405,6 +406,7 @@ export class MySQLSessionManager implements ISessionManager {
       }))
 
       return {
+        databaseType: 'mysql' as DatabaseType,
         nodes,
         raw: rawRows
       }

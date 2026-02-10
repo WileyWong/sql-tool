@@ -58,7 +58,7 @@ export interface QueryError {
 export type QueryResult = QueryResultSet | QueryMessage | QueryError
 
 /**
- * 执行计划节点
+ * 执行计划节点（MySQL 格式）
  */
 export interface ExplainNode {
   id: number
@@ -76,11 +76,33 @@ export interface ExplainNode {
 }
 
 /**
+ * SQL Server 执行计划节点
+ */
+export interface SqlServerExplainNode {
+  id: number
+  nodeId: string
+  physicalOp: string
+  logicalOp: string
+  estimateRows: number
+  estimateCpu?: number
+  estimateIo?: number
+  estimatedTotalSubtreeCost?: number
+  actualRows?: number
+  actualExecutions?: number
+  outputList: string[]
+  children: SqlServerExplainNode[]
+  depth?: number
+}
+
+/**
  * 执行计划结果
  */
 export interface ExplainResult {
-  nodes: ExplainNode[]
-  raw: Record<string, unknown>[]
+  databaseType: import('./connection').DatabaseType
+  nodes: ExplainNode[] | SqlServerExplainNode[]
+  raw: Record<string, unknown>[] | string
+  truncated?: boolean
+  totalCount?: number
 }
 
 /**
