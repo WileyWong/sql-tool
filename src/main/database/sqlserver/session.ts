@@ -281,17 +281,51 @@ export class SqlServerSessionManager implements ISessionManager {
 
       try {
         const request = pool.request()
+        // 开启 arrayRowMode，避免同名列被合并为数组
+        request.arrayRowMode = true
         session.runningRequest = request
         // 使用 batch() 而非 query()，底层走 execSqlBatch 而非 sp_executesql
         // 这样 SET 命令在连接级别生效，临时表、会话状态都能跨 batch 保持
         const result = await request.batch(execBatch)
         const executionTime = Date.now() - batchStartTime
 
-        const recordsets = result.recordsets as sql.IRecordSet<Record<string, unknown>>[]
+        // arrayRowMode 下 recordsets 中每行是 unknown[]，columns 按索引保留所有列（含同名列）
+        const recordsets = result.recordsets as unknown as unknown[][][]
+
         if (recordsets && recordsets.length > 0) {
           for (let i = 0; i < recordsets.length; i++) {
-            const recordset = recordsets[i]
-            const columns = recordset.columns
+            const arrayRows = recordsets[i]
+            // batch() 不会把 columns 放到 result.columns 上（这是 query() 独有的），
+            // 但每个 recordset 数组上有一个非枚举的 columns 属性（由 mssql 内部设置）
+            // arrayRowMode 下该属性是数组，保留了所有列（含同名列）
+            const columnsInfo = ((arrayRows as any).columns || []) as Array<{
+              name: string
+              type: any
+              index: number
+            }>
+
+            // 处理同名列：生成唯一列名
+            const uniqueNames: string[] = []
+            const nameCount = new Map<string, number>()
+            for (const col of columnsInfo) {
+              const baseName = col.name
+              const count = nameCount.get(baseName) || 0
+              if (count > 0) {
+                uniqueNames.push(`${baseName}_${count}`)
+              } else {
+                uniqueNames.push(baseName)
+              }
+              nameCount.set(baseName, count + 1)
+            }
+
+            // 将数组行转换为对象行（使用唯一列名）
+            const objectRows: Record<string, unknown>[] = arrayRows.map(row => {
+              const obj: Record<string, unknown> = {}
+              for (let j = 0; j < uniqueNames.length; j++) {
+                obj[uniqueNames[j]] = row[j]
+              }
+              return obj
+            })
 
             const tableInfo = this.parseSingleTableQuery(batch)
             let editable = false
@@ -306,23 +340,19 @@ export class SqlServerSessionManager implements ISessionManager {
               editable = primaryKeys.length > 0
             }
 
-            const serializedRows = serializeRows(recordset as unknown as Record<string, unknown>[])
-            const serializedColumns: { name: string; type: string; isPrimaryKey: boolean }[] = []
-            if (columns) {
-              for (const name of Object.keys(columns)) {
-                serializedColumns.push({
-                  name: String(name),
-                  type: this.getTypeName(columns[name].type),
-                  isPrimaryKey: primaryKeys.includes(name)
-                })
-              }
-            }
+            const serializedRows = serializeRows(objectRows)
+            const serializedColumns: { name: string; type: string; isPrimaryKey: boolean }[] =
+              uniqueNames.map((name, idx) => ({
+                name,
+                type: this.getTypeName(columnsInfo[idx].type),
+                isPrimaryKey: primaryKeys.includes(columnsInfo[idx].name)
+              }))
 
             const resultSet: QueryResultSet = {
               type: 'resultset',
               columns: serializedColumns,
               rows: serializedRows,
-              rowCount: recordset.length,
+              rowCount: arrayRows.length,
               executionTime: i === 0 ? executionTime : 0,
               editable,
               tableName: tableName ? String(tableName) : undefined,
