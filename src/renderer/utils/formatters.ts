@@ -99,6 +99,7 @@ export function formatDateTime(value: unknown, type: string): string | null {
  * @returns 格式化后的字符串（BIT(1) 返回 'true'/'false'），如果不是 BIT(1) 返回 null
  */
 export function formatBitValue(value: unknown, columnType: string): string | null {
+  if (!columnType) return null
   const upperType = columnType.toUpperCase()
   
   // 只处理 BIT 或 BIT(1) 类型

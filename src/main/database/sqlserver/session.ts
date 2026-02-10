@@ -758,14 +758,23 @@ export class SqlServerSessionManager implements ISessionManager {
   }
 
   private getTypeName(typeInfo: sql.ISqlType | (() => sql.ISqlType) | sql.ISqlTypeFactory): string {
-    if (typeof typeInfo === 'function') {
-      try {
-        const type = (typeInfo as () => sql.ISqlType)()
-        return (type as { type?: string }).type || 'UNKNOWN'
-      } catch {
-        return 'UNKNOWN'
-      }
+    if (!typeInfo) return 'UNKNOWN'
+    // mssql 的 TYPES（如 TYPES.Bit, TYPES.Int）是函数，且带有 declaration 属性（如 'bit', 'int'）
+    // 直接用 declaration 获取类型名，避免调用函数后拿到的 type 仍是函数引用（无法序列化到渲染进程）
+    const declaration = (typeInfo as any).declaration
+    if (typeof declaration === 'string') {
+      return declaration.toUpperCase()
     }
-    return (typeInfo as { type?: string }).type || 'UNKNOWN'
+    if (typeof typeInfo === 'function') {
+      // 回退：使用函数名
+      return typeInfo.name ? typeInfo.name.toUpperCase() : 'UNKNOWN'
+    }
+    const typeProp = (typeInfo as { type?: any }).type
+    if (typeProp) {
+      // type 属性可能也是一个带 declaration 的函数
+      if (typeof typeProp === 'string') return typeProp
+      if (typeof typeProp?.declaration === 'string') return typeProp.declaration.toUpperCase()
+    }
+    return 'UNKNOWN'
   }
 }
