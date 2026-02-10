@@ -30,7 +30,7 @@
       >
         <div
           v-for="virtualRow in virtualItems"
-          :key="virtualRow.key"
+          :key="virtualRow.index"
           class="virtual-row"
           :style="{
             position: 'absolute',
@@ -104,7 +104,7 @@ const flattenedNodes = computed<FlatNode[]>(() => {
 
 const rowVirtualizer = useVirtualizer(computed(() => ({
   count: flattenedNodes.value.length,
-  getScrollElement: () => scrollRef.value,
+  getScrollElement: () => scrollRef.value ?? null,
   estimateSize: () => NODE_HEIGHT,
   overscan: 10
 })))

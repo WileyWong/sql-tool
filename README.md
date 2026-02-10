@@ -2,7 +2,7 @@
 
 English | [中文](./README_CN.md)
 
-A MySQL database client tool built with Electron + Vue 3.
+A MySQL & SQL Server database client tool built with Electron + Vue 3.
 
 Fully developed with AI assistance. I created this because existing database management tools always had some aspects I wasn't satisfied with. It will continue to be optimized as issues are discovered during use.
 
@@ -15,7 +15,7 @@ The AI-assisted requirement documents are also included in the repository. They 
 ## Features
 
 ### Database Connection Management
-- Create, edit, and delete MySQL database connections
+- Create, edit, and delete MySQL / SQL Server database connections
 - Connection credentials stored locally with AES encryption
 - Tree view displaying databases, tables, views, columns, etc.
 - Double-click to switch current database
@@ -24,7 +24,7 @@ The AI-assisted requirement documents are also included in the repository. They 
 ### SQL Editor
 - Professional SQL editor powered by Monaco Editor
 - **Auto-completion**: Real-time suggestions for keywords, table names, column names, functions, etc.
-- **Syntax Checking**: MySQL syntax error detection with red squiggly underlines + hover tooltips
+- **Syntax Checking**: SQL syntax error detection with red squiggly underlines + hover tooltips
 - **Code Formatting**: `Shift+Alt+F` shortcut, uppercase keywords, auto-indentation
 - **Hover Information**: Mouse hover displays detailed information for tables, columns, and functions
 - Multi-tab management for editing multiple SQL files simultaneously
@@ -33,7 +33,7 @@ The AI-assisted requirement documents are also included in the repository. They 
 ### SQL Execution
 - Execute selected SQL or entire editor content
 - Batch execution of multiple statements, stops on first error
-- Stop running queries (sends KILL QUERY)
+- Stop running queries (sends KILL QUERY for MySQL)
 - Default timeout: 10 minutes
 - Configurable maximum result set rows (default: 5000)
 
@@ -44,9 +44,8 @@ The AI-assisted requirement documents are also included in the repository. They 
 - Message panel shows affected rows for non-SELECT statements
 
 ### Execution Plan
-- MySQL EXPLAIN format support
-- Flowchart visualization of query execution plan
-- Table view for detailed execution plan data
+- MySQL: EXPLAIN format with flowchart visualization and table view
+- SQL Server: SHOWPLAN_XML with interactive tree view, cost analysis, and virtual scrolling
 
 ## Tech Stack
 
@@ -54,9 +53,11 @@ The AI-assisted requirement documents are also included in the repository. They 
 - **Desktop Framework**: Electron 28
 - **UI Components**: Element Plus
 - **Code Editor**: Monaco Editor + monaco-languageclient
-- **SQL Parsing**: sql-parser-cst
+- **SQL Parsing**: node-sql-parser
 - **SQL Formatting**: sql-formatter
-- **Database Driver**: mysql2
+- **Database Drivers**: mysql2, mssql
+- **XML Parsing**: fast-xml-parser
+- **Virtual Scrolling**: @tanstack/vue-virtual
 - **Build Tools**: Vite + electron-builder
 
 ## Development
@@ -134,18 +135,27 @@ Output:
 ```
 sql-tool/
 ├── src/
-│   ├── main/              # Electron main process
-│   │   ├── index.ts       # Main process entry
-│   │   ├── database/      # Database connection management
-│   │   └── language-server/ # SQL Language Server
-│   └── renderer/          # Renderer process (Vue app)
-│       ├── components/    # Vue components
-│       ├── composables/   # Composable functions
-│       ├── stores/        # Pinia state management
-│       └── types/         # TypeScript type definitions
-├── resources/             # Application resources
-├── requirements/          # Requirement documents
-└── release/               # Build output directory
+│   ├── main/                  # Electron main process
+│   │   ├── index.ts           # Main process entry
+│   │   ├── database/          # Database management
+│   │   │   ├── core/          # Shared database abstractions
+│   │   │   ├── mysql/         # MySQL session & metadata
+│   │   │   └── sqlserver/     # SQL Server session & metadata
+│   │   ├── ipc/               # IPC handlers
+│   │   ├── services/          # Business services
+│   │   ├── sql-language-server/ # SQL Language Server
+│   │   └── storage/           # Local storage
+│   ├── preload/               # Preload scripts
+│   ├── renderer/              # Renderer process (Vue app)
+│   │   ├── components/        # Vue components
+│   │   │   └── explain/       # Execution plan components
+│   │   ├── composables/       # Composable functions
+│   │   ├── stores/            # Pinia state management
+│   │   └── i18n/              # Internationalization
+│   └── shared/                # Shared types & utilities
+├── resources/                 # Application resources
+├── requirements/              # Requirement documents
+└── release/                   # Build output directory
 ```
 
 ## License

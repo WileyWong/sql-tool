@@ -1,7 +1,7 @@
 {
   "name": "sql-tool",
-  "version": "1.0.0",
-  "description": "MySQL 数据库客户端工具",
+  "version": "1.1.0",
+  "description": "MySQL/SQL Server 数据库客户端工具",
   "main": "dist-electron/index.js",
   "scripts": {
     "dev": "chcp 65001 && vite",

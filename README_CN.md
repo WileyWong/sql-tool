@@ -2,7 +2,7 @@
 
 [English](./README.md) | 中文
 
-一个基于 Electron + Vue 3 的 MySQL 数据库客户端工具。
+一个基于 Electron + Vue 3 的 MySQL / SQL Server 数据库客户端工具。
 
 完全AI开发，主要是现有的一些管理工具，总有一些不满意的地方，就自己使用AI写了一个。后续会随着使用发现的问题不断优化。
 
@@ -15,7 +15,7 @@ AI开发的需求文档也一并提交上来了， 写的不太好，请见谅�
 ## 功能特性
 
 ### 数据库连接管理
-- 支持创建、编辑、删除 MySQL 数据库连接
+- 支持创建、编辑、删除 MySQL / SQL Server 数据库连接
 - 连接信息本地加密存储（AES 对称加密）
 - 树形结构展示数据库、表、视图、字段等
 - 支持双击切换当前数据库
@@ -24,7 +24,7 @@ AI开发的需求文档也一并提交上来了， 写的不太好，请见谅�
 ### SQL 编辑器
 - 基于 Monaco Editor 的专业 SQL 编辑器
 - **智能联想**：实时自动触发，支持关键字、表名、字段名、函数等联想
-- **语法检查**：MySQL 语法错误识别，红色波浪线 + 悬浮提示
+- **语法检查**：SQL 语法错误识别，红色波浪线 + 悬浮提示
 - **代码格式化**：快捷键 `Shift+Alt+F`，支持关键字大写、自动缩进
 - **悬浮提示**：鼠标悬停显示表、字段、函数的详细信息
 - 多标签页管理，支持同时编辑多个 SQL 文件
@@ -33,7 +33,7 @@ AI开发的需求文档也一并提交上来了， 写的不太好，请见谅�
 ### SQL 执行
 - 支持执行选中 SQL 或全部 SQL
 - 批量执行多语句，遇错停止
-- 支持停止正在执行的查询（发送 KILL QUERY）
+- 支持停止正在执行的查询（MySQL 发送 KILL QUERY）
 - 默认超时时间 10 分钟
 - 可配置结果集最大行数（默认 5000 行）
 
@@ -44,9 +44,8 @@ AI开发的需求文档也一并提交上来了， 写的不太好，请见谅�
 - 消息区显示非查询语句的影响行数
 
 ### 执行计划
-- 支持 MySQL EXPLAIN 格式
-- 流程图形式可视化展示查询计划
-- 表格形式展示详细执行计划数据
+- MySQL：EXPLAIN 格式，支持流程图可视化和表格展示
+- SQL Server：SHOWPLAN_XML 格式，交互式树形展示，成本分析，虚拟滚动
 
 ## 技术栈
 
@@ -54,9 +53,11 @@ AI开发的需求文档也一并提交上来了， 写的不太好，请见谅�
 - **桌面框架**：Electron 28
 - **UI 组件库**：Element Plus
 - **代码编辑器**：Monaco Editor + monaco-languageclient
-- **SQL 解析**：sql-parser-cst
+- **SQL 解析**：node-sql-parser
 - **SQL 格式化**：sql-formatter
-- **数据库驱动**：mysql2
+- **数据库驱动**：mysql2、mssql
+- **XML 解析**：fast-xml-parser
+- **虚拟滚动**：@tanstack/vue-virtual
 - **构建工具**：Vite + electron-builder
 
 ## 开发
@@ -134,18 +135,27 @@ npm run pack:linux:arm64
 ```
 sql-tool/
 ├── src/
-│   ├── main/              # Electron 主进程
-│   │   ├── index.ts       # 主进程入口
-│   │   ├── database/      # 数据库连接管理
-│   │   └── language-server/ # SQL Language Server
-│   └── renderer/          # 渲染进程（Vue 应用）
-│       ├── components/    # Vue 组件
-│       ├── composables/   # 组合式函数
-│       ├── stores/        # Pinia 状态管理
-│       └── types/         # TypeScript 类型定义
-├── resources/             # 应用资源文件
-├── requirements/          # 需求文档
-└── release/               # 打包输出目录
+│   ├── main/                  # Electron 主进程
+│   │   ├── index.ts           # 主进程入口
+│   │   ├── database/          # 数据库管理
+│   │   │   ├── core/          # 共享数据库抽象
+│   │   │   ├── mysql/         # MySQL 会话与元数据
+│   │   │   └── sqlserver/     # SQL Server 会话与元数据
+│   │   ├── ipc/               # IPC 通信处理
+│   │   ├── services/          # 业务服务
+│   │   ├── sql-language-server/ # SQL Language Server
+│   │   └── storage/           # 本地存储
+│   ├── preload/               # 预加载脚本
+│   ├── renderer/              # 渲染进程（Vue 应用）
+│   │   ├── components/        # Vue 组件
+│   │   │   └── explain/       # 执行计划组件
+│   │   ├── composables/       # 组合式函数
+│   │   ├── stores/            # Pinia 状态管理
+│   │   └── i18n/              # 国际化
+│   └── shared/                # 共享类型与工具
+├── resources/                 # 应用资源文件
+├── requirements/              # 需求文档
+└── release/                   # 打包输出目录
 ```
 
 ## License
