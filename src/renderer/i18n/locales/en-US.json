@@ -326,7 +326,16 @@
       "binary": "Binary",
       "datetime": "Date/Time",
       "other": "Other"
-    }
+    },
+    "schema": "Schema",
+    "schemaPlaceholder": "Select schema",
+    "identity": "Identity",
+    "identitySeed": "Seed",
+    "identityIncrement": "Increment",
+    "clustered": "Clustered",
+    "nonclustered": "Nonclustered",
+    "identityReadonly": "IDENTITY cannot be altered after creation",
+    "identityRequiresPK": "IDENTITY requires primary key"
   },
   "contextMenu": {
     "openTable": "Open Table",

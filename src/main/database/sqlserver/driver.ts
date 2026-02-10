@@ -189,19 +189,21 @@ export class SqlServerDriver implements IDatabaseDriver {
     const result = await pool.request().query(`
       SELECT 
         t.name AS table_name,
+        s.name AS schema_name,
         ep.value AS table_comment
       FROM sys.tables t
+      INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
       LEFT JOIN sys.extended_properties ep 
         ON ep.major_id = t.object_id 
         AND ep.minor_id = 0 
         AND ep.name = 'MS_Description'
-      WHERE SCHEMA_NAME(t.schema_id) = 'dbo'
-      ORDER BY t.name
+      ORDER BY s.name, t.name
     `)
     
     return result.recordset.map(r => ({
       name: r.table_name,
       comment: r.table_comment || undefined,
+      schema: r.schema_name,
       columns: []
     }))
   }
@@ -223,19 +225,21 @@ export class SqlServerDriver implements IDatabaseDriver {
     const tablesResult = await pool.request().query(`
       SELECT 
         t.name AS table_name,
+        s.name AS schema_name,
         ep.value AS table_comment
       FROM sys.tables t
+      INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
       LEFT JOIN sys.extended_properties ep 
         ON ep.major_id = t.object_id 
         AND ep.minor_id = 0 
         AND ep.name = 'MS_Description'
-      WHERE SCHEMA_NAME(t.schema_id) = 'dbo'
-      ORDER BY t.name
+      ORDER BY s.name, t.name
     `)
     
     // 一次性获取所有表的列信息
     const columnsResult = await pool.request().query(`
       SELECT 
+        s.name AS schema_name,
         t.name AS table_name,
         c.name AS column_name,
         ty.name AS data_type,
@@ -256,6 +260,7 @@ export class SqlServerDriver implements IDatabaseDriver {
         ic.seed_value,
         ic.increment_value,
         dc.definition AS default_value,
+        dc.name AS default_constraint_name,
         ep.value AS column_comment,
         c.column_id
       FROM sys.columns c
@@ -271,16 +276,17 @@ export class SqlServerDriver implements IDatabaseDriver {
       LEFT JOIN sys.identity_columns ic ON c.object_id = ic.object_id AND c.column_id = ic.column_id
       LEFT JOIN sys.default_constraints dc ON c.default_object_id = dc.object_id
       LEFT JOIN sys.extended_properties ep ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
-      WHERE s.name = 'dbo'
-      ORDER BY t.name, c.column_id
+      ORDER BY s.name, t.name, c.column_id
     `)
     
-    // 构建表映射
+    // 构建表映射（使用 schema.table 作为 key）
     const tableMap = new Map<string, TableMeta>()
     
     for (const row of tablesResult.recordset) {
-      tableMap.set(row.table_name, {
+      const key = `${row.schema_name}.${row.table_name}`
+      tableMap.set(key, {
         name: row.table_name,
+        schema: row.schema_name,
         comment: row.table_comment || undefined,
         columns: []
       })
@@ -288,7 +294,8 @@ export class SqlServerDriver implements IDatabaseDriver {
     
     // 将列信息添加到对应的表
     for (const row of columnsResult.recordset) {
-      const table = tableMap.get(row.table_name)
+      const key = `${row.schema_name}.${row.table_name}`
+      const table = tableMap.get(key)
       if (table) {
         table.columns.push({
           name: row.column_name,
@@ -301,6 +308,7 @@ export class SqlServerDriver implements IDatabaseDriver {
           seed: row.seed_value !== null ? Number(row.seed_value) : undefined,
           increment: row.increment_value !== null ? Number(row.increment_value) : undefined,
           defaultValue: row.default_value ? this.cleanDefaultValue(row.default_value) : undefined,
+          defaultConstraintName: row.default_constraint_name || undefined,
           comment: row.column_comment || undefined
         })
       }
@@ -312,7 +320,7 @@ export class SqlServerDriver implements IDatabaseDriver {
   /**
    * 获取表的列信息
    */
-  async getColumns(connectionId: string, database: string, table: string): Promise<ColumnMeta[]> {
+  async getColumns(connectionId: string, database: string, table: string, schema?: string): Promise<ColumnMeta[]> {
     const pool = await this.getPoolWithReconnect(connectionId)
     if (!pool) {
       throw new Error('连接不存在')
@@ -321,8 +329,10 @@ export class SqlServerDriver implements IDatabaseDriver {
     // 切换到指定数据库
     await pool.request().query(`USE [${database}]`)
     
+    const schemaFilter = schema || 'dbo'
     const result = await pool.request()
       .input('table', sql.NVarChar, table)
+      .input('schema', sql.NVarChar, schemaFilter)
       .query(`
         SELECT 
           c.name AS column_name,
@@ -344,6 +354,7 @@ export class SqlServerDriver implements IDatabaseDriver {
           ic.seed_value,
           ic.increment_value,
           dc.definition AS default_value,
+          dc.name AS default_constraint_name,
           ep.value AS column_comment
         FROM sys.columns c
         INNER JOIN sys.types ty ON c.user_type_id = ty.user_type_id
@@ -358,7 +369,7 @@ export class SqlServerDriver implements IDatabaseDriver {
         LEFT JOIN sys.identity_columns ic ON c.object_id = ic.object_id AND c.column_id = ic.column_id
         LEFT JOIN sys.default_constraints dc ON c.default_object_id = dc.object_id
         LEFT JOIN sys.extended_properties ep ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
-        WHERE t.name = @table AND s.name = 'dbo'
+        WHERE t.name = @table AND s.name = @schema
         ORDER BY c.column_id
       `)
     
@@ -373,6 +384,7 @@ export class SqlServerDriver implements IDatabaseDriver {
       seed: r.seed_value !== null ? Number(r.seed_value) : undefined,
       increment: r.increment_value !== null ? Number(r.increment_value) : undefined,
       defaultValue: r.default_value ? this.cleanDefaultValue(r.default_value) : undefined,
+      defaultConstraintName: r.default_constraint_name || undefined,
       comment: r.column_comment || undefined
     }))
   }
@@ -433,7 +445,7 @@ export class SqlServerDriver implements IDatabaseDriver {
   /**
    * 获取表的索引信息
    */
-  async getIndexes(connectionId: string, database: string, table: string): Promise<IndexMeta[]> {
+  async getIndexes(connectionId: string, database: string, table: string, schema?: string): Promise<IndexMeta[]> {
     const pool = await this.getPoolWithReconnect(connectionId)
     if (!pool) {
       throw new Error('连接不存在')
@@ -442,8 +454,10 @@ export class SqlServerDriver implements IDatabaseDriver {
     // 切换到指定数据库
     await pool.request().query(`USE [${database}]`)
     
+    const schemaFilter = schema || 'dbo'
     const result = await pool.request()
       .input('table', sql.NVarChar, table)
+      .input('schema', sql.NVarChar, schemaFilter)
       .query(`
         SELECT 
           i.name AS index_name,
@@ -457,7 +471,8 @@ export class SqlServerDriver implements IDatabaseDriver {
         INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
         INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
         INNER JOIN sys.tables t ON i.object_id = t.object_id
-        WHERE t.name = @table AND i.name IS NOT NULL
+        INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+        WHERE t.name = @table AND s.name = @schema AND i.name IS NOT NULL
         ORDER BY i.index_id, ic.key_ordinal
       `)
     
@@ -506,21 +521,24 @@ export class SqlServerDriver implements IDatabaseDriver {
   /**
    * 获取表的建表语句（SQL Server 没有直接的 SHOW CREATE TABLE，需要手动构建）
    */
-  async getTableCreateSql(connectionId: string, database: string, table: string): Promise<string> {
+  async getTableCreateSql(connectionId: string, database: string, table: string, schema?: string): Promise<string> {
     const pool = await this.getPoolWithReconnect(connectionId)
     if (!pool) {
       throw new Error('连接不存在')
     }
     
+    const schemaName = schema || 'dbo'
+    
     // 切换到指定数据库
     await pool.request().query(`USE [${database}]`)
     
     // 获取列信息
-    const columns = await this.getColumns(connectionId, database, table)
+    const columns = await this.getColumns(connectionId, database, table, schemaName)
     
     // 获取主键信息
     const pkResult = await pool.request()
       .input('table', sql.NVarChar, table)
+      .input('schema', sql.NVarChar, schemaName)
       .query(`
         SELECT 
           i.name AS pk_name,
@@ -529,12 +547,13 @@ export class SqlServerDriver implements IDatabaseDriver {
         INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
         INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
         INNER JOIN sys.tables t ON i.object_id = t.object_id
-        WHERE t.name = @table AND i.is_primary_key = 1
+        INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+        WHERE t.name = @table AND s.name = @schema AND i.is_primary_key = 1
         ORDER BY ic.key_ordinal
       `)
     
     // 构建 CREATE TABLE 语句
-    let createSql = `CREATE TABLE [dbo].[${table}] (\n`
+    let createSql = `CREATE TABLE [${schemaName}].[${table}] (\n`
     
     const columnDefs: string[] = []
     for (const col of columns) {

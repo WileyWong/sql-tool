@@ -15,6 +15,7 @@ export interface TableMeta {
   name: string
   columns: ColumnMeta[]
   comment?: string
+  schema?: string  // SQL Server 表所属 schema
 }
 
 /**
@@ -35,6 +36,7 @@ export interface ColumnMeta {
   isIdentity?: boolean   // 是否为 identity 列
   seed?: number          // identity seed
   increment?: number     // identity increment
+  defaultConstraintName?: string  // 默认值约束名（SQL Server 专用，编辑模式删除/修改默认值时需要）
 }
 
 /**
@@ -212,6 +214,7 @@ export interface TreeNode {
   isLeaf?: boolean
   connectionId?: string
   databaseName?: string
+  schema?: string  // SQL Server 表所属 schema
   data?: TableMeta | ViewMeta | FunctionMeta
 }
 
@@ -245,4 +248,70 @@ export function getAllSqlServerDataTypes(): string[] {
     ...SqlServerDataTypes.DATETIME,
     ...SqlServerDataTypes.OTHER
   ]
+}
+
+/**
+ * 判断 SQL Server 数据类型是否需要长度参数
+ */
+export function sqlServerTypeNeedsLength(type: string): boolean {
+  const needsLength = [
+    'CHAR', 'VARCHAR', 'NCHAR', 'NVARCHAR',
+    'BINARY', 'VARBINARY',
+    'DECIMAL', 'NUMERIC',
+    'DATETIME2', 'TIME', 'DATETIMEOFFSET'
+  ]
+  return needsLength.includes(type.toUpperCase())
+}
+
+/**
+ * 判断 SQL Server 数据类型是否需要小数位数
+ */
+export function sqlServerTypeNeedsDecimals(type: string): boolean {
+  return ['DECIMAL', 'NUMERIC'].includes(type.toUpperCase())
+}
+
+/**
+ * 判断 SQL Server 数据类型是否支持 MAX 长度
+ */
+export function sqlServerTypeSupportsMax(type: string): boolean {
+  return ['VARCHAR', 'NVARCHAR', 'VARBINARY'].includes(type.toUpperCase())
+}
+
+/**
+ * 判断 SQL Server 数据类型是否为时间精度类型（精度范围 0-7）
+ */
+export function sqlServerTypeNeedsFsp(type: string): boolean {
+  return ['DATETIME2', 'TIME', 'DATETIMEOFFSET'].includes(type.toUpperCase())
+}
+
+/**
+ * SQL Server 列定义表单项
+ */
+export interface SqlServerColumnFormItem {
+  _key: string
+  name: string
+  type: string
+  length?: number | 'MAX'
+  decimals?: number
+  notNull: boolean
+  primaryKey: boolean
+  identity: boolean
+  identitySeed: number
+  identityIncrement: number
+  defaultValue: string
+  comment: string
+}
+
+/**
+ * SQL Server 索引定义表单项
+ */
+export interface SqlServerIndexFormItem {
+  _key: string
+  name: string
+  type: 'PRIMARY' | 'UNIQUE' | 'INDEX'
+  clustered: boolean
+  columns: {
+    name: string
+    order: 'ASC' | 'DESC'
+  }[]
 }

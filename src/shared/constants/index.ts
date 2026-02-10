@@ -49,6 +49,7 @@ export const IpcChannels = {
   DATABASE_COLLATIONS: 'database:collations',
   DATABASE_ENGINES: 'database:engines',
   DATABASE_DEFAULT_CHARSET: 'database:defaultCharset',
+  DATABASE_SCHEMAS: 'database:schemas',
   DDL_EXECUTE: 'ddl:execute',
   
   // 查询执行

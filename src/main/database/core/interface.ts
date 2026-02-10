@@ -85,7 +85,7 @@ export interface IDatabaseDriver {
   /**
    * 获取表列信息
    */
-  getColumns(connectionId: string, database: string, table: string): Promise<ColumnMeta[]>
+  getColumns(connectionId: string, database: string, table: string, schema?: string): Promise<ColumnMeta[]>
 
   /**
    * 获取视图列表
@@ -100,12 +100,12 @@ export interface IDatabaseDriver {
   /**
    * 获取索引信息
    */
-  getIndexes(connectionId: string, database: string, table: string): Promise<IndexMeta[]>
+  getIndexes(connectionId: string, database: string, table: string, schema?: string): Promise<IndexMeta[]>
 
   /**
    * 获取表的创建语句
    */
-  getTableCreateSql(connectionId: string, database: string, table: string): Promise<string>
+  getTableCreateSql(connectionId: string, database: string, table: string, schema?: string): Promise<string>
 
   /**
    * 执行 DDL 语句（系统级操作，使用共享连接）

@@ -44,11 +44,11 @@ export function setupDatabaseHandlers(ipcMain: IpcMain): void {
   })
   
   // 获取列信息
-  ipcMain.handle(IpcChannels.DATABASE_COLUMNS, async (_, data: { connectionId: string; database: string; table: string }) => {
+  ipcMain.handle(IpcChannels.DATABASE_COLUMNS, async (_, data: { connectionId: string; database: string; table: string; schema?: string }) => {
     try {
       const dbType = getConnectionDbType(data.connectionId)
       const driver = DriverFactory.getDriver(dbType)
-      const columns = await driver.getColumns(data.connectionId, data.database, data.table)
+      const columns = await driver.getColumns(data.connectionId, data.database, data.table, data.schema)
       return { success: true, columns }
     } catch (error: unknown) {
       const err = error as { message?: string }
@@ -96,11 +96,11 @@ export function setupDatabaseHandlers(ipcMain: IpcMain): void {
   })
   
   // 获取表的索引信息
-  ipcMain.handle(IpcChannels.DATABASE_INDEXES, async (_, data: { connectionId: string; database: string; table: string }) => {
+  ipcMain.handle(IpcChannels.DATABASE_INDEXES, async (_, data: { connectionId: string; database: string; table: string; schema?: string }) => {
     try {
       const dbType = getConnectionDbType(data.connectionId)
       const driver = DriverFactory.getDriver(dbType)
-      const indexes = await driver.getIndexes(data.connectionId, data.database, data.table)
+      const indexes = await driver.getIndexes(data.connectionId, data.database, data.table, data.schema)
       return { success: true, indexes }
     } catch (error: unknown) {
       const err = error as { message?: string }
@@ -194,6 +194,24 @@ export function setupDatabaseHandlers(ipcMain: IpcMain): void {
     } catch (error: unknown) {
       const err = error as { message?: string }
       return { success: false, message: err.message || '执行 DDL 失败' }
+    }
+  })
+
+  // 获取 Schema 列表（SQL Server 特有）
+  ipcMain.handle(IpcChannels.DATABASE_SCHEMAS, async (_, data: { connectionId: string; database: string }) => {
+    try {
+      const dbType = getConnectionDbType(data.connectionId)
+      const driver = DriverFactory.getDriver(dbType)
+      
+      if (!driver.getSchemas) {
+        return { success: true, schemas: [] }
+      }
+      
+      const schemas = await driver.getSchemas(data.connectionId, data.database)
+      return { success: true, schemas }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '获取 Schema 列表失败' }
     }
   })
 }

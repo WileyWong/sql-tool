@@ -34,6 +34,7 @@ export const useConnectionStore = defineStore('connection', () => {
     connectionId: string
     database: string
     table?: string  // 修改模式时有值
+    schema?: string // SQL Server schema
   } | null>(null)
   
   // 当前连接
@@ -321,9 +322,9 @@ export const useConnectionStore = defineStore('connection', () => {
   }
   
   // 打开修改表对话框
-  function openEditTableDialog(connectionId: string, database: string, table: string) {
+  function openEditTableDialog(connectionId: string, database: string, table: string, schema?: string) {
     tableDesignMode.value = 'edit'
-    tableDesignInfo.value = { connectionId, database, table }
+    tableDesignInfo.value = { connectionId, database, table, schema }
     tableDesignDialogVisible.value = true
   }
   
@@ -353,6 +354,11 @@ export const useConnectionStore = defineStore('connection', () => {
     return window.api.database.defaultCharset(connectionId, database)
   }
   
+  // 获取 Schema 列表（SQL Server）
+  async function getSchemas(connectionId: string, database: string) {
+    return window.api.database.schemas(connectionId, database)
+  }
+
   // 执行 DDL 语句
   async function executeDDL(connectionId: string, sql: string) {
     return window.api.database.executeDDL(connectionId, sql)
@@ -412,6 +418,7 @@ export const useConnectionStore = defineStore('connection', () => {
     getCollations,
     getEngines,
     getDefaultCharset,
+    getSchemas,
     executeDDL,
     setCurrentConnection,
     setCurrentDatabase

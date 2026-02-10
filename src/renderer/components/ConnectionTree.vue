@@ -101,7 +101,7 @@ import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
 import { eventBus } from '../utils/eventBus'
 import { useTreeFilter } from '../composables/useTreeFilter'
-import type { TreeNode, TreeNodeType } from '@shared/types'
+import type { TreeNode, TreeNodeType, TableMeta } from '@shared/types'
 import type Node from 'element-plus/es/components/tree/src/model/node'
 
 const { t } = useI18n()
@@ -229,11 +229,12 @@ async function loadNode(node: Node, resolve: (data: TreeNode[]) => void) {
       }
       
       resolve(tables.map(t => ({
-        id: `${data.connectionId}-${data.databaseName}-table-${t.name}`,
-        label: t.name,
+        id: `${data.connectionId}-${data.databaseName}-table-${t.schema ? t.schema + '.' : ''}${t.name}`,
+        label: t.schema && t.schema !== 'dbo' ? `${t.schema}.${t.name}` : t.name,
         type: 'table' as TreeNodeType,
         connectionId: data.connectionId,
         databaseName: data.databaseName,
+        schema: t.schema,
         isLeaf: true,
         data: t
       })))
@@ -547,10 +548,19 @@ async function handleMenuClick(key: string) {
         databaseName: node.databaseName
       })
       break
-    case 'query100':
-      const sql = `SELECT * FROM \`${node.databaseName}\`.\`${node.label}\` LIMIT 100`
-      editorStore.createTab(sql)
+    case 'query100': {
+      const connInfo = connectionStore.connections.find(c => c.id === node.connectionId)
+      const tableName = (node.data as TableMeta)?.name || node.label
+      if (connInfo?.type === 'sqlserver') {
+        const schemaName = node.schema || 'dbo'
+        const querySql = `SELECT TOP 100 * FROM [${node.databaseName}].[${schemaName}].[${tableName}]`
+        editorStore.createTab(querySql)
+      } else {
+        const querySql = `SELECT * FROM \`${node.databaseName}\`.\`${tableName}\` LIMIT 100`
+        editorStore.createTab(querySql)
+      }
       break
+    }
     case 'manage':
       // 打开表管理对话框
       connectionStore.openTableManageDialog(node.connectionId!, node.databaseName!, node.label)
@@ -561,7 +571,7 @@ async function handleMenuClick(key: string) {
       break
     case 'editTable':
       // 打开修改表对话框
-      connectionStore.openEditTableDialog(node.connectionId!, node.databaseName!, node.label)
+      connectionStore.openEditTableDialog(node.connectionId!, node.databaseName!, (node.data as TableMeta)?.name || node.label, node.schema)
       break
     case 'dropTable':
       // 删除表
@@ -577,14 +587,23 @@ function closeContextMenu() {
 
 // 删除表
 async function handleDropTable(node: TreeNode) {
-  const sql = `DROP TABLE \`${node.databaseName}\`.\`${node.label}\`;`
+  const connInfo = connectionStore.connections.find(c => c.id === node.connectionId)
+  const tableName = (node.data as TableMeta)?.name || node.label
+  let dropSql: string
+  
+  if (connInfo?.type === 'sqlserver') {
+    const schemaName = node.schema || 'dbo'
+    dropSql = `DROP TABLE [${node.databaseName}].[${schemaName}].[${tableName}];`
+  } else {
+    dropSql = `DROP TABLE \`${node.databaseName}\`.\`${tableName}\`;`
+  }
   
   try {
     await ElMessageBox.confirm(
       `<div>
         <p style="margin-bottom: 12px;">${t('tree.deleteTableConfirm', { database: node.databaseName, table: node.label })}</p>
         <p style="color: #f56c6c; margin-bottom: 12px;">${t('tree.deleteTableWarning')}</p>
-        <pre style="background: #1e1e1e; padding: 12px; border-radius: 4px; color: #d4d4d4; font-size: 12px;">${sql}</pre>
+        <pre style="background: #1e1e1e; padding: 12px; border-radius: 4px; color: #d4d4d4; font-size: 12px;">${dropSql}</pre>
       </div>`,
       t('tree.deleteTableTitle'),
       {
@@ -595,7 +614,7 @@ async function handleDropTable(node: TreeNode) {
       }
     )
     
-    const result = await connectionStore.executeDDL(node.connectionId!, sql)
+    const result = await connectionStore.executeDDL(node.connectionId!, dropSql)
     
     if (result.success) {
       ElMessage.success(t('tree.tableDeleted'))

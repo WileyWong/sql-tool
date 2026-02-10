@@ -36,8 +36,8 @@ const api = {
     tablesWithColumns: (connectionId: string, database: string) =>
       ipcRenderer.invoke(IpcChannels.DATABASE_TABLES_WITH_COLUMNS, { connectionId, database }),
     
-    columns: (connectionId: string, database: string, table: string) =>
-      ipcRenderer.invoke(IpcChannels.DATABASE_COLUMNS, { connectionId, database, table }),
+    columns: (connectionId: string, database: string, table: string, schema?: string) =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_COLUMNS, { connectionId, database, table, schema }),
     
     views: (connectionId: string, database: string) =>
       ipcRenderer.invoke(IpcChannels.DATABASE_VIEWS, { connectionId, database }),
@@ -48,8 +48,8 @@ const api = {
     tableCreateSql: (connectionId: string, database: string, table: string): Promise<{ success: boolean; sql?: string; message?: string }> =>
       ipcRenderer.invoke(IpcChannels.DATABASE_TABLE_CREATE_SQL, { connectionId, database, table }),
     
-    indexes: (connectionId: string, database: string, table: string) =>
-      ipcRenderer.invoke(IpcChannels.DATABASE_INDEXES, { connectionId, database, table }),
+    indexes: (connectionId: string, database: string, table: string, schema?: string) =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_INDEXES, { connectionId, database, table, schema }),
     
     charsets: (connectionId: string): Promise<{ success: boolean; charsets?: { charset: string; defaultCollation: string; description: string }[]; message?: string }> =>
       ipcRenderer.invoke(IpcChannels.DATABASE_CHARSETS, connectionId),
@@ -64,7 +64,10 @@ const api = {
       ipcRenderer.invoke(IpcChannels.DATABASE_DEFAULT_CHARSET, { connectionId, database }),
     
     executeDDL: (connectionId: string, sql: string): Promise<{ success: boolean; message?: string }> =>
-      ipcRenderer.invoke(IpcChannels.DDL_EXECUTE, { connectionId, sql })
+      ipcRenderer.invoke(IpcChannels.DDL_EXECUTE, { connectionId, sql }),
+    
+    schemas: (connectionId: string, database: string): Promise<{ success: boolean; schemas?: string[]; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_SCHEMAS, { connectionId, database })
   },
   
   // 查询执行

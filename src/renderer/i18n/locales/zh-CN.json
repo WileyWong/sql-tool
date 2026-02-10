@@ -326,7 +326,16 @@
       "binary": "二进制",
       "datetime": "日期时间",
       "other": "其他"
-    }
+    },
+    "schema": "架构",
+    "schemaPlaceholder": "选择架构",
+    "identity": "标识列",
+    "identitySeed": "种子值",
+    "identityIncrement": "增量",
+    "clustered": "聚集",
+    "nonclustered": "非聚集",
+    "identityReadonly": "创建后无法修改 IDENTITY",
+    "identityRequiresPK": "IDENTITY 需要主键"
   },
   "contextMenu": {
     "openTable": "打开表",

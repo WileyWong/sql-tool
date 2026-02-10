@@ -326,7 +326,16 @@
       "binary": "二進位",
       "datetime": "日期時間",
       "other": "其他"
-    }
+    },
+    "schema": "結構描述",
+    "schemaPlaceholder": "選擇結構描述",
+    "identity": "識別欄位",
+    "identitySeed": "種子值",
+    "identityIncrement": "增量",
+    "clustered": "叢集",
+    "nonclustered": "非叢集",
+    "identityReadonly": "建立後無法修改 IDENTITY",
+    "identityRequiresPK": "IDENTITY 需要主索引鍵"
   },
   "contextMenu": {
     "openTable": "開啟資料表",
