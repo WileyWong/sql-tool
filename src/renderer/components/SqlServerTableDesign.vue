@@ -240,6 +240,7 @@ import {
   type SqlServerColumnFormItem,
   type SqlServerIndexFormItem
 } from '@shared/types/database'
+import type { IndexMeta, IndexColumnMeta } from '@shared/types/database'
 
 const props = defineProps<{
   connectionId: string
@@ -450,16 +451,16 @@ async function loadExistingTable(connectionId: string, database: string, table: 
   const indexesResult = await window.api.database.indexes(connectionId, database, table, schema)
   if (indexesResult.success && indexesResult.indexes) {
     const parsedIndexes: IndexFormItem[] = indexesResult.indexes
-      .filter(idx => idx.type !== 'SPATIAL' && idx.type !== 'FULLTEXT')
-      .map(idx => {
+      .filter((idx: IndexMeta) => idx.type !== 'SPATIAL' && idx.type !== 'FULLTEXT')
+      .map((idx: IndexMeta) => {
         const key = generateIndexKey()
         return {
           _key: key,
           name: idx.name,
           type: idx.type as 'PRIMARY' | 'UNIQUE' | 'INDEX',
           clustered: idx.type === 'PRIMARY',
-          columns: idx.columns.map(c => ({ name: c.columnName, order: c.order || 'ASC' as const })),
-          columnNames: idx.columns.map(c => c.columnName)
+          columns: idx.columns.map((c: IndexColumnMeta) => ({ name: c.columnName, order: c.order || 'ASC' as const })),
+          columnNames: idx.columns.map((c: IndexColumnMeta) => c.columnName)
         }
       })
     
@@ -654,8 +655,6 @@ function generateCreateSQL(): string {
 function generateAlterSQL(): string {
   const schemaName = tableForm.schema || 'dbo'
   const statements: string[] = []
-  const fullTableName = `[${props.database}].[${schemaName}].[${originalTableName.value}]`
-  
   // Rename table
   if (tableForm.name !== originalTableName.value) {
     statements.push(`EXEC sp_rename '${schemaName}.${originalTableName.value}', '${tableForm.name}', 'OBJECT';`)
