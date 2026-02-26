@@ -35,5 +35,24 @@ export default {
     rowAffected: '影響 {count} 列',
     rowsAffected: '影響 {count} 列',
     querySuccess: '查詢成功，影響 {count} 列'
+  },
+  hover: {
+    table: '表',
+    view: '檢視',
+    column: '欄位',
+    function: '函數',
+    description: '說明',
+    columnCount: '欄位數',
+    columnList: '欄位列表',
+    type: '類型',
+    nullable: '可空',
+    nullableYes: '是',
+    nullableNo: '否',
+    primaryKey: '主鍵',
+    primaryKeyYes: '是',
+    defaultValue: '預設值',
+    fromTable: '來自表',
+    syntax: '語法',
+    returnType: '回傳類型'
   }
 }

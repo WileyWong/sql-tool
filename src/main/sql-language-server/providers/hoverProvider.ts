@@ -5,6 +5,7 @@
 import { Hover, Position, MarkupKind } from 'vscode-languageserver'
 import { MetadataService } from '../services/metadataService'
 import { SqlParserService } from '../services/sqlParserService'
+import { t } from '../../i18n'
 
 /**
  * 扩展的 Hover 结果，包含表信息用于前端交互
@@ -144,20 +145,20 @@ export class HoverProvider {
     const lines: string[] = []
     
     // 表名行：使用反引号包裹，渲染为 code 标签，前端通过点击 code 来触发打开表管理
-    lines.push(`**表**: \`${table.name}\``)
+    lines.push(`**${t('hover.table')}**: \`${table.name}\``)
     lines.push('')
     
     if (table.comment) {
-      lines.push(`**说明**: ${table.comment}`)
+      lines.push(`**${t('hover.description')}**: ${table.comment}`)
       lines.push('')
     }
     
-    lines.push(`**字段数**: ${table.columns.length}`)
+    lines.push(`**${t('hover.columnCount')}**: ${table.columns.length}`)
     lines.push('')
     
     // 显示所有字段（不再限制为前 5 个）
     if (table.columns.length > 0) {
-      lines.push('**字段列表**:')
+      lines.push(`**${t('hover.columnList')}**:`)
       lines.push('')
       
       for (const col of table.columns) {
@@ -183,11 +184,11 @@ export class HoverProvider {
   private createViewHover(view: { name: string; comment?: string }): Hover {
     const lines: string[] = []
     
-    lines.push(`**视图**: \`${view.name}\``)
+    lines.push(`**${t('hover.view')}**: \`${view.name}\``)
     
     if (view.comment) {
       lines.push('')
-      lines.push(`**说明**: ${view.comment}`)
+      lines.push(`**${t('hover.description')}**: ${view.comment}`)
     }
 
     return {
@@ -207,26 +208,26 @@ export class HoverProvider {
   ): Hover {
     const lines: string[] = []
     
-    lines.push(`**字段**: \`${column.name}\``)
+    lines.push(`**${t('hover.column')}**: \`${column.name}\``)
     lines.push('')
-    lines.push(`**类型**: \`${column.type}\``)
-    lines.push(`**可空**: ${column.nullable ? '是' : '否'}`)
+    lines.push(`**${t('hover.type')}**: \`${column.type}\``)
+    lines.push(`**${t('hover.nullable')}**: ${column.nullable ? t('hover.nullableYes') : t('hover.nullableNo')}`)
     
     if (column.isPrimaryKey) {
-      lines.push(`**主键**: 是`)
+      lines.push(`**${t('hover.primaryKey')}**: ${t('hover.primaryKeyYes')}`)
     }
     
     if (column.defaultValue !== undefined) {
-      lines.push(`**默认值**: \`${column.defaultValue}\``)
+      lines.push(`**${t('hover.defaultValue')}**: \`${column.defaultValue}\``)
     }
     
     if (column.comment) {
       lines.push('')
-      lines.push(`**说明**: ${column.comment}`)
+      lines.push(`**${t('hover.description')}**: ${column.comment}`)
     }
     
     lines.push('')
-    lines.push(`*来自表 \`${tableName}\`*`)
+    lines.push(`*${t('hover.fromTable')} \`${tableName}\`*`)
 
     return {
       contents: {
@@ -242,17 +243,17 @@ export class HoverProvider {
   private createFunctionHover(func: { name: string; signature: string; description?: string; returnType?: string }): Hover {
     const lines: string[] = []
     
-    lines.push(`**函数**: \`${func.name}\``)
+    lines.push(`**${t('hover.function')}**: \`${func.name}\``)
     lines.push('')
-    lines.push(`**语法**: \`${func.signature}\``)
+    lines.push(`**${t('hover.syntax')}**: \`${func.signature}\``)
     
     if (func.returnType) {
-      lines.push(`**返回类型**: \`${func.returnType}\``)
+      lines.push(`**${t('hover.returnType')}**: \`${func.returnType}\``)
     }
     
     if (func.description) {
       lines.push('')
-      lines.push(`**说明**: ${func.description}`)
+      lines.push(`**${t('hover.description')}**: ${func.description}`)
     }
 
     return {

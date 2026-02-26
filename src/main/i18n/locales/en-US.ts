@@ -35,5 +35,24 @@ export default {
     rowAffected: '{count} row affected',
     rowsAffected: '{count} rows affected',
     querySuccess: 'Query successful, {count} rows affected'
+  },
+  hover: {
+    table: 'Table',
+    view: 'View',
+    column: 'Column',
+    function: 'Function',
+    description: 'Description',
+    columnCount: 'Columns',
+    columnList: 'Column List',
+    type: 'Type',
+    nullable: 'Nullable',
+    nullableYes: 'Yes',
+    nullableNo: 'No',
+    primaryKey: 'Primary Key',
+    primaryKeyYes: 'Yes',
+    defaultValue: 'Default',
+    fromTable: 'From table',
+    syntax: 'Syntax',
+    returnType: 'Return Type'
   }
 }

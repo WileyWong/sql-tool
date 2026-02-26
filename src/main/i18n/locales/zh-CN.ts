@@ -35,5 +35,24 @@ export default {
     rowAffected: '影响 {count} 行',
     rowsAffected: '影响 {count} 行',
     querySuccess: '查询成功，影响 {count} 行'
+  },
+  hover: {
+    table: '表',
+    view: '视图',
+    column: '字段',
+    function: '函数',
+    description: '说明',
+    columnCount: '字段数',
+    columnList: '字段列表',
+    type: '类型',
+    nullable: '可空',
+    nullableYes: '是',
+    nullableNo: '否',
+    primaryKey: '主键',
+    primaryKeyYes: '是',
+    defaultValue: '默认值',
+    fromTable: '来自表',
+    syntax: '语法',
+    returnType: '返回类型'
   }
 }
