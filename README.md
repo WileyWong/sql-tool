@@ -4,6 +4,8 @@ English | [中文](./README_CN.md)
 
 A MySQL & SQL Server database client tool built with Electron + Vue 3.
 
+The Mac and Windows versions of the application can be downloaded and used directly from the release directory.
+
 Fully developed with AI assistance. I created this because existing database management tools always had some aspects I wasn't satisfied with. It will continue to be optimized as issues are discovered during use.
 
 The AI-assisted requirement documents are also included in the repository. They may not be perfect, but hopefully they're helpful.
