@@ -294,128 +294,17 @@ function handleClose() {
   gap: 8px;
 }
 
-/* 深色主题对话框样式 */
-:deep(.el-dialog) {
-  background: #2d2d2d;
-  border: 1px solid #555;
-}
-
-:deep(.el-dialog__header) {
-  border-bottom: 1px solid #555;
-}
-
-:deep(.el-dialog__title) {
-  color: #fff;
-}
-
-:deep(.el-dialog__headerbtn .el-dialog__close) {
-  color: #888;
-}
-
-:deep(.el-dialog__headerbtn:hover .el-dialog__close) {
-  color: #fff;
-}
-
-:deep(.el-form-item__label) {
-  color: #ccc;
-}
-
-:deep(.el-input__wrapper) {
-  background: #3c3c3c;
-  border-color: #555;
-  box-shadow: none;
-}
-
-:deep(.el-input__wrapper:hover) {
-  border-color: #0e639c;
-}
-
-:deep(.el-input__wrapper.is-focus) {
-  border-color: #0e639c;
-  box-shadow: 0 0 0 1px #0e639c;
-}
-
-:deep(.el-input__inner) {
-  color: #d4d4d4;
-}
-
-:deep(.el-input__inner::placeholder) {
-  color: #888;
-}
-
 :deep(.el-input-group__append) {
   background: #3c3c3c;
   border-color: #555;
 }
 
-:deep(.el-dialog__footer) {
-  border-top: 1px solid #555;
-}
-
-:deep(.el-button) {
-  background: #3c3c3c;
-  border-color: #555;
-  color: #d4d4d4;
-}
-
-:deep(.el-button:hover) {
-  background: #505050;
-  border-color: #0e639c;
-  color: #fff;
-}
-
-:deep(.el-button--primary) {
-  background: #0e639c;
-  border-color: #0e639c;
-  color: #fff;
-}
-
-:deep(.el-button--primary:hover) {
-  background: #1177bb;
-  border-color: #1177bb;
-}
-
-/* 单选按钮组样式 */
 :deep(.el-radio-group) {
   display: flex;
   gap: 0;
 }
 
-:deep(.el-radio-button__inner) {
-  background: #3c3c3c;
-  border-color: #555;
-  color: #d4d4d4;
-}
-
-:deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-  background: #0e639c;
-  border-color: #0e639c;
-  color: #fff;
-}
-
-:deep(.el-radio-button__inner:hover) {
-  color: #fff;
-}
-
-/* 分隔线样式 */
-:deep(.el-divider) {
-  border-color: #555;
-}
-
 :deep(.el-divider__text) {
-  background: #2d2d2d;
-  color: #999;
   font-size: 12px;
-}
-
-/* 开关样式 */
-:deep(.el-switch__core) {
-  background: #555;
-  border-color: #555;
-}
-
-:deep(.el-switch.is-checked .el-switch__core) {
-  background: #0e639c;
-  border-color: #0e639c;
 }
 </style>

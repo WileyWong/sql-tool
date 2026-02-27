@@ -67,30 +67,16 @@ defineExpose({
 </script>
 
 <style scoped>
-.result-overwrite-dialog :deep(.el-dialog) {
-  background: #2d2d2d;
-  border: 1px solid #555;
-}
-
-.result-overwrite-dialog :deep(.el-dialog__header) {
-  background: #2d2d2d;
-  border-bottom: 1px solid #555;
-  padding: 16px 20px;
-}
-
 .result-overwrite-dialog :deep(.el-dialog__title) {
-  color: #e6a23c;
+  color: #e6a23c !important;
   font-size: 16px;
 }
 
 .result-overwrite-dialog :deep(.el-dialog__body) {
-  background: #2d2d2d;
   padding: 20px;
 }
 
 .result-overwrite-dialog :deep(.el-dialog__footer) {
-  background: #2d2d2d;
-  border-top: 1px solid #555;
   padding: 16px 20px;
 }
 

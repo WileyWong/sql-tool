@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron'
 import { join } from 'path'
 import { setupConnectionHandlers } from './ipc/connection'
 import { setupDatabaseHandlers } from './ipc/database'
@@ -24,6 +24,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 600,
+    backgroundColor: '#2d2d2d',
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -103,6 +104,9 @@ function setupIpcHandlers() {
 }
 
 app.whenReady().then(() => {
+  // 强制使用深色主题（原生菜单、标题栏等）
+  nativeTheme.themeSource = 'dark'
+  
   // 初始化国际化
   initI18n()
   
