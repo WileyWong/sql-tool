@@ -91,7 +91,7 @@ function formatRows(rows: number): string {
   display: flex;
   align-items: center;
   height: 40px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   transition: background 0.2s;
 }

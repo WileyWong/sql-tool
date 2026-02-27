@@ -322,7 +322,7 @@ function handleClose() {
 }
 
 .sql-container {
-  background-color: #1e1e1e;
+  background-color: var(--bg-base);
   border-radius: 4px;
   padding: 12px;
   min-height: 350px;
@@ -364,7 +364,7 @@ function handleClose() {
   flex-shrink: 0;
   border: 1px solid #4c4d4f;
   border-radius: 4px;
-  background-color: #1e1e1e;
+  background-color: var(--bg-base);
   overflow: hidden;
 }
 
@@ -372,7 +372,7 @@ function handleClose() {
 .index-detail-header {
   padding: 10px 12px;
   font-weight: 500;
-  background-color: #2d2d30;
+  background-color: var(--bg-surface);
   border-bottom: 1px solid #4c4d4f;
   color: #e0e0e0;
 }
@@ -407,7 +407,7 @@ function handleClose() {
   flex: 1;
   border: 1px solid #4c4d4f;
   border-radius: 4px;
-  background-color: #1e1e1e;
+  background-color: var(--bg-base);
   overflow: hidden;
 }
 
@@ -431,9 +431,9 @@ function handleClose() {
 
 /* 深色主题样式覆盖 */
 :deep(.el-table) {
-  --el-table-bg-color: #1e1e1e;
-  --el-table-tr-bg-color: #1e1e1e;
-  --el-table-header-bg-color: #2d2d30;
+  --el-table-bg-color: var(--bg-base);
+  --el-table-tr-bg-color: var(--bg-base);
+  --el-table-header-bg-color: var(--bg-surface);
   --el-table-row-hover-bg-color: #2a2d2e;
   --el-table-border-color: #4c4d4f;
   --el-table-text-color: #e0e0e0;
@@ -442,7 +442,7 @@ function handleClose() {
 
 /* 斑马纹行背景色 - 使用更深的颜色以便与文字形成对比 */
 :deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
-  background-color: #252526;
+  background-color: var(--bg-sidebar);
 }
 
 :deep(.el-tabs__item) {

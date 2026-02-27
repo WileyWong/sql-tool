@@ -142,7 +142,7 @@ onMounted(() => {
   flex-direction: column;
   height: 100%;
   padding: 16px;
-  background: #1e1e1e;
+  background: var(--bg-base);
 }
 
 .metrics-panel {
@@ -150,7 +150,7 @@ onMounted(() => {
   gap: 24px;
   margin-bottom: 12px;
   padding: 8px 12px;
-  background: #2d2d2d;
+  background: var(--bg-surface);
   border-radius: 4px;
 }
 
@@ -174,7 +174,7 @@ onMounted(() => {
 .node-list {
   flex: 1;
   overflow: auto;
-  border: 1px solid #333;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
 }
 
@@ -199,8 +199,8 @@ onMounted(() => {
 }
 
 .raw-xml pre {
-  background: #2d2d2d;
-  border: 1px solid #333;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 12px;
   overflow: auto;
@@ -214,7 +214,7 @@ onMounted(() => {
   color: #858585;
   font-size: 13px;
   padding: 8px 12px;
-  background: #2d2d2d;
+  background: var(--bg-surface);
   border-radius: 4px;
 }
 </style>

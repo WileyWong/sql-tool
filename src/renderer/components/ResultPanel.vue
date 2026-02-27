@@ -444,7 +444,7 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
+  background: var(--bg-base);
 }
 
 .panel-header {
@@ -464,13 +464,13 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
-  border-color: #555;
+  background: var(--bg-base);
+  border-color: var(--border-color);
 }
 
 .result-panel :deep(.el-tabs__header) {
-  background: #2d2d2d;
-  border-bottom: 1px solid #555;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
   margin: 0;
   position: relative;
   display: flex;
@@ -483,23 +483,23 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
 }
 
 .result-panel :deep(.el-tabs__item) {
-  color: #d4d4d4;
-  border-color: #555 !important;
+  color: var(--text-primary);
+  border-color: var(--border-color) !important;
 }
 
 .result-panel :deep(.el-tabs__item:hover) {
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .result-panel :deep(.el-tabs__item.is-active) {
-  color: #fff;
+  color: var(--text-bright);
   background: #094771;
 }
 
 .result-panel :deep(.el-tabs__content) {
   flex: 1;
   overflow: hidden;
-  background: #1e1e1e;
+  background: var(--bg-base);
   padding: 0;
 }
 
@@ -533,9 +533,9 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
 
 .export-btn {
   padding: 4px 12px;
-  background: #3c3c3c;
-  border: 1px solid #555;
-  color: #d4d4d4;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
@@ -545,9 +545,9 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
 }
 
 .export-btn:hover {
-  background: #505050;
-  border-color: #0e639c;
-  color: #fff;
+  background: var(--bg-hover);
+  border-color: var(--color-primary);
+  color: var(--text-bright);
 }
 
 .dropdown-arrow {
@@ -640,8 +640,8 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
 .copy-btn {
   padding: 2px 8px;
   background: transparent;
-  border: 1px solid #555;
-  color: #0e639c;
+  border: 1px solid var(--border-color);
+  color: var(--color-primary);
   border-radius: 3px;
   font-size: 11px;
   cursor: pointer;
@@ -650,9 +650,9 @@ async function handleExport(format: 'csv' | 'json' | 'xlsx') {
 }
 
 .copy-btn:hover {
-  background: #0e639c;
-  color: #fff;
-  border-color: #0e639c;
+  background: var(--color-primary);
+  color: var(--text-bright);
+  border-color: var(--color-primary);
 }
 
 .copy-btn.copied {

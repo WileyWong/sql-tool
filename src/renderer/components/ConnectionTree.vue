@@ -603,7 +603,7 @@ async function handleDropTable(node: TreeNode) {
       `<div>
         <p style="margin-bottom: 12px;">${t('tree.deleteTableConfirm', { database: node.databaseName, table: node.label })}</p>
         <p style="color: #f56c6c; margin-bottom: 12px;">${t('tree.deleteTableWarning')}</p>
-        <pre style="background: #1e1e1e; padding: 12px; border-radius: 4px; color: #d4d4d4; font-size: 12px;">${dropSql}</pre>
+        <pre class="drop-table-sql-preview">${dropSql}</pre>
       </div>`,
       t('tree.deleteTableTitle'),
       {
@@ -650,26 +650,26 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #252526;
+  background: var(--bg-sidebar);
 }
 
 .tree-toolbar {
   padding: 8px;
-  border-bottom: 1px solid #555;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   gap: 8px;
 }
 
 .tree-toolbar :deep(.el-button) {
-  background: #3c3c3c;
-  border-color: #555;
-  color: #d4d4d4;
+  background: var(--bg-elevated);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
 .tree-toolbar :deep(.el-button:hover) {
-  background: #505050;
-  border-color: #0e639c;
-  color: #fff;
+  background: var(--bg-hover);
+  border-color: var(--color-primary);
+  color: var(--text-bright);
 }
 
 .tree-content {
@@ -765,8 +765,8 @@ onUnmounted(() => {
 
 .context-menu {
   position: fixed;
-  background: #3c3c3c;
-  border: 1px solid #555;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 9999;
@@ -817,9 +817,9 @@ onUnmounted(() => {
   height: 20px;
   padding: 0 6px;
   font-size: 11px;
-  color: #d4d4d4;
-  background: #3c3c3c;
-  border: 1px solid #0e639c;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--color-primary);
   border-radius: 3px;
   outline: none;
 }

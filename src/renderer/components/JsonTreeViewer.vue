@@ -221,22 +221,22 @@ watch(() => props.value, () => {
   display: flex;
   flex-direction: column;
   max-height: 400px;
-  background: #1e1e1e;
-  border: 1px solid #555;
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
 }
 
 .tree-toolbar {
   padding: 8px 12px;
-  border-bottom: 1px solid #555;
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   gap: 8px;
 }
 
 .tree-toolbar :deep(.el-button) {
-  background: #3c3c3c;
-  border-color: #555;
-  color: #d4d4d4;
+  background: var(--bg-elevated);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
 .tree-toolbar :deep(.el-button:hover) {

@@ -107,9 +107,9 @@ async function handleSuccess() {
 
 /* 深色主题样式覆盖 */
 :deep(.el-table) {
-  --el-table-bg-color: #1e1e1e;
-  --el-table-tr-bg-color: #1e1e1e;
-  --el-table-header-bg-color: #2d2d30;
+  --el-table-bg-color: var(--bg-base);
+  --el-table-tr-bg-color: var(--bg-base);
+  --el-table-header-bg-color: var(--bg-surface);
   --el-table-row-hover-bg-color: #2a2d2e;
   --el-table-border-color: #4c4d4f;
   --el-table-text-color: #e0e0e0;
@@ -117,7 +117,7 @@ async function handleSuccess() {
 }
 
 :deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
-  background-color: #252526;
+  background-color: var(--bg-sidebar);
 }
 
 :deep(.el-tabs__item) {
@@ -135,7 +135,7 @@ async function handleSuccess() {
 :deep(.el-input__wrapper),
 :deep(.el-select__wrapper),
 :deep(.el-input-number) {
-  background-color: #3c3c3c;
+  background-color: var(--bg-elevated);
   box-shadow: 0 0 0 1px #4c4d4f inset;
 }
 
@@ -144,7 +144,7 @@ async function handleSuccess() {
 }
 
 :deep(.el-checkbox__inner) {
-  background-color: #3c3c3c;
+  background-color: var(--bg-elevated);
   border-color: #4c4d4f;
 }
 
@@ -169,7 +169,7 @@ async function handleSuccess() {
 }
 
 .table-info-section {
-  background: #2d2d30;
+  background: var(--bg-surface);
   padding: 12px;
   border-radius: 4px;
 }
@@ -206,7 +206,7 @@ async function handleSuccess() {
 }
 
 :deep(.sql-preview-section) {
-  background: #1e1e1e;
+  background: var(--bg-base);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -216,7 +216,7 @@ async function handleSuccess() {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #2d2d30;
+  background: var(--bg-surface);
   color: #e0e0e0;
   font-size: 13px;
 }

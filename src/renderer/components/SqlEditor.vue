@@ -652,50 +652,50 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1e1e1e;
+  background: var(--bg-base);
 }
 
 .sql-editor :deep(.el-tabs__header) {
   margin: 0;
   padding: 0 8px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #555;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .sql-editor :deep(.el-tabs__nav-wrap) {
-  background: #2d2d2d;
+  background: var(--bg-surface);
 }
 
 .sql-editor :deep(.el-tabs__item) {
   height: 32px;
   line-height: 32px;
-  color: #d4d4d4;
-  border-color: #555 !important;
-  background: #2d2d2d;
+  color: var(--text-primary);
+  border-color: var(--border-color) !important;
+  background: var(--bg-surface);
 }
 
 .sql-editor :deep(.el-tabs__item:hover) {
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .sql-editor :deep(.el-tabs__item.is-active) {
-  color: #fff;
-  background: #1e1e1e;
-  border-bottom-color: #0e639c !important;
+  color: var(--text-bright);
+  background: var(--bg-base);
+  border-bottom-color: var(--color-primary) !important;
 }
 
 .sql-editor :deep(.el-tabs__nav) {
-  border-color: #555;
+  border-color: var(--border-color);
 }
 
 /* 连接信息栏 */
 .connection-info {
-  background: #2d2d2d;
+  background: var(--bg-surface);
   padding: 8px 12px;
   display: flex;
   gap: 20px;
   font-size: 12px;
-  border-bottom: 1px solid #555;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .info-item {
@@ -705,7 +705,7 @@ onUnmounted(() => {
 }
 
 .info-item .label {
-  color: #888;
+  color: var(--text-placeholder);
 }
 
 .info-item .value {
@@ -718,16 +718,16 @@ onUnmounted(() => {
 }
 
 .info-select :deep(.el-select__wrapper) {
-  background-color: #3c3c3c;
-  box-shadow: 0 0 0 1px #555 inset;
+  background-color: var(--bg-elevated);
+  box-shadow: 0 0 0 1px var(--border-color) inset;
 }
 
 .info-select :deep(.el-select__wrapper:hover) {
-  box-shadow: 0 0 0 1px #0e639c inset;
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
 }
 
 .info-select :deep(.el-select__wrapper.is-focused) {
-  box-shadow: 0 0 0 1px #0e639c inset;
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
 }
 
 .info-select :deep(.el-select__selected-item) {
@@ -739,19 +739,19 @@ onUnmounted(() => {
 }
 
 .info-select :deep(.el-input__wrapper) {
-  background-color: #3c3c3c;
-  box-shadow: 0 0 0 1px #555 inset;
+  background-color: var(--bg-elevated);
+  box-shadow: 0 0 0 1px var(--border-color) inset;
   border-radius: 4px;
   padding: 0 8px;
   height: 28px;
 }
 
 .info-select :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #0e639c inset;
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
 }
 
 .info-select :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #0e639c inset;
+  box-shadow: 0 0 0 1px var(--color-primary) inset;
 }
 
 .info-select :deep(.el-input__inner) {
@@ -763,22 +763,22 @@ onUnmounted(() => {
 }
 
 .info-select :deep(.el-input__inner::placeholder) {
-  color: #888;
+  color: var(--text-placeholder);
 }
 
 .info-select :deep(.el-select__caret) {
-  color: #888;
+  color: var(--text-placeholder);
 }
 
 .info-select :deep(.el-select__suffix) {
-  color: #888;
+  color: var(--text-placeholder);
 }
 
 .max-rows-input {
   width: 70px;
-  background: #3c3c3c;
+  background: var(--bg-elevated);
   color: #4ec9b0;
-  border: 1px solid #555;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 12px;
@@ -788,12 +788,12 @@ onUnmounted(() => {
 }
 
 .max-rows-input:hover {
-  border-color: #0e639c;
+  border-color: var(--color-primary);
 }
 
 .max-rows-input:focus {
-  border-color: #0e639c;
-  box-shadow: 0 0 0 1px #0e639c;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .editor-container {
@@ -810,13 +810,13 @@ onUnmounted(() => {
 .sql-editor :deep(.sortable-ghost) {
   opacity: 0.4;
   background: #094771 !important;
-  border: 1px dashed #0e639c !important;
+  border: 1px dashed var(--color-primary) !important;
 }
 
 /* Sortable 拖拽中的元素样式 */
 .sql-editor :deep(.sortable-drag) {
   opacity: 0.8;
-  background: #1e1e1e !important;
+  background: var(--bg-base) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 </style>
@@ -828,11 +828,11 @@ onUnmounted(() => {
 }
 
 .info-select-dropdown .el-select-dropdown__item:hover {
-  background-color: #3c3c3c !important;
+  background-color: var(--bg-elevated) !important;
 }
 
 .info-select-dropdown .el-select-dropdown__item.is-hovering {
-  background-color: #3c3c3c !important;
+  background-color: var(--bg-elevated) !important;
 }
 
 /* Monaco hover widget 样式优化 */
@@ -851,16 +851,16 @@ onUnmounted(() => {
 }
 
 .monaco-editor .monaco-hover-content::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: var(--bg-base);
 }
 
 .monaco-editor .monaco-hover-content::-webkit-scrollbar-thumb {
-  background-color: #555;
+  background-color: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 .monaco-editor .monaco-hover-content::-webkit-scrollbar-thumb:hover {
-  background-color: #666;
+  background-color: var(--scrollbar-thumb-hover);
 }
 
 /* hover widget 中表名 code 标签样式 - 可点击效果 */

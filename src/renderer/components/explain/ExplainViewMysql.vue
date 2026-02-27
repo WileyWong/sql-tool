@@ -102,7 +102,7 @@ function getAccessTypeColor(type: string): 'success' | 'warning' | 'danger' | 'i
 .explain-view-mysql {
   padding: 16px;
   overflow: auto;
-  background: #1e1e1e;
+  background: var(--bg-base);
 }
 
 .explain-flow {
@@ -114,19 +114,19 @@ function getAccessTypeColor(type: string): 'success' | 'warning' | 'danger' | 'i
 
 .explain-node {
   width: 300px;
-  background: #2d2d2d;
-  border: 1px solid #555;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .node-header {
-  background: #3c3c3c;
+  background: var(--bg-elevated);
   padding: 8px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #555;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .node-id {
@@ -180,7 +180,7 @@ function getAccessTypeColor(type: string): 'success' | 'warning' | 'danger' | 'i
 }
 
 .info-item.extra .value {
-  background: #3c3c3c;
+  background: var(--bg-elevated);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 11px;
@@ -191,7 +191,7 @@ function getAccessTypeColor(type: string): 'success' | 'warning' | 'danger' | 'i
   display: flex;
   justify-content: center;
   padding: 8px 0;
-  color: #555;
+  color: var(--border-color);
 }
 
 .explain-table {
@@ -204,16 +204,16 @@ function getAccessTypeColor(type: string): 'success' | 'warning' | 'danger' | 'i
 }
 
 .explain-table :deep(.el-table) {
-  background: #1e1e1e;
-  color: #d4d4d4;
-  --el-table-border-color: #555;
-  --el-table-header-bg-color: #2d2d2d;
-  --el-table-tr-bg-color: #1e1e1e;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  --el-table-border-color: var(--border-color);
+  --el-table-header-bg-color: var(--bg-surface);
+  --el-table-tr-bg-color: var(--bg-base);
   --el-table-row-hover-bg-color: #2a2d2e;
 }
 
 .explain-table :deep(.el-table th.el-table__cell) {
-  background: #2d2d2d;
-  color: #d4d4d4;
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 </style>

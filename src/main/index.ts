@@ -24,7 +24,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 600,
-    backgroundColor: '#2d2d2d',
+    backgroundColor: '#2d2d2d', // Node.js 上下文，无法使用 CSS 变量，需与 --bg-surface 保持一致
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       nodeIntegration: false,

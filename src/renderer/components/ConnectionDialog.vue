@@ -295,8 +295,8 @@ function handleClose() {
 }
 
 :deep(.el-input-group__append) {
-  background: #3c3c3c;
-  border-color: #555;
+  background: var(--bg-elevated);
+  border-color: var(--border-color);
 }
 
 :deep(.el-radio-group) {

@@ -89,8 +89,8 @@ defineExpose({
 }
 
 .dialog {
-  background: #2d2d2d;
-  border: 1px solid #555;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   min-width: 400px;
   max-width: 500px;
@@ -137,12 +137,12 @@ defineExpose({
 }
 
 .btn-primary {
-  background: #0e639c;
+  background: var(--color-primary);
   color: white;
 }
 
 .btn-primary:hover {
-  background: #1177bb;
+  background: var(--color-primary-hover);
 }
 
 .btn-secondary {
@@ -156,11 +156,11 @@ defineExpose({
 
 .btn-cancel {
   background: transparent;
-  color: #d4d4d4;
-  border: 1px solid #555;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .btn-cancel:hover {
-  background: #3c3c3c;
+  background: var(--bg-elevated);
 }
 </style>

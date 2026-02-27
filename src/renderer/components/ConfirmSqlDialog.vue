@@ -119,8 +119,8 @@ function handleCancel() {
 }
 
 .sql-preview {
-  background: #1e1e1e;
-  border: 1px solid #555;
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 12px;
   font-family: 'Consolas', 'Monaco', monospace;

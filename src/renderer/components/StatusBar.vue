@@ -66,7 +66,7 @@ const hoverHint = computed(() => editorStore.hoverHint)
 
 <style scoped>
 .status-bar {
-  background: #007acc;
+  background: var(--color-status-bar);
   padding: 4px 12px;
   display: flex;
   justify-content: space-between;

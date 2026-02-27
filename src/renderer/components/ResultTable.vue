@@ -778,7 +778,7 @@ function getNewRowTop(idx: number): number {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #1e1e1e;
+  background: var(--bg-base);
 }
 
 .table-container {
@@ -792,8 +792,8 @@ function getNewRowTop(idx: number): number {
   overflow-x: hidden;
   overflow-y: visible;
   flex-shrink: 0;
-  background: #2d2d2d;
-  border-bottom: 1px solid #555;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .table-header {
@@ -803,7 +803,7 @@ function getNewRowTop(idx: number): number {
 }
 
 .header-cell {
-  border-right: 1px solid #555;
+  border-right: 1px solid var(--border-color);
   box-sizing: border-box;
   flex-shrink: 0;
   position: relative;
@@ -884,12 +884,12 @@ function getNewRowTop(idx: number): number {
 
 .table-row {
   display: flex;
-  border-bottom: 1px solid #555;
-  background: #1e1e1e;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-base);
 }
 
 .table-row.striped {
-  background: #252526;
+  background: var(--bg-sidebar);
 }
 
 .table-row:hover {
@@ -910,12 +910,12 @@ function getNewRowTop(idx: number): number {
 
 .table-cell {
   padding: 8px 12px;
-  border-right: 1px solid #555;
+  border-right: 1px solid var(--border-color);
   box-sizing: border-box;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #d4d4d4;
+  color: var(--text-primary);
   font-size: 12px;
   flex-shrink: 0;
   cursor: default;
@@ -955,8 +955,8 @@ function getNewRowTop(idx: number): number {
 .status-bar {
   height: 24px;
   padding: 0 12px;
-  background: #2d2d2d;
-  border-top: 1px solid #555;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   gap: 20px;
@@ -992,16 +992,16 @@ function getNewRowTop(idx: number): number {
   width: 100%;
   height: 100%;
   padding: 8px 12px;
-  background: #3c3c3c;
-  border: 2px solid #0e639c;
-  color: #d4d4d4;
+  background: var(--bg-elevated);
+  border: 2px solid var(--color-primary);
+  color: var(--text-primary);
   font-size: 12px;
   outline: none;
   box-sizing: border-box;
 }
 
 .edit-input:focus {
-  background: #2d2d2d;
+  background: var(--bg-surface);
 }
 
 /* 新增行标识 */
@@ -1017,8 +1017,8 @@ function getNewRowTop(idx: number): number {
 /* 右键菜单样式 */
 .context-menu {
   position: fixed;
-  background: #2d2d2d;
-  border: 1px solid #555;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 4px 0;
   min-width: 100px;
@@ -1057,9 +1057,9 @@ function getNewRowTop(idx: number): number {
 .view-content {
   margin: 0;
   padding: 12px;
-  color: #d4d4d4;
-  background: #1e1e1e;
-  border: 1px solid #555;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 13px;
@@ -1075,15 +1075,15 @@ function getNewRowTop(idx: number): number {
 }
 
 .table-body::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: var(--bg-base);
 }
 
 .table-body::-webkit-scrollbar-thumb {
-  background: #555;
+  background: var(--scrollbar-thumb);
   border-radius: 5px;
 }
 
 .table-body::-webkit-scrollbar-thumb:hover {
-  background: #666;
+  background: var(--scrollbar-thumb-hover);
 }
 </style>

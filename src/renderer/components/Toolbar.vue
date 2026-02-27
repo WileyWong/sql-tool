@@ -228,7 +228,7 @@ onUnmounted(() => {
 
 .toolbar-btn {
   padding: 6px 14px;
-  background: #0e639c;
+  background: var(--color-primary);
   border: none;
   color: white;
   cursor: pointer;
@@ -240,7 +240,7 @@ onUnmounted(() => {
 }
 
 .toolbar-btn:hover:not(:disabled) {
-  background: #1177bb;
+  background: var(--color-primary-hover);
 }
 
 .toolbar-btn:disabled {
@@ -249,12 +249,12 @@ onUnmounted(() => {
 }
 
 .toolbar-btn.secondary {
-  background: #3c3c3c;
-  border: 1px solid #555;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
 }
 
 .toolbar-btn.secondary:hover:not(:disabled) {
-  background: #505050;
+  background: var(--bg-hover);
 }
 
 .toolbar-btn.run {
@@ -268,7 +268,7 @@ onUnmounted(() => {
 .toolbar-divider {
   width: 1px;
   height: 24px;
-  background: #555;
+  background: var(--border-color);
   margin: 0 4px;
 }
 </style>
