@@ -158,6 +158,13 @@ sql-tool/
 └── release/                   # Build output directory
 ```
 
+## Changelog
+
+2025-02-27
+- Added MSSQL database support (not fully tested)
+- Optimized editor connection pool
+- Fixed various interaction issues
+
 ## License
 
 MIT
