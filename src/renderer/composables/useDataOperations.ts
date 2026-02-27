@@ -1,4 +1,4 @@
-import { reactive, computed, readonly, type Ref, type ComputedRef } from 'vue'
+import { reactive, computed, readonly, watch, type Ref, type ComputedRef } from 'vue'
 import type { QueryResultSet, DatabaseType } from '@shared/types'
 
 /**
@@ -68,20 +68,110 @@ export interface UseDataOperationsReturn {
   getRowKey: (row: Record<string, unknown>, index: number) => string
   isCellModified: (rowKey: string, column: string) => boolean
   isNewRow: (tempId: string) => boolean
+  cleanupTab: (tabId: string) => void
+  shouldInitialize: (resultSet: QueryResultSet) => boolean
+}
+
+/**
+ * 按 Tab 隔离的状态快照（用于保存/恢复）
+ */
+interface TabStateSnapshot {
+  selectedRowKeys: Set<string>
+  pendingChanges: Map<string, Map<string, { oldValue: unknown; newValue: unknown }>>
+  newRows: Array<{ tempId: string; data: Record<string, unknown> }>
+  originalData: Record<string, unknown>[] | null
+  // 该 Tab 上次初始化的结果集引用，避免同一结果集重复初始化
+  initializedResultSet: QueryResultSet | null
 }
 
 /**
  * 数据操作逻辑 Composable
  * 管理选中行、修改跟踪、新增行、SQL 生成等逻辑
+ * 修改状态按编辑器 Tab ID 隔离存储
  */
 export function useDataOperations(options: DataOperationsOptions): UseDataOperationsReturn {
-  // --- 状态 ---
+  // --- 按 Tab 隔离的状态存储 ---
+  const tabStatesCache = new Map<string, TabStateSnapshot>()
+  let currentTabId: string | null = null
+
+  // --- 当前活动状态 ---
   const state = reactive<DataOperationsState>({
     selectedRowKeys: new Set(),
     pendingChanges: new Map(),
     newRows: [],
     originalData: null
   })
+
+  // 保存当前 Tab 的状态到缓存
+  function saveCurrentTabState() {
+    if (!currentTabId) return
+    const existing = tabStatesCache.get(currentTabId)
+    tabStatesCache.set(currentTabId, {
+      selectedRowKeys: new Set(state.selectedRowKeys),
+      pendingChanges: new Map(
+        Array.from(state.pendingChanges.entries()).map(([k, v]) => [k, new Map(v)])
+      ),
+      newRows: state.newRows.map(r => ({ tempId: r.tempId, data: { ...r.data } })),
+      originalData: state.originalData ? JSON.parse(JSON.stringify(state.originalData)) : null,
+      initializedResultSet: existing?.initializedResultSet ?? null
+    })
+  }
+
+  // 从缓存恢复指定 Tab 的状态
+  function restoreTabState(tabId: string) {
+    const cached = tabStatesCache.get(tabId)
+    if (cached) {
+      // 使用 clear + 重新填充，保持 reactive 引用不变
+      state.selectedRowKeys.clear()
+      cached.selectedRowKeys.forEach(k => state.selectedRowKeys.add(k))
+      
+      state.pendingChanges.clear()
+      cached.pendingChanges.forEach((colMap, rowKey) => {
+        state.pendingChanges.set(rowKey, new Map(colMap))
+      })
+      
+      state.newRows.splice(0, state.newRows.length, ...cached.newRows.map(r => ({ tempId: r.tempId, data: { ...r.data } })))
+      state.originalData = cached.originalData
+    } else {
+      clearState()
+    }
+  }
+
+  // 清空当前状态
+  function clearState() {
+    state.selectedRowKeys.clear()
+    state.pendingChanges.clear()
+    state.newRows.splice(0, state.newRows.length)
+    state.originalData = null
+  }
+
+  // 清理指定 Tab 的缓存（Tab 关闭时调用）
+  function cleanupTab(tabId: string) {
+    tabStatesCache.delete(tabId)
+  }
+
+  // 判断是否需要对当前 Tab 初始化（避免同一结果集重复初始化）
+  function shouldInitialize(resultSet: QueryResultSet): boolean {
+    if (!currentTabId) return false
+    const cached = tabStatesCache.get(currentTabId)
+    return resultSet !== cached?.initializedResultSet
+  }
+
+  // 监听 Tab 切换，自动保存/恢复状态
+  watch(() => options.tabId.value, (newTabId, oldTabId) => {
+    if (newTabId === oldTabId) return
+    // 保存旧 Tab 的状态
+    if (oldTabId) {
+      saveCurrentTabState()
+    }
+    // 恢复新 Tab 的状态
+    currentTabId = newTabId
+    if (newTabId) {
+      restoreTabState(newTabId)
+    } else {
+      clearState()
+    }
+  }, { immediate: true })
   
   // --- 计算属性 ---
   
@@ -134,10 +224,18 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
     state.selectedRowKeys.clear()
     if (!preserveChanges) {
       state.pendingChanges.clear()
-      state.newRows = []
+      state.newRows.splice(0, state.newRows.length)
     }
     // 深拷贝原始数据用于还原
     state.originalData = JSON.parse(JSON.stringify(data.rows))
+    // 同步更新缓存，并记录已初始化的结果集引用
+    if (currentTabId) {
+      saveCurrentTabState()
+      const cached = tabStatesCache.get(currentTabId)
+      if (cached) {
+        cached.initializedResultSet = data
+      }
+    }
   }
   
   // 切换行选中状态
@@ -205,9 +303,12 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
   // 还原所有修改
   function revertAll() {
     state.pendingChanges.clear()
-    state.newRows = []
+    state.newRows.splice(0, state.newRows.length)
     state.selectedRowKeys.clear()
-    // 注意：不恢复 originalData，因为那是原始查询结果
+    // 同步更新缓存
+    if (currentTabId) {
+      saveCurrentTabState()
+    }
   }
   
   // 将 pending changes 应用到本地数据（提交成功后调用）
@@ -375,7 +476,7 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
       applyChangesToLocalData()
       // 再清除修改状态
       state.pendingChanges.clear()
-      state.newRows = []
+      state.newRows.splice(0, state.newRows.length)
     }
     
     return {
@@ -445,7 +546,9 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
     executeSubmit,
     getRowKey,
     isCellModified,
-    isNewRow
+    isNewRow,
+    cleanupTab,
+    shouldInitialize
   }
 }
 

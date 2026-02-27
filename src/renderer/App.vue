@@ -126,7 +126,8 @@ provide('sqlEditor', {
 // 提供数据操作状态给子组件使用（统一跟踪机制）
 provide('dataOperations', {
   hasUnsavedChanges: () => resultPanelRef.value?.hasUnsavedChanges() || false,
-  clearChanges: () => resultPanelRef.value?.clearChanges()
+  clearChanges: () => resultPanelRef.value?.clearChanges(),
+  cleanupTab: (tabId: string) => resultPanelRef.value?.cleanupTab(tabId)
 })
 
 // 处理窗口关闭前事件

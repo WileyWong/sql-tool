@@ -115,6 +115,8 @@ const editorModelManager = useEditorModel()
 
 // 注入保存确认对话框
 const saveConfirmDialog = inject<{ show: (tabId: string, title: string, filePath?: string) => Promise<'save' | 'dontSave' | 'cancel'> }>('saveConfirmDialog')
+// 注入数据操作（用于关闭 Tab 时清理状态）
+const dataOperations = inject<{ hasUnsavedChanges: () => boolean; clearChanges: () => void; cleanupTab: (tabId: string) => void }>('dataOperations')
 
 const editorContainer = ref<HTMLElement>()
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
@@ -452,6 +454,8 @@ async function handleTabRemove(tabId: string | number) {
   
   // 清理该标签页的结果数据
   resultStore.cleanupEditorTab(id)
+  // 清理该标签页的数据操作状态
+  dataOperations?.cleanupTab(id)
   // 清理该标签页的 Monaco Model
   editorModelManager.disposeTabModel(id)
   editorStore.closeTab(id)

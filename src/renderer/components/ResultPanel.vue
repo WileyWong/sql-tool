@@ -200,16 +200,13 @@ const confirmDialog = reactive({
   loading: false
 })
 
-// 跟踪当前已初始化的结果集，避免切换标签页时重复初始化
-let initializedResultSet: QueryResultSet | null = null
-
 // 监听结果数据变化，初始化数据操作状态
+// Tab 切换时的状态保存/恢复已由 useDataOperations 内部的 watch(tabId) 处理
+// 这里只需在某个 Tab 真正产生新结果集时调用 initialize
 watch(currentResultSet, (newVal) => {
-  if (newVal && newVal !== initializedResultSet) {
-    // 如果 dataOps 标记有未保存修改，保留修改状态（切换标签页场景）
-    const preserveChanges = dataOps.hasChanges.value
-    dataOps.initialize(newVal, preserveChanges)
-    initializedResultSet = newVal
+  if (!newVal) return
+  if (dataOps.shouldInitialize(newVal)) {
+    dataOps.initialize(newVal)
   }
 }, { immediate: true })
 
@@ -364,11 +361,12 @@ async function refreshData() {
   }
 }
 
-// 导出 refreshData 和 hasUnsavedChanges 供外部使用
+// 导出供外部使用
 defineExpose({ 
   refreshData,
   hasUnsavedChanges: () => dataOps.hasChanges.value,
-  clearChanges: () => dataOps.revertAll()
+  clearChanges: () => dataOps.revertAll(),
+  cleanupTab: (tabId: string) => dataOps.cleanupTab(tabId)
 })
 
 // 单元格修改回调
