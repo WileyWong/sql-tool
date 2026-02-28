@@ -307,6 +307,18 @@ export const useEditorStore = defineStore('editor', () => {
     tabs.value.splice(0, tabs.value.length, ...reorderedTabs)
   }
 
+  // 清空指定标签页的数据库选择（用于删除数据库后清理）
+  function clearTabDatabase(tabId: string) {
+    const tab = tabs.value.find(t => t.id === tabId)
+    if (tab) {
+      tab.databaseName = undefined
+      // 如果有基础标题，更新标题（移除数据库名后缀）
+      if (tab.baseTitle) {
+        tab.title = tab.baseTitle
+      }
+    }
+  }
+
   return {
     // 状态
     tabs,
@@ -334,6 +346,7 @@ export const useEditorStore = defineStore('editor', () => {
     getSelectedSql,
     setHoverHint,
     reorderTabs,
+    clearTabDatabase,
     isTabEmpty,
     hasUnsavedChanges,
     getUnsavedTabs

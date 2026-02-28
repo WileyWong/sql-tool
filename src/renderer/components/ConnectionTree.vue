@@ -323,6 +323,7 @@ const contextMenuItems = computed(() => {
             { key: 'disconnect', label: t('contextMenu.disconnect') },
             { key: 'edit', label: t('contextMenu.editConnection') },
             { key: 'delete', label: t('contextMenu.deleteConnection') },
+            { key: 'createDatabase', label: t('contextMenu.createDatabase') },
             { key: 'refresh', label: t('contextMenu.refresh') }
           ]
         : [
@@ -330,7 +331,18 @@ const contextMenuItems = computed(() => {
             { key: 'edit', label: t('contextMenu.editConnection') },
             { key: 'delete', label: t('contextMenu.deleteConnection') }
           ]
-    case 'database':
+    case 'database': {
+      const items: { key: string; label: string }[] = [
+        { key: 'createDatabase', label: t('contextMenu.createDatabase') }
+      ]
+      // 非系统数据库才显示删除选项
+      const dbType = conn?.type || 'mysql'
+      if (!isSystemDatabase(dbType, node.label)) {
+        items.push({ key: 'dropDatabase', label: t('contextMenu.dropDatabase') })
+      }
+      items.push({ key: 'refresh', label: t('contextMenu.refresh') })
+      return items
+    }
     case 'views':
     case 'functions':
       return [{ key: 'refresh', label: t('contextMenu.refresh') }]
@@ -577,6 +589,17 @@ async function handleMenuClick(key: string) {
       // 删除表
       handleDropTable(node)
       break
+    case 'createDatabase': {
+      // 创建数据库
+      const connForCreate = connectionStore.connections.find(c => c.id === node.connectionId)
+      const dbTypeForCreate = connForCreate?.type || 'mysql'
+      connectionStore.openCreateDatabaseDialog(node.connectionId!, dbTypeForCreate as 'mysql' | 'sqlserver')
+      break
+    }
+    case 'dropDatabase':
+      // 删除数据库
+      handleDropDatabase(node)
+      break
   }
 }
 
@@ -632,6 +655,105 @@ async function handleDropTable(node: TreeNode) {
     }
   } catch {
     // 用户取消
+  }
+}
+
+// 系统数据库列表
+const SYSTEM_DATABASES: Record<string, string[]> = {
+  mysql: ['mysql', 'information_schema', 'performance_schema', 'sys'],
+  sqlserver: ['master', 'tempdb', 'model', 'msdb']
+}
+
+function isSystemDatabase(dbType: string, dbName: string): boolean {
+  const list = SYSTEM_DATABASES[dbType] || []
+  return list.includes(dbName.toLowerCase())
+}
+
+// 正则特殊字符转义
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// 删除数据库
+async function handleDropDatabase(node: TreeNode) {
+  const connInfo = connectionStore.connections.find(c => c.id === node.connectionId)
+  const dbType = connInfo?.type || 'mysql'
+  const dbName = node.label
+
+  // 生成 SQL 预览
+  let dropSql: string
+  if (dbType === 'sqlserver') {
+    dropSql = `ALTER DATABASE [${dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;\nDROP DATABASE [${dbName}];`
+  } else {
+    dropSql = `DROP DATABASE \`${dbName}\`;`
+  }
+
+  try {
+    await ElMessageBox.prompt(
+      `<div>
+        <p style="color:#F56C6C;font-weight:bold;margin-bottom:8px;">${t('database.dropWarning')}</p>
+        <p style="margin-bottom:8px;">${t('database.dropConfirmHint', { name: dbName })}</p>
+        <pre class="drop-table-sql-preview">${dropSql.replace(/\n/g, '\n')}</pre>
+      </div>`,
+      t('database.dropDatabase'),
+      {
+        confirmButtonText: t('tree.executeDelete'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        inputPattern: new RegExp(`^${escapeRegExp(dbName)}$`, 'i'),
+        inputErrorMessage: t('database.dropNameMismatch')
+      }
+    )
+
+    // Session 清理（在 DROP 之前）
+    await cleanupSessionsForDatabase(node.connectionId!, dbName)
+
+    // 执行 DROP
+    const result = await connectionStore.executeDDL(node.connectionId!, dropSql)
+
+    if (result.success) {
+      ElMessage.success(t('database.dropSuccess'))
+      // 刷新连接树
+      await connectionStore.loadDatabases(node.connectionId!)
+      const connNode = treeRef.value?.getNode(node.connectionId!)
+      if (connNode) {
+        connNode.loaded = false
+        connNode.expand()
+      }
+    } else {
+      ElMessage.error(result.message || t('message.operationFailed'))
+    }
+  } catch {
+    // 用户取消
+  }
+}
+
+// 删除数据库前清理相关 session
+async function cleanupSessionsForDatabase(connectionId: string, databaseName: string) {
+  const promises: Promise<void>[] = []
+
+  for (const tab of editorStore.tabs) {
+    if (tab.connectionId === connectionId &&
+        tab.databaseName?.toLowerCase() === databaseName.toLowerCase()) {
+      // 销毁 session
+      promises.push(
+        window.api.session.destroy(tab.id, connectionId).catch(() => {})
+      )
+      // 清空该 Tab 的数据库选择
+      editorStore.clearTabDatabase(tab.id)
+    }
+  }
+
+  await Promise.all(promises)
+}
+
+// 创建数据库成功后的回调
+function handleCreateDatabaseSuccess(connectionId: string) {
+  const connNode = treeRef.value?.getNode(connectionId)
+  if (connNode) {
+    connNode.loaded = false
+    connNode.expand()
   }
 }
 

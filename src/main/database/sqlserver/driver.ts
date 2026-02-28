@@ -596,13 +596,20 @@ export class SqlServerDriver implements IDatabaseDriver {
   /**
    * 执行 DDL 语句（系统级操作，使用共享连接池）
    */
-  async executeDDL(connectionId: string, sql: string): Promise<{ success: boolean; message?: string }> {
+  async executeDDL(connectionId: string, ddlSql: string): Promise<{ success: boolean; message?: string }> {
     const pool = await this.getPoolWithReconnect(connectionId)
     if (!pool) {
       return { success: false, message: '连接不存在' }
     }
     try {
-      await pool.request().query(sql)
+      // CREATE/DROP DATABASE 必须在 master 上下文中执行
+      // 使用 batch() 将 USE master 和 DDL 合并执行，确保在同一连接上
+      const isDatabaseDDL = /^\s*(CREATE|ALTER|DROP)\s+DATABASE\b/i.test(ddlSql)
+      if (isDatabaseDDL) {
+        await pool.request().batch(`USE [master]; ${ddlSql}`)
+      } else {
+        await pool.request().query(ddlSql)
+      }
       return { success: true }
     } catch (error: unknown) {
       const err = error as { message?: string }
@@ -630,6 +637,23 @@ export class SqlServerDriver implements IDatabaseDriver {
     `)
     
     return result.recordset.map(r => r.name)
+  }
+
+  /**
+   * 获取排序规则列表（SQL Server）
+   */
+  async getCollations(connectionId: string, _charset?: string): Promise<{ collation: string; charset: string; isDefault: boolean }[]> {
+    const pool = await this.getPoolWithReconnect(connectionId)
+    if (!pool) {
+      throw new Error('连接不存在')
+    }
+
+    const result = await pool.request().query(`SELECT name FROM sys.fn_helpcollations() ORDER BY name`)
+    return result.recordset.map((row: { name: string }) => ({
+      collation: row.name,
+      charset: '',
+      isDefault: false
+    }))
   }
 
   // ==================== 私有方法 ====================

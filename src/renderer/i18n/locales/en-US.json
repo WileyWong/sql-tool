@@ -356,7 +356,25 @@
     "createTable": "Create Table",
     "query100": "Query Top 100",
     "manage": "Manage",
-    "editTable": "Edit Table"
+    "editTable": "Edit Table",
+    "createDatabase": "Create Database",
+    "dropDatabase": "Drop Database"
+  },
+  "database": {
+    "createDatabase": "Create Database",
+    "databaseName": "Database Name",
+    "databaseNamePlaceholder": "Enter database name",
+    "sqlPreview": "SQL Preview",
+    "createSuccess": "Database created successfully",
+    "nameRequired": "Database name is required",
+    "nameInvalidChars": "Database name contains invalid characters",
+    "nameTooLong": "Database name cannot exceed {max} characters",
+    "dropDatabase": "Drop Database",
+    "dropWarning": "This will permanently delete the database and all its data. This action cannot be undone!",
+    "dropConfirmHint": "Please type \"{name}\" to confirm:",
+    "dropNameMismatch": "Database name does not match",
+    "dropSuccess": "Database dropped successfully",
+    "loadingMetadata": "Loading metadata..."
   },
   "tree": {
     "newConnection": "New Connection",
