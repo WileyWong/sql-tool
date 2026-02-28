@@ -293,7 +293,7 @@ watch(() => editorStore.activeTab?.databaseName, (newDatabaseName) => {
 })
 
 // 监听连接选择变化
-watch(selectedConnectionId, async (newId) => {
+watch(selectedConnectionId, async (newId, oldId) => {
   if (newId) {
     const conn = connections.value.find(c => c.id === newId)
     if (conn && conn.status !== 'connected') {
@@ -308,6 +308,11 @@ watch(selectedConnectionId, async (newId) => {
   
   // 恢复标签页设置时不更新（避免覆盖 databaseName）
   if (!isRestoringTabSettings) {
+    // 连接切换时，主动销毁旧 session 释放连接资源
+    const tabId = editorStore.activeTabId
+    if (tabId && oldId && oldId !== newId) {
+      window.api.session.destroy(tabId, oldId).catch(() => {})
+    }
     editorStore.updateTabConnection(newId || undefined, selectedDatabase.value || undefined)
   }
   
@@ -316,10 +321,15 @@ watch(selectedConnectionId, async (newId) => {
 })
 
 // 监听数据库选择变化
-watch(selectedDatabase, async (newDb) => {
-  // 恢复标签页设置时不更新
+watch(selectedDatabase, async (newDb, oldDb) => {
   if (!isRestoringTabSettings) {
-    editorStore.updateTabConnection(selectedConnectionId.value || undefined, newDb || undefined)
+    // 切换数据库时，销毁旧 session 释放连接，下次执行时会自动重建
+    const tabId = editorStore.activeTabId
+    const connId = selectedConnectionId.value
+    if (tabId && connId && oldDb && oldDb !== newDb) {
+      window.api.session.destroy(tabId, connId).catch(() => {})
+    }
+    editorStore.updateTabConnection(connId || undefined, newDb || undefined)
   }
   
   // 使用 Composable 更新元数据

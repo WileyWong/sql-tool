@@ -22,6 +22,37 @@ function deepSerialize(obj: unknown): unknown {
   }))
 }
 
+/**
+ * 确保 Tab 的会话与请求的 connectionId 一致
+ * 如果不存在会话则创建；如果 connectionId 变更则先销毁旧会话再创建新的
+ */
+async function ensureSession(tabId: string, connectionId: string, database?: string): Promise<void> {
+  const dbType = getConnectionDbType(connectionId)
+  const sessionManager = DriverFactory.getSessionManager(dbType)
+
+  const existingSession = sessionManager.getSessionInfo(tabId)
+  if (existingSession) {
+    if (existingSession.connectionId === connectionId) {
+      // 连接未变更，复用现有会话
+      return
+    }
+    // 连接已变更，销毁旧会话（可能是不同的数据库类型，需要用旧类型的 sessionManager）
+    try {
+      const oldDbType = getConnectionDbType(existingSession.connectionId)
+      const oldSessionManager = DriverFactory.getSessionManager(oldDbType)
+      await oldSessionManager.destroySession(tabId)
+      console.log(`[Query] 连接变更，已销毁旧会话: tabId=${tabId}, oldConnectionId=${existingSession.connectionId}, newConnectionId=${connectionId}`)
+    } catch (err) {
+      console.warn(`[Query] 销毁旧会话失败: tabId=${tabId}`, err)
+      // 旧连接配置可能已不存在（已断开），尝试用当前 sessionManager 清理
+      try { await sessionManager.destroySession(tabId) } catch { /* ignore */ }
+    }
+  }
+
+  // 创建新会话
+  await sessionManager.createSession(tabId, connectionId, database)
+}
+
 export function setupQueryHandlers(ipcMain: IpcMain): void {
   // 执行 SQL（通过 SessionManager，使用 tabId 标识独占会话）
   ipcMain.handle(IpcChannels.QUERY_EXECUTE, async (_, data: {
@@ -32,14 +63,10 @@ export function setupQueryHandlers(ipcMain: IpcMain): void {
     database?: string
   }) => {
     try {
+      await ensureSession(data.tabId, data.connectionId, data.database)
+
       const dbType = getConnectionDbType(data.connectionId)
       const sessionManager = DriverFactory.getSessionManager(dbType)
-
-      // 懒初始化：如果该 Tab 还没有会话，自动创建
-      if (!sessionManager.getSessionInfo(data.tabId)) {
-        await sessionManager.createSession(data.tabId, data.connectionId, data.database)
-      }
-
       const results = await sessionManager.executeQuery(data.tabId, data.sql, {
         maxRows: data.maxRows || Defaults.MAX_ROWS,
         currentDatabase: data.database
@@ -78,14 +105,10 @@ export function setupQueryHandlers(ipcMain: IpcMain): void {
     database?: string
   }) => {
     try {
+      await ensureSession(data.tabId, data.connectionId, data.database)
+
       const dbType = getConnectionDbType(data.connectionId)
       const sessionManager = DriverFactory.getSessionManager(dbType)
-
-      // 懒初始化
-      if (!sessionManager.getSessionInfo(data.tabId)) {
-        await sessionManager.createSession(data.tabId, data.connectionId, data.database)
-      }
-
       const result = await sessionManager.explainQuery(data.tabId, data.sql, data.database)
       
       if ('type' in result && result.type === 'error') {
@@ -109,14 +132,10 @@ export function setupQueryHandlers(ipcMain: IpcMain): void {
     database?: string
   }) => {
     try {
+      await ensureSession(data.tabId, data.connectionId, data.database)
+
       const dbType = getConnectionDbType(data.connectionId)
       const sessionManager = DriverFactory.getSessionManager(dbType)
-
-      // 懒初始化
-      if (!sessionManager.getSessionInfo(data.tabId)) {
-        await sessionManager.createSession(data.tabId, data.connectionId, data.database)
-      }
-
       return sessionManager.executeBatch(data.tabId, data.sqls)
     } catch (error: unknown) {
       const err = error as { message?: string }
