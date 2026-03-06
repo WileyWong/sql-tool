@@ -583,7 +583,9 @@ export class MySQLDriver implements IDatabaseDriver {
       password: config.password,
       database: config.database || undefined,
       connectTimeout: Defaults.CONNECTION_TIMEOUT,
-      multipleStatements: true
+      multipleStatements: true,
+      supportBigNumbers: true,
+      bigNumberStrings: true
     })
   }
 

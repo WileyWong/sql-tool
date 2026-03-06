@@ -83,7 +83,9 @@ export class MySQLSessionManager implements ISessionManager {
       password: config.password,
       database: database || config.database || undefined,
       connectTimeout: Defaults.CONNECTION_TIMEOUT,
-      multipleStatements: true
+      multipleStatements: true,
+      supportBigNumbers: true,
+      bigNumberStrings: true
     })
 
     // 5. 注册会话
@@ -561,7 +563,9 @@ export class MySQLSessionManager implements ISessionManager {
           password: session.config.password,
           database: session.database || session.config.database || undefined,
           connectTimeout: Defaults.CONNECTION_TIMEOUT,
-          multipleStatements: true
+          multipleStatements: true,
+          supportBigNumbers: true,
+          bigNumberStrings: true
         })
 
         session.connection = newConnection
