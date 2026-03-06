@@ -738,7 +738,7 @@ async function cleanupSessionsForDatabase(connectionId: string, databaseName: st
         tab.databaseName?.toLowerCase() === databaseName.toLowerCase()) {
       // 销毁 session
       promises.push(
-        window.api.session.destroy(tab.id, connectionId).catch(() => {})
+        window.api.session.destroy(tab.id, connectionId).then(() => {}).catch(() => {})
       )
       // 清空该 Tab 的数据库选择
       editorStore.clearTabDatabase(tab.id)
@@ -746,15 +746,6 @@ async function cleanupSessionsForDatabase(connectionId: string, databaseName: st
   }
 
   await Promise.all(promises)
-}
-
-// 创建数据库成功后的回调
-function handleCreateDatabaseSuccess(connectionId: string) {
-  const connNode = treeRef.value?.getNode(connectionId)
-  if (connNode) {
-    connNode.loaded = false
-    connNode.expand()
-  }
 }
 
 onMounted(async () => {
