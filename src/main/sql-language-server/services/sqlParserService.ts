@@ -5,7 +5,8 @@
  */
 
 import { Parser } from 'node-sql-parser'
-import type { CursorContext, TableRef } from '../types'
+import type { CursorContext, TableRef, ColumnExpressionInfo } from '../types'
+import type { Position } from 'vscode-languageserver'
 import type { DatabaseType } from '../../../shared/types'
 
 /**
@@ -473,6 +474,188 @@ export class SqlParserService {
       }
     }
     return null
+  }
+
+  /**
+   * 检查文档中某个位置是否在 SELECT 列区域内
+   * 即在 SELECT (DISTINCT/TOP N)? 之后、FROM 之前
+   *
+   * @param documentText 完整文档文本
+   * @param position 0-based 行列位置
+   * @returns 是否在 SELECT 列区域
+   */
+  isPositionInSelectClause(documentText: string, position: Position): boolean {
+    // 1. 计算 position 在文档中的绝对偏移
+    const lines = documentText.split('\n')
+    if (position.line >= lines.length) return false
+
+    let docOffset = 0
+    for (let i = 0; i < position.line; i++) {
+      docOffset += lines[i].length + 1
+    }
+    docOffset += position.character
+
+    // 2. 找到包含光标的语句
+    const statements = splitStatements(documentText)
+    let stmtStart = 0
+    let found = false
+    for (const stmt of statements) {
+      if (docOffset >= stmt.start && docOffset <= stmt.end) {
+        stmtStart = stmt.start
+        found = true
+        break
+      }
+    }
+    if (!found) return false
+
+    // 3. 在当前语句中计算偏移
+    const offsetInStmt = docOffset - stmtStart
+    const stmtText = documentText.substring(stmtStart)
+    const textBefore = stmtText.substring(0, offsetInStmt).toUpperCase()
+
+    // 4. 检查最近的 SELECT 关键字
+    const lastSelectIndex = textBefore.lastIndexOf('SELECT')
+    if (lastSelectIndex === -1) return false
+
+    // 5. 检查 SELECT 和当前位置之间是否有独立的 FROM 关键字
+    const textBetween = textBefore.substring(lastSelectIndex)
+    if (/\bFROM\b/.test(textBetween)) return false
+
+    return true
+  }
+
+  /**
+   * 检查光标位置的列是否被函数包裹
+   * 策略：检查单词（含表前缀）左侧是否紧跟 ( 且 ( 左侧是函数名
+   *
+   * @param documentText 完整文档文本
+   * @param position 0-based 行列位置
+   * @returns 是否被函数包裹
+   */
+  isColumnWrappedByFunction(documentText: string, position: Position): boolean {
+    const lines = documentText.split('\n')
+    if (position.line >= lines.length) return false
+
+    const line = lines[position.line]
+
+    // 获取单词的起始位置
+    let start = position.character
+    while (start > 0 && /[\w]/.test(line[start - 1])) {
+      start--
+    }
+
+    // 跳过可能的表前缀 prefix.
+    let checkPos = start
+    if (checkPos > 0 && line[checkPos - 1] === '.') {
+      checkPos -= 1
+      while (checkPos > 0 && /[\w]/.test(line[checkPos - 1])) {
+        checkPos--
+      }
+    }
+
+    // 跳过空格
+    let leftPos = checkPos - 1
+    while (leftPos >= 0 && line[leftPos] === ' ') {
+      leftPos--
+    }
+
+    // 检查是否有左括号
+    if (leftPos >= 0 && line[leftPos] === '(') {
+      // 检查括号左侧是否有函数名（连续的字母字符）
+      let funcEnd = leftPos - 1
+      while (funcEnd >= 0 && line[funcEnd] === ' ') {
+        funcEnd--
+      }
+      if (funcEnd >= 0 && /[\w]/.test(line[funcEnd])) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * 解析光标位置的列表达式范围（含表前缀和别名）
+   * 返回表达式在文档中的起止位置和别名信息
+   *
+   * @param documentText 完整文档文本
+   * @param position 0-based 行列位置
+   * @returns 列表达式信息，解析失败返回 null
+   */
+  parseColumnExpression(
+    documentText: string,
+    position: Position
+  ): ColumnExpressionInfo | null {
+    const lines = documentText.split('\n')
+    if (position.line >= lines.length) return null
+
+    const line = lines[position.line]
+
+    // 1. 找到单词边界
+    let wordStart = position.character
+    while (wordStart > 0 && /[\w]/.test(line[wordStart - 1])) {
+      wordStart--
+    }
+    let wordEnd = position.character
+    while (wordEnd < line.length && /[\w]/.test(line[wordEnd])) {
+      wordEnd++
+    }
+
+    // 2. 向前检查表前缀
+    let exprStart = wordStart
+    if (exprStart > 0 && line[exprStart - 1] === '.') {
+      exprStart -= 1  // 跳过 .
+      while (exprStart > 0 && /[\w]/.test(line[exprStart - 1])) {
+        exprStart--
+      }
+    }
+
+    // 3. 向后检查别名（AS alias 或 空格 alias）
+    let exprEnd = wordEnd
+    let alias: string | undefined
+
+    // 跳过空格
+    let afterEnd = wordEnd
+    while (afterEnd < line.length && line[afterEnd] === ' ') {
+      afterEnd++
+    }
+
+    // 检查是否有 AS 关键字
+    const afterText = line.substring(afterEnd)
+    const asMatch = afterText.match(/^(AS\s+)(\w+)/i)
+    if (asMatch) {
+      alias = asMatch[2]
+      exprEnd = afterEnd + asMatch[0].length
+    } else {
+      // 检查无 AS 的别名写法：col alias（alias 不能是 SQL 关键字）
+      const aliasMatch = afterText.match(/^(\w+)/)
+      if (aliasMatch) {
+        const candidate = aliasMatch[1].toUpperCase()
+        const sqlKeywords = [
+          'FROM', 'WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER',
+          'OUTER', 'CROSS', 'ON', 'AND', 'OR', 'ORDER', 'GROUP', 'HAVING',
+          'LIMIT', 'UNION', 'INTO', 'SET', 'VALUES', 'AS', 'CASE', 'WHEN',
+          'THEN', 'ELSE', 'END', 'NOT', 'IN', 'EXISTS', 'BETWEEN', 'LIKE',
+          'IS', 'NULL', 'ASC', 'DESC', 'DISTINCT', 'ALL'
+        ]
+        if (!sqlKeywords.includes(candidate) && afterEnd > wordEnd) {
+          const afterAlias = afterText.substring(aliasMatch[0].length).trimStart()
+          if (!afterAlias || /^[,)]/.test(afterAlias) ||
+              /^(FROM|WHERE|ORDER|GROUP|HAVING|LIMIT)\b/i.test(afterAlias)) {
+            alias = aliasMatch[1]
+            exprEnd = afterEnd + aliasMatch[0].length
+          }
+        }
+      }
+    }
+
+    return {
+      startLine: position.line,
+      startColumn: exprStart,
+      endLine: position.line,
+      endColumn: exprEnd,
+      alias
+    }
   }
 
   /**

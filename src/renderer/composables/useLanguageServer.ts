@@ -8,6 +8,20 @@ import * as monaco from 'monaco-editor'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
 
+// Hover 快捷操作类型（与后端 HoverAction 对齐）
+export interface HoverAction {
+  type: 'expand_star' | 'from_unixtime'
+  title: string
+  description: string
+  replaceText: string
+  range: {
+    startLineNumber: number
+    startColumn: number
+    endLineNumber: number
+    endColumn: number
+  }
+}
+
 // 补全项类型
 export interface CompletionItemResult {
   label: string
@@ -85,6 +99,9 @@ export function useLanguageServer() {
   
   // 当前 hover 的表信息（用于点击处理）
   const currentHoverTableInfo = ref<{ name: string } | null>(null)
+  
+  // 当前 hover 的快捷操作列表
+  const currentHoverActions = ref<HoverAction[] | null>(null)
   
   // Disposables
   let completionDisposable: monaco.IDisposable | null = null
@@ -264,6 +281,7 @@ export function useLanguageServer() {
             // 清除状态栏提示和表信息
             editorStore.setHoverHint(null)
             currentHoverTableInfo.value = null
+            currentHoverActions.value = null
             return null
           }
 
@@ -276,13 +294,29 @@ export function useLanguageServer() {
             currentHoverTableInfo.value = null
           }
 
+          // 保存快捷操作并追加到 Markdown
+          currentHoverActions.value = result.actions || null
+          let markdownValue = result.hover.contents.value
+
+          if (result.actions && result.actions.length > 0) {
+            markdownValue += '\n\n---\n'
+            for (const action of result.actions) {
+              const icon = action.type === 'expand_star' ? '🔄' : '🕐'
+              markdownValue += `${icon} \`${action.title}\` — ${action.description}\n\n`
+            }
+            if (!result.tableInfo) {
+              editorStore.setHoverHint('💡 点击操作执行快捷替换')
+            }
+          }
+
           return {
-            contents: [{ value: result.hover.contents.value }]
+            contents: [{ value: markdownValue }]
           }
         } catch (error) {
           console.error('悬浮提示请求失败:', error)
           editorStore.setHoverHint(null)
           currentHoverTableInfo.value = null
+          currentHoverActions.value = null
           return null
         }
       }
@@ -400,6 +434,34 @@ export function useLanguageServer() {
   function clearHoverState() {
     editorStore.setHoverHint(null)
     currentHoverTableInfo.value = null
+    currentHoverActions.value = null
+  }
+
+  /**
+   * 执行 hover 快捷操作（编辑器文本替换）
+   */
+  function executeHoverAction(editor: monaco.editor.IStandaloneCodeEditor, actionIndex: number) {
+    if (!currentHoverActions.value || actionIndex >= currentHoverActions.value.length) return
+
+    const action = currentHoverActions.value[actionIndex]
+
+    // 使用 editor.executeEdits 执行替换（支持 Ctrl+Z 撤销）
+    editor.executeEdits('hover-quick-action', [
+      {
+        range: new monaco.Range(
+          action.range.startLineNumber,
+          action.range.startColumn,
+          action.range.endLineNumber,
+          action.range.endColumn
+        ),
+        text: action.replaceText,
+        forceMoveMarkers: true
+      }
+    ])
+
+    // 替换后清除 hover 状态
+    currentHoverActions.value = null
+    editorStore.setHoverHint(null)
   }
 
   /**
@@ -424,6 +486,7 @@ export function useLanguageServer() {
     // 清除状态
     editorStore.setHoverHint(null)
     currentHoverTableInfo.value = null
+    currentHoverActions.value = null
   }
 
   return {
@@ -431,6 +494,7 @@ export function useLanguageServer() {
     lastConnectionId,
     lastDatabaseName,
     currentHoverTableInfo,
+    currentHoverActions,
     
     // 上下文管理
     updateContext,
@@ -449,6 +513,7 @@ export function useLanguageServer() {
     // Hover 交互
     openTableManageFromHover,
     clearHoverState,
+    executeHoverAction,
     
     // 资源清理
     dispose

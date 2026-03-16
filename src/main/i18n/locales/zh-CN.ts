@@ -53,6 +53,12 @@ export default {
     defaultValue: '默认值',
     fromTable: '来自表',
     syntax: '语法',
-    returnType: '返回类型'
+    returnType: '返回类型',
+    selectAll: '通配符',
+    quickActions: '快捷操作',
+    actionExpandStar: '列出所有列',
+    actionExpandStarDesc: '将 * 替换为所有字段',
+    actionFromUnixtime: 'FROM_UNIXTIME 转成时间',
+    actionFromUnixtimeDesc: '转换为 FROM_UNIXTIME'
   }
 }

@@ -504,12 +504,36 @@ function handleHoverClick(e: MouseEvent) {
     return
   }
   
-  // 检查是否有当前 hover 的表信息
-  if (!languageServer.currentHoverTableInfo.value) return
-  
-  // 检查点击的是否是 code 标签（表名被反引号包裹，会渲染为 code）
-  // 或者点击的元素的父元素是 code
+  // 检查点击的是否是 code 标签
   const codeElement = target.tagName === 'CODE' ? target : target.closest('code')
+
+  // ===== 检查是否点击了快捷操作 =====
+  if (codeElement && languageServer.currentHoverActions.value) {
+    const hoverContent = hoverWidget.querySelector('.monaco-hover-content')
+    if (hoverContent) {
+      const hr = hoverContent.querySelector('hr')
+      if (hr) {
+        // 检查 code 元素是否在 hr 之后
+        const isAfterHr = !!(hr.compareDocumentPosition(codeElement) & Node.DOCUMENT_POSITION_FOLLOWING)
+        if (isAfterHr) {
+          // 通过 title 文本匹配操作索引
+          const clickedTitle = codeElement.textContent
+          const actionIndex = languageServer.currentHoverActions.value.findIndex(
+            a => a.title === clickedTitle
+          )
+          if (actionIndex !== -1 && editor) {
+            e.preventDefault()
+            e.stopPropagation()
+            languageServer.executeHoverAction(editor, actionIndex)
+            return
+          }
+        }
+      }
+    }
+  }
+
+  // ===== 现有逻辑：检查是否点击了表名 =====
+  if (!languageServer.currentHoverTableInfo.value) return
   if (!codeElement) return
   
   // 获取 hover 内容的第一个段落（表名所在行）
@@ -534,7 +558,7 @@ function handleHoverClick(e: MouseEvent) {
  */
 function handleMouseMove(e: MouseEvent) {
   // 如果没有 hover 状态，不需要检测
-  if (!languageServer.currentHoverTableInfo.value) return
+  if (!languageServer.currentHoverTableInfo.value && !languageServer.currentHoverActions.value) return
   
   const target = e.target as HTMLElement
   // 检查鼠标是否在 hover widget 或编辑器内
@@ -893,5 +917,21 @@ onUnmounted(() => {
   color: #81d4fa !important;
   border-bottom-style: solid;
   background-color: rgba(79, 195, 247, 0.2) !important;
+}
+
+/* 快捷操作链接样式 - 分割线之后的 code 标签 */
+.monaco-editor .monaco-hover-content hr ~ p > code {
+  color: #4fc3f7 !important;
+  cursor: pointer !important;
+  border-bottom: 1px dashed #4fc3f7;
+  transition: all 0.15s ease;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.monaco-editor .monaco-hover-content hr ~ p > code:hover {
+  color: #81d4fa !important;
+  border-bottom-color: #81d4fa;
+  background-color: rgba(79, 195, 247, 0.1) !important;
 }
 </style>

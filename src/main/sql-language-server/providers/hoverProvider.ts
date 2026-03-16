@@ -6,6 +6,8 @@ import { Hover, Position, MarkupKind } from 'vscode-languageserver'
 import { MetadataService } from '../services/metadataService'
 import { SqlParserService, splitStatements } from '../services/sqlParserService'
 import { t } from '../../i18n'
+import { HoverActionBuilder } from './hoverActionBuilder'
+import type { HoverAction } from '../types'
 
 /**
  * 扩展的 Hover 结果，包含表信息用于前端交互
@@ -15,21 +17,31 @@ export interface HoverResult {
   tableInfo?: {
     name: string
   }
+  /** 快捷操作列表 */
+  actions?: HoverAction[]
 }
 
 export class HoverProvider {
   private metadataService: MetadataService
   private sqlParser: SqlParserService
+  private actionBuilder: HoverActionBuilder
 
   constructor(metadataService: MetadataService) {
     this.metadataService = metadataService
     this.sqlParser = new SqlParserService()
+    this.actionBuilder = new HoverActionBuilder(
+      this.metadataService, this.sqlParser
+    )
   }
 
   /**
    * 提供悬浮提示
    */
   provideHover(documentText: string, position: Position): HoverResult | null {
+    // * 特殊检测，委托 actionBuilder
+    const starResult = this.actionBuilder.tryProvideStarHover(documentText, position)
+    if (starResult) return starResult
+
     // 获取光标位置的单词
     const wordInfo = this.getWordAtPosition(documentText, position)
     if (!wordInfo) return null
@@ -46,7 +58,13 @@ export class HoverProvider {
         c => c.name.toLowerCase() === word.toLowerCase()
       )
       if (column) {
-        return { hover: this.createColumnHover(column, tableName) }
+        const actions = this.actionBuilder.buildColumnActions(
+          column, tableName, prefix, documentText, position
+        )
+        return {
+          hover: this.createColumnHover(column, tableName),
+          actions: actions.length > 0 ? actions : undefined
+        }
       }
     }
 
@@ -78,7 +96,13 @@ export class HoverProvider {
       const columns = this.metadataService.getColumns(tableRef.name)
       const column = columns.find(c => c.name.toLowerCase() === word.toLowerCase())
       if (column) {
-        return { hover: this.createColumnHover(column, tableRef.name) }
+        const actions = this.actionBuilder.buildColumnActions(
+          column, tableRef.name, undefined, documentText, position
+        )
+        return {
+          hover: this.createColumnHover(column, tableRef.name),
+          actions: actions.length > 0 ? actions : undefined
+        }
       }
     }
 

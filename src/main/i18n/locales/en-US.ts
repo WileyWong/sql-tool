@@ -53,6 +53,12 @@ export default {
     defaultValue: 'Default',
     fromTable: 'From table',
     syntax: 'Syntax',
-    returnType: 'Return Type'
+    returnType: 'Return Type',
+    selectAll: 'Wildcard',
+    quickActions: 'Quick Actions',
+    actionExpandStar: 'Expand all columns',
+    actionExpandStarDesc: 'Replace * with all column names',
+    actionFromUnixtime: 'FROM_UNIXTIME conversion',
+    actionFromUnixtimeDesc: 'Convert to FROM_UNIXTIME'
   }
 }

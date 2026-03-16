@@ -53,6 +53,12 @@ export default {
     defaultValue: '預設值',
     fromTable: '來自表',
     syntax: '語法',
-    returnType: '回傳類型'
+    returnType: '回傳類型',
+    selectAll: '通配符',
+    quickActions: '快捷操作',
+    actionExpandStar: '列出所有欄位',
+    actionExpandStarDesc: '將 * 替換為所有欄位',
+    actionFromUnixtime: 'FROM_UNIXTIME 轉成時間',
+    actionFromUnixtimeDesc: '轉換為 FROM_UNIXTIME'
   }
 }

@@ -103,6 +103,43 @@ export interface FunctionMetadata {
 }
 
 /**
+ * Hover 快捷操作定义
+ */
+export interface HoverAction {
+  /** 操作类型标识 */
+  type: 'expand_star' | 'from_unixtime'
+  /** 操作显示标题（已国际化） */
+  title: string
+  /** 操作描述（已国际化） */
+  description: string
+  /** 替换文本 */
+  replaceText: string
+  /** 替换范围（1-based，与 Monaco IRange 一致） */
+  range: {
+    startLineNumber: number
+    startColumn: number
+    endLineNumber: number
+    endColumn: number
+  }
+}
+
+/**
+ * 列表达式信息
+ */
+export interface ColumnExpressionInfo {
+  /** 表达式起始行（0-based） */
+  startLine: number
+  /** 表达式起始列（0-based） */
+  startColumn: number
+  /** 表达式结束行（0-based） */
+  endLine: number
+  /** 表达式结束列（0-based） */
+  endColumn: number
+  /** 别名（如有） */
+  alias?: string
+}
+
+/**
  * Language Server 配置
  */
 export interface LanguageServerConfig {
