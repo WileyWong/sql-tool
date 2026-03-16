@@ -398,24 +398,43 @@ export class SqlParserService {
       return false
     }
 
-    if (!fullTextUpper.includes('FROM')) {
+    // 使用词边界匹配独立的 FROM 关键字（排除 FROM_UNIXTIME 等函数名中的 FROM）
+    if (!/\bFROM\b/.test(fullTextUpper)) {
       return false
     }
 
     const selectPos = textBeforeUpper.lastIndexOf('SELECT')
-    const fromPosInFull = fullTextUpper.indexOf('FROM', selectPos)
+    
+    // 在完整文本中查找独立的 FROM 关键字（使用词边界）
+    const fromPosInFull = this.findKeywordPosition(fullTextUpper, 'FROM', selectPos)
+    if (fromPosInFull === -1) {
+      // 完整SQL中没有独立的 FROM 关键字，但有 SELECT，可能还在输入列
+      return true
+    }
     
     // 光标在 SELECT 和 FROM 之间
     if (fromPosInFull > offset) {
       return true
     }
 
-    // 光标前没有 FROM（但完整 SQL 有 FROM）
-    if (!textBeforeUpper.substring(selectPos).includes('FROM')) {
+    // 在光标前的文本中查找独立的 FROM 关键字
+    const fromPosInBefore = this.findKeywordPosition(textBeforeUpper.substring(selectPos), 'FROM', 0)
+    if (fromPosInBefore === -1) {
+      // 光标前没有独立的 FROM 关键字（但完整 SQL 有 FROM），说明在 SELECT 列中
       return true
     }
 
     return false
+  }
+
+  /**
+   * 在文本中查找独立的 SQL 关键字位置（使用词边界，排除函数名中的关键字）
+   */
+  private findKeywordPosition(text: string, keyword: string, startPos: number): number {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'gi')
+    regex.lastIndex = startPos
+    const match = regex.exec(text)
+    return match ? match.index : -1
   }
 
   /**
