@@ -187,7 +187,7 @@ export class HoverActionBuilder {
    */
   private tryBuildFromUnixtimeAction(
     column: ColumnMetadata,
-    tableName: string,
+    _tableName: string,
     prefix: string | undefined,
     documentText: string,
     position: Position
