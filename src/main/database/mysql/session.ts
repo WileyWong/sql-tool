@@ -87,6 +87,8 @@ export class MySQLSessionManager implements ISessionManager {
       supportBigNumbers: true,
       bigNumberStrings: true
     })
+    // 设置字符集，使 collation 与服务端一致，避免 CONCAT 等函数的 collation 冲突
+    await connection.query('SET NAMES utf8mb4')
 
     // 5. 注册会话
     const session: MySQLSession = {
@@ -341,6 +343,7 @@ export class MySQLSessionManager implements ISessionManager {
         connectTimeout: Defaults.CONNECTION_TIMEOUT
       })
       try {
+        await tempConn.query('SET NAMES utf8mb4')
         await tempConn.query(`KILL QUERY ${session.runningQueryThreadId}`)
         return true
       } finally {
@@ -567,6 +570,8 @@ export class MySQLSessionManager implements ISessionManager {
           supportBigNumbers: true,
           bigNumberStrings: true
         })
+        // 设置字符集，使 collation 与服务端一致，避免 CONCAT 等函数的 collation 冲突
+        await newConnection.query('SET NAMES utf8mb4')
 
         session.connection = newConnection
         session.status = 'active'

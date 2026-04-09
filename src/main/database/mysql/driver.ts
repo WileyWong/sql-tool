@@ -49,6 +49,9 @@ export class MySQLDriver implements IDatabaseDriver {
         connectTimeout: Defaults.CONNECTION_TIMEOUT
       })
       
+      // 设置字符集，使 collation 与服务端一致，避免 CONCAT 等函数的 collation 冲突
+      await connection.query('SET NAMES utf8mb4')
+      
       // 获取服务器版本
       const [rows] = await connection.query('SELECT VERSION() as version')
       const version = (rows as { version: string }[])[0]?.version || 'Unknown'
@@ -576,7 +579,7 @@ export class MySQLDriver implements IDatabaseDriver {
    * 创建 MySQL 连接
    */
   private async createConnection(config: ConnectionConfig): Promise<Connection> {
-    return await mysql.createConnection({
+    const connection = await mysql.createConnection({
       host: config.host,
       port: config.port,
       user: config.username,
@@ -587,6 +590,9 @@ export class MySQLDriver implements IDatabaseDriver {
       supportBigNumbers: true,
       bigNumberStrings: true
     })
+    // 设置字符集，使 collation 与服务端一致，避免 CONCAT 等函数的 collation 冲突
+    await connection.query('SET NAMES utf8mb4')
+    return connection
   }
 
   /**
