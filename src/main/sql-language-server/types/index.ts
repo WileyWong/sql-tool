@@ -17,6 +17,8 @@ export type CursorContextType =
   | 'TABLE_DOT'            // 表名. 后，提示该表字段
   | 'SUBQUERY_COLUMNS'     // 子查询字段
   | 'IN_COMMENT'           // 注释内，不提示
+  | 'UPDATE_TABLE'         // UPDATE 后，提示表名
+  | 'UPDATE_SET'           // UPDATE ... SET 后，提示字段
   | 'DDL_CREATE'           // CREATE 语句
   | 'DDL_ALTER'            // ALTER 语句
   | 'UNKNOWN'              // 未知，提示关键字+表

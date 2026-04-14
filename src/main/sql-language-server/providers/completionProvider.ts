@@ -116,6 +116,19 @@ export class CompletionProvider {
         this.addKeywordSuggestions(suggestions, ['HAVING', 'ORDER', 'BY', 'WITH', 'ROLLUP'])
         break
 
+      case 'UPDATE_TABLE':
+        this.addTableSuggestions(suggestions)
+        this.addViewSuggestions(suggestions)
+        break
+
+      case 'UPDATE_SET':
+        if (context.tables && context.tables.length > 0) {
+          this.addColumnSuggestionsForTables(suggestions, context.tables)
+        }
+        this.addFunctionSuggestions(suggestions)
+        this.addKeywordSuggestions(suggestions, ['WHERE'])
+        break
+
       case 'TABLE_DOT':
         if (context.targetTable) {
           // 先检查是否是子查询别名

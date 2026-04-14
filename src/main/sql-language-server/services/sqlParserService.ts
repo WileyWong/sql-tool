@@ -191,6 +191,15 @@ export class SqlParserService {
       return { type: 'FROM_CLAUSE' }
     }
 
+    // UPDATE 语句：UPDATE 后提示表名，SET 后提示列名
+    if (this.isInUpdateTable(textBefore)) {
+      return { type: 'UPDATE_TABLE' }
+    }
+    if (this.isInUpdateSetClause(textBefore, textBeforeUpper, lastKeyword)) {
+      const tables = this.extractTablesFromSql(sql)
+      return { type: 'UPDATE_SET', tables }
+    }
+
     // ON 后
     if (this.isInOnClause(textBefore, lastKeyword)) {
       const tables = this.extractTablesFromSql(sql)
@@ -392,6 +401,56 @@ export class SqlParserService {
   }
 
   /**
+   * 检查是否在 UPDATE 后输入表名
+   * 匹配: UPDATE | UPDATE xxx（正在输入表名，且还没有 SET）
+   */
+  private isInUpdateTable(textBefore: string): boolean {
+    // 直接在 UPDATE 后
+    if (/\bUPDATE\s+$/i.test(textBefore)) {
+      return true
+    }
+    // 正在输入表名: UPDATE xxx（没有 SET 关键字）
+    if (/\bUPDATE\s+\w*$/i.test(textBefore) && !/\bSET\b/i.test(textBefore)) {
+      return true
+    }
+    return false
+  }
+
+  /**
+   * 检查是否在 UPDATE ... SET 子句中（提示列名）
+   * 匹配: UPDATE table SET | UPDATE table SET col = val, 
+   */
+  private isInUpdateSetClause(textBefore: string, textBeforeUpper: string, lastKeyword: string | null): boolean {
+    if (!textBeforeUpper.includes('UPDATE') || !textBeforeUpper.includes('SET')) {
+      return false
+    }
+
+    // 确保 SET 在 UPDATE 之后（排除其他语句的 SET）
+    const updatePos = textBeforeUpper.lastIndexOf('UPDATE')
+    const setPos = textBeforeUpper.indexOf('SET', updatePos)
+    if (setPos === -1) return false
+
+    // 直接在 SET 后
+    if (/\bSET\s+$/i.test(textBefore)) {
+      return true
+    }
+
+    // SET 后正在输入列名或逗号后
+    if (lastKeyword === 'SET' || lastKeyword === 'UPDATE') {
+      const afterSet = textBefore.substring(setPos + 3)
+      // 确保没有 WHERE 等后续子句
+      if (!/\b(WHERE|ORDER|LIMIT)\b/i.test(afterSet)) {
+        // 逗号后或正在输入列名
+        if (/,\s*$/.test(afterSet) || /,\s*\w*$/.test(afterSet) || /^\s*\w*$/.test(afterSet)) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  /**
    * 检查是否在 SELECT 列位置
    */
   private isInSelectColumns(textBeforeUpper: string, fullTextUpper: string, offset: number): boolean {
@@ -442,7 +501,7 @@ export class SqlParserService {
    * 查找最近的关键字
    */
   private findLastKeyword(text: string): string | null {
-    const keywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AND', 'OR', 'ORDER', 'GROUP', 'HAVING', 'CREATE', 'ALTER', 'INSERT', 'UPDATE', 'DELETE']
+    const keywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AND', 'OR', 'ORDER', 'GROUP', 'HAVING', 'CREATE', 'ALTER', 'INSERT', 'UPDATE', 'SET', 'DELETE']
     let lastPos = -1
     let lastKeyword: string | null = null
 
@@ -685,6 +744,28 @@ export class SqlParserService {
     for (const stmt of stmts) {
       if (stmt?.type === 'select') {
         this.extractTablesFromSelectAST(stmt, tables, seen)
+      } else if (stmt?.type === 'update' || stmt?.type === 'delete') {
+        // UPDATE/DELETE 语句：提取 table 和 from 中的表
+        if (stmt.table) {
+          const tableItems = Array.isArray(stmt.table) ? stmt.table : [stmt.table]
+          for (const item of tableItems) {
+            if (item?.table) {
+              const name = item.table
+              const alias = item.as || undefined
+              const key = (alias || name).toLowerCase()
+              if (!seen.has(key)) {
+                seen.add(key)
+                tables.push({ name, alias })
+              }
+            }
+          }
+        }
+        // UPDATE ... FROM ... (部分 SQL 方言支持)
+        if (stmt.from) {
+          for (const fromItem of stmt.from) {
+            this.extractTableFromFromItem(fromItem, tables, seen)
+          }
+        }
       }
     }
 
@@ -803,6 +884,36 @@ export class SqlParserService {
       if (!seen.has(key)) {
         seen.add(key)
         tables.push({ name, alias })
+      }
+    }
+
+    // 匹配 UPDATE table [AS alias]
+    const updateRegex = /\bUPDATE\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?\s+SET\b/gi
+    let updateMatch
+    while ((updateMatch = updateRegex.exec(sql)) !== null) {
+      const name = updateMatch[1]
+      const alias = updateMatch[2]
+      // 排除 alias 为 SET 的情况（已在正则中用 \s+SET\b 限制）
+      const key = (alias || name).toLowerCase()
+      if (!seen.has(key)) {
+        seen.add(key)
+        tables.push({ name, alias })
+      }
+    }
+
+    // 如果上面没匹配到（UPDATE 语句可能还没写完 SET），尝试匹配不完整的 UPDATE
+    if (tables.length === 0) {
+      const updatePartialRegex = /\bUPDATE\s+(\w+)/i
+      const partialMatch = sql.match(updatePartialRegex)
+      if (partialMatch) {
+        const name = partialMatch[1]
+        if (!['SET', 'LOW_PRIORITY', 'IGNORE'].includes(name.toUpperCase())) {
+          const key = name.toLowerCase()
+          if (!seen.has(key)) {
+            seen.add(key)
+            tables.push({ name })
+          }
+        }
       }
     }
 
