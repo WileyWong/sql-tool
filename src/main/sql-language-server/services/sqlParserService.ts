@@ -5,7 +5,8 @@
  */
 
 import { Parser } from 'node-sql-parser'
-import type { CursorContext, TableRef } from '../types'
+import type { CursorContext, TableRef, ColumnExpressionInfo } from '../types'
+import type { Position } from 'vscode-languageserver'
 import type { DatabaseType } from '../../../shared/types'
 
 /**
@@ -188,6 +189,15 @@ export class SqlParserService {
     if (this.isInFromJoinClause(textBefore, fullTextUpper)) {
       // console.log('[SQL Parser] FROM_CLAUSE detected')
       return { type: 'FROM_CLAUSE' }
+    }
+
+    // UPDATE 语句：UPDATE 后提示表名，SET 后提示列名
+    if (this.isInUpdateTable(textBefore)) {
+      return { type: 'UPDATE_TABLE' }
+    }
+    if (this.isInUpdateSetClause(textBefore, textBeforeUpper, lastKeyword)) {
+      const tables = this.extractTablesFromSql(sql)
+      return { type: 'UPDATE_SET', tables }
     }
 
     // ON 后
@@ -391,6 +401,56 @@ export class SqlParserService {
   }
 
   /**
+   * 检查是否在 UPDATE 后输入表名
+   * 匹配: UPDATE | UPDATE xxx（正在输入表名，且还没有 SET）
+   */
+  private isInUpdateTable(textBefore: string): boolean {
+    // 直接在 UPDATE 后
+    if (/\bUPDATE\s+$/i.test(textBefore)) {
+      return true
+    }
+    // 正在输入表名: UPDATE xxx（没有 SET 关键字）
+    if (/\bUPDATE\s+\w*$/i.test(textBefore) && !/\bSET\b/i.test(textBefore)) {
+      return true
+    }
+    return false
+  }
+
+  /**
+   * 检查是否在 UPDATE ... SET 子句中（提示列名）
+   * 匹配: UPDATE table SET | UPDATE table SET col = val, 
+   */
+  private isInUpdateSetClause(textBefore: string, textBeforeUpper: string, lastKeyword: string | null): boolean {
+    if (!textBeforeUpper.includes('UPDATE') || !textBeforeUpper.includes('SET')) {
+      return false
+    }
+
+    // 确保 SET 在 UPDATE 之后（排除其他语句的 SET）
+    const updatePos = textBeforeUpper.lastIndexOf('UPDATE')
+    const setPos = textBeforeUpper.indexOf('SET', updatePos)
+    if (setPos === -1) return false
+
+    // 直接在 SET 后
+    if (/\bSET\s+$/i.test(textBefore)) {
+      return true
+    }
+
+    // SET 后正在输入列名或逗号后
+    if (lastKeyword === 'SET' || lastKeyword === 'UPDATE') {
+      const afterSet = textBefore.substring(setPos + 3)
+      // 确保没有 WHERE 等后续子句
+      if (!/\b(WHERE|ORDER|LIMIT)\b/i.test(afterSet)) {
+        // 逗号后或正在输入列名
+        if (/,\s*$/.test(afterSet) || /,\s*\w*$/.test(afterSet) || /^\s*\w*$/.test(afterSet)) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  /**
    * 检查是否在 SELECT 列位置
    */
   private isInSelectColumns(textBeforeUpper: string, fullTextUpper: string, offset: number): boolean {
@@ -398,20 +458,29 @@ export class SqlParserService {
       return false
     }
 
-    if (!fullTextUpper.includes('FROM')) {
+    // 使用词边界匹配独立的 FROM 关键字（排除 FROM_UNIXTIME 等函数名中的 FROM）
+    if (!/\bFROM\b/.test(fullTextUpper)) {
       return false
     }
 
     const selectPos = textBeforeUpper.lastIndexOf('SELECT')
-    const fromPosInFull = fullTextUpper.indexOf('FROM', selectPos)
+    
+    // 在完整文本中查找独立的 FROM 关键字（使用词边界）
+    const fromPosInFull = this.findKeywordPosition(fullTextUpper, 'FROM', selectPos)
+    if (fromPosInFull === -1) {
+      // 完整SQL中没有独立的 FROM 关键字，但有 SELECT，可能还在输入列
+      return true
+    }
     
     // 光标在 SELECT 和 FROM 之间
     if (fromPosInFull > offset) {
       return true
     }
 
-    // 光标前没有 FROM（但完整 SQL 有 FROM）
-    if (!textBeforeUpper.substring(selectPos).includes('FROM')) {
+    // 在光标前的文本中查找独立的 FROM 关键字
+    const fromPosInBefore = this.findKeywordPosition(textBeforeUpper.substring(selectPos), 'FROM', 0)
+    if (fromPosInBefore === -1) {
+      // 光标前没有独立的 FROM 关键字（但完整 SQL 有 FROM），说明在 SELECT 列中
       return true
     }
 
@@ -419,10 +488,20 @@ export class SqlParserService {
   }
 
   /**
+   * 在文本中查找独立的 SQL 关键字位置（使用词边界，排除函数名中的关键字）
+   */
+  private findKeywordPosition(text: string, keyword: string, startPos: number): number {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'gi')
+    regex.lastIndex = startPos
+    const match = regex.exec(text)
+    return match ? match.index : -1
+  }
+
+  /**
    * 查找最近的关键字
    */
   private findLastKeyword(text: string): string | null {
-    const keywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AND', 'OR', 'ORDER', 'GROUP', 'HAVING', 'CREATE', 'ALTER', 'INSERT', 'UPDATE', 'DELETE']
+    const keywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'AND', 'OR', 'ORDER', 'GROUP', 'HAVING', 'CREATE', 'ALTER', 'INSERT', 'UPDATE', 'SET', 'DELETE']
     let lastPos = -1
     let lastKeyword: string | null = null
 
@@ -457,6 +536,188 @@ export class SqlParserService {
   }
 
   /**
+   * 检查文档中某个位置是否在 SELECT 列区域内
+   * 即在 SELECT (DISTINCT/TOP N)? 之后、FROM 之前
+   *
+   * @param documentText 完整文档文本
+   * @param position 0-based 行列位置
+   * @returns 是否在 SELECT 列区域
+   */
+  isPositionInSelectClause(documentText: string, position: Position): boolean {
+    // 1. 计算 position 在文档中的绝对偏移
+    const lines = documentText.split('\n')
+    if (position.line >= lines.length) return false
+
+    let docOffset = 0
+    for (let i = 0; i < position.line; i++) {
+      docOffset += lines[i].length + 1
+    }
+    docOffset += position.character
+
+    // 2. 找到包含光标的语句
+    const statements = splitStatements(documentText)
+    let stmtStart = 0
+    let found = false
+    for (const stmt of statements) {
+      if (docOffset >= stmt.start && docOffset <= stmt.end) {
+        stmtStart = stmt.start
+        found = true
+        break
+      }
+    }
+    if (!found) return false
+
+    // 3. 在当前语句中计算偏移
+    const offsetInStmt = docOffset - stmtStart
+    const stmtText = documentText.substring(stmtStart)
+    const textBefore = stmtText.substring(0, offsetInStmt).toUpperCase()
+
+    // 4. 检查最近的 SELECT 关键字
+    const lastSelectIndex = textBefore.lastIndexOf('SELECT')
+    if (lastSelectIndex === -1) return false
+
+    // 5. 检查 SELECT 和当前位置之间是否有独立的 FROM 关键字
+    const textBetween = textBefore.substring(lastSelectIndex)
+    if (/\bFROM\b/.test(textBetween)) return false
+
+    return true
+  }
+
+  /**
+   * 检查光标位置的列是否被函数包裹
+   * 策略：检查单词（含表前缀）左侧是否紧跟 ( 且 ( 左侧是函数名
+   *
+   * @param documentText 完整文档文本
+   * @param position 0-based 行列位置
+   * @returns 是否被函数包裹
+   */
+  isColumnWrappedByFunction(documentText: string, position: Position): boolean {
+    const lines = documentText.split('\n')
+    if (position.line >= lines.length) return false
+
+    const line = lines[position.line]
+
+    // 获取单词的起始位置
+    let start = position.character
+    while (start > 0 && /[\w]/.test(line[start - 1])) {
+      start--
+    }
+
+    // 跳过可能的表前缀 prefix.
+    let checkPos = start
+    if (checkPos > 0 && line[checkPos - 1] === '.') {
+      checkPos -= 1
+      while (checkPos > 0 && /[\w]/.test(line[checkPos - 1])) {
+        checkPos--
+      }
+    }
+
+    // 跳过空格
+    let leftPos = checkPos - 1
+    while (leftPos >= 0 && line[leftPos] === ' ') {
+      leftPos--
+    }
+
+    // 检查是否有左括号
+    if (leftPos >= 0 && line[leftPos] === '(') {
+      // 检查括号左侧是否有函数名（连续的字母字符）
+      let funcEnd = leftPos - 1
+      while (funcEnd >= 0 && line[funcEnd] === ' ') {
+        funcEnd--
+      }
+      if (funcEnd >= 0 && /[\w]/.test(line[funcEnd])) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * 解析光标位置的列表达式范围（含表前缀和别名）
+   * 返回表达式在文档中的起止位置和别名信息
+   *
+   * @param documentText 完整文档文本
+   * @param position 0-based 行列位置
+   * @returns 列表达式信息，解析失败返回 null
+   */
+  parseColumnExpression(
+    documentText: string,
+    position: Position
+  ): ColumnExpressionInfo | null {
+    const lines = documentText.split('\n')
+    if (position.line >= lines.length) return null
+
+    const line = lines[position.line]
+
+    // 1. 找到单词边界
+    let wordStart = position.character
+    while (wordStart > 0 && /[\w]/.test(line[wordStart - 1])) {
+      wordStart--
+    }
+    let wordEnd = position.character
+    while (wordEnd < line.length && /[\w]/.test(line[wordEnd])) {
+      wordEnd++
+    }
+
+    // 2. 向前检查表前缀
+    let exprStart = wordStart
+    if (exprStart > 0 && line[exprStart - 1] === '.') {
+      exprStart -= 1  // 跳过 .
+      while (exprStart > 0 && /[\w]/.test(line[exprStart - 1])) {
+        exprStart--
+      }
+    }
+
+    // 3. 向后检查别名（AS alias 或 空格 alias）
+    let exprEnd = wordEnd
+    let alias: string | undefined
+
+    // 跳过空格
+    let afterEnd = wordEnd
+    while (afterEnd < line.length && line[afterEnd] === ' ') {
+      afterEnd++
+    }
+
+    // 检查是否有 AS 关键字
+    const afterText = line.substring(afterEnd)
+    const asMatch = afterText.match(/^(AS\s+)(\w+)/i)
+    if (asMatch) {
+      alias = asMatch[2]
+      exprEnd = afterEnd + asMatch[0].length
+    } else {
+      // 检查无 AS 的别名写法：col alias（alias 不能是 SQL 关键字）
+      const aliasMatch = afterText.match(/^(\w+)/)
+      if (aliasMatch) {
+        const candidate = aliasMatch[1].toUpperCase()
+        const sqlKeywords = [
+          'FROM', 'WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER',
+          'OUTER', 'CROSS', 'ON', 'AND', 'OR', 'ORDER', 'GROUP', 'HAVING',
+          'LIMIT', 'UNION', 'INTO', 'SET', 'VALUES', 'AS', 'CASE', 'WHEN',
+          'THEN', 'ELSE', 'END', 'NOT', 'IN', 'EXISTS', 'BETWEEN', 'LIKE',
+          'IS', 'NULL', 'ASC', 'DESC', 'DISTINCT', 'ALL'
+        ]
+        if (!sqlKeywords.includes(candidate) && afterEnd > wordEnd) {
+          const afterAlias = afterText.substring(aliasMatch[0].length).trimStart()
+          if (!afterAlias || /^[,)]/.test(afterAlias) ||
+              /^(FROM|WHERE|ORDER|GROUP|HAVING|LIMIT)\b/i.test(afterAlias)) {
+            alias = aliasMatch[1]
+            exprEnd = afterEnd + aliasMatch[0].length
+          }
+        }
+      }
+    }
+
+    return {
+      startLine: position.line,
+      startColumn: exprStart,
+      endLine: position.line,
+      endColumn: exprEnd,
+      alias
+    }
+  }
+
+  /**
    * 从 SQL 文本中提取表引用（使用 AST 解析，支持子查询）
    */
   extractTablesFromSql(sql: string, dbType: DatabaseType = 'mysql'): TableRef[] {
@@ -483,6 +744,28 @@ export class SqlParserService {
     for (const stmt of stmts) {
       if (stmt?.type === 'select') {
         this.extractTablesFromSelectAST(stmt, tables, seen)
+      } else if (stmt?.type === 'update' || stmt?.type === 'delete') {
+        // UPDATE/DELETE 语句：提取 table 和 from 中的表
+        if (stmt.table) {
+          const tableItems = Array.isArray(stmt.table) ? stmt.table : [stmt.table]
+          for (const item of tableItems) {
+            if (item?.table) {
+              const name = item.table
+              const alias = item.as || undefined
+              const key = (alias || name).toLowerCase()
+              if (!seen.has(key)) {
+                seen.add(key)
+                tables.push({ name, alias })
+              }
+            }
+          }
+        }
+        // UPDATE ... FROM ... (部分 SQL 方言支持)
+        if (stmt.from) {
+          for (const fromItem of stmt.from) {
+            this.extractTableFromFromItem(fromItem, tables, seen)
+          }
+        }
       }
     }
 
@@ -601,6 +884,36 @@ export class SqlParserService {
       if (!seen.has(key)) {
         seen.add(key)
         tables.push({ name, alias })
+      }
+    }
+
+    // 匹配 UPDATE table [AS alias]
+    const updateRegex = /\bUPDATE\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?\s+SET\b/gi
+    let updateMatch
+    while ((updateMatch = updateRegex.exec(sql)) !== null) {
+      const name = updateMatch[1]
+      const alias = updateMatch[2]
+      // 排除 alias 为 SET 的情况（已在正则中用 \s+SET\b 限制）
+      const key = (alias || name).toLowerCase()
+      if (!seen.has(key)) {
+        seen.add(key)
+        tables.push({ name, alias })
+      }
+    }
+
+    // 如果上面没匹配到（UPDATE 语句可能还没写完 SET），尝试匹配不完整的 UPDATE
+    if (tables.length === 0) {
+      const updatePartialRegex = /\bUPDATE\s+(\w+)/i
+      const partialMatch = sql.match(updatePartialRegex)
+      if (partialMatch) {
+        const name = partialMatch[1]
+        if (!['SET', 'LOW_PRIORITY', 'IGNORE'].includes(name.toUpperCase())) {
+          const key = name.toLowerCase()
+          if (!seen.has(key)) {
+            seen.add(key)
+            tables.push({ name })
+          }
+        }
       }
     }
 

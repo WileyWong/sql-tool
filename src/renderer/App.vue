@@ -46,6 +46,9 @@
       <!-- 表设计对话框（创建/修改表） -->
       <TableDesignDialog />
       
+      <!-- 创建数据库对话框 -->
+      <CreateDatabaseDialog />
+      
       <!-- 保存确认对话框 -->
       <SaveConfirmDialog ref="saveConfirmDialogRef" />
       
@@ -72,6 +75,7 @@ import ResultPanel from './components/ResultPanel.vue'
 import ConnectionDialog from './components/ConnectionDialog.vue'
 import TableManageDialog from './components/TableManageDialog.vue'
 import TableDesignDialog from './components/TableDesignDialog.vue'
+import CreateDatabaseDialog from './components/CreateDatabaseDialog.vue'
 import StatusBar from './components/StatusBar.vue'
 import SaveConfirmDialog from './components/SaveConfirmDialog.vue'
 import ResultOverwriteDialog from './components/ResultOverwriteDialog.vue'

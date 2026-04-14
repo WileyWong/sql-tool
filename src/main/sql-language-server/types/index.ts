@@ -17,6 +17,8 @@ export type CursorContextType =
   | 'TABLE_DOT'            // 表名. 后，提示该表字段
   | 'SUBQUERY_COLUMNS'     // 子查询字段
   | 'IN_COMMENT'           // 注释内，不提示
+  | 'UPDATE_TABLE'         // UPDATE 后，提示表名
+  | 'UPDATE_SET'           // UPDATE ... SET 后，提示字段
   | 'DDL_CREATE'           // CREATE 语句
   | 'DDL_ALTER'            // ALTER 语句
   | 'UNKNOWN'              // 未知，提示关键字+表
@@ -100,6 +102,43 @@ export interface FunctionMetadata {
   minVersion?: string | null
   /** 最高支持的 MySQL 版本（如 "5.7.99"），null 或不设置表示无上限 */
   maxVersion?: string | null
+}
+
+/**
+ * Hover 快捷操作定义
+ */
+export interface HoverAction {
+  /** 操作类型标识 */
+  type: 'expand_star' | 'from_unixtime'
+  /** 操作显示标题（已国际化） */
+  title: string
+  /** 操作描述（已国际化） */
+  description: string
+  /** 替换文本 */
+  replaceText: string
+  /** 替换范围（1-based，与 Monaco IRange 一致） */
+  range: {
+    startLineNumber: number
+    startColumn: number
+    endLineNumber: number
+    endColumn: number
+  }
+}
+
+/**
+ * 列表达式信息
+ */
+export interface ColumnExpressionInfo {
+  /** 表达式起始行（0-based） */
+  startLine: number
+  /** 表达式起始列（0-based） */
+  startColumn: number
+  /** 表达式结束行（0-based） */
+  endLine: number
+  /** 表达式结束列（0-based） */
+  endColumn: number
+  /** 别名（如有） */
+  alias?: string
 }
 
 /**

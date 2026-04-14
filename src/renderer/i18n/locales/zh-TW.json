@@ -356,7 +356,25 @@
     "createTable": "建立資料表",
     "query100": "查詢前100筆",
     "manage": "管理",
-    "editTable": "修改資料表"
+    "editTable": "修改資料表",
+    "createDatabase": "建立資料庫",
+    "dropDatabase": "刪除資料庫"
+  },
+  "database": {
+    "createDatabase": "建立資料庫",
+    "databaseName": "資料庫名稱",
+    "databaseNamePlaceholder": "請輸入資料庫名稱",
+    "sqlPreview": "SQL 預覽",
+    "createSuccess": "資料庫建立成功",
+    "nameRequired": "資料庫名稱不能為空",
+    "nameInvalidChars": "資料庫名稱包含非法字元",
+    "nameTooLong": "資料庫名稱不能超過 {max} 個字元",
+    "dropDatabase": "刪除資料庫",
+    "dropWarning": "此操作將永久刪除該資料庫及其所有資料，且無法復原！",
+    "dropConfirmHint": "請輸入「{name}」以確認刪除：",
+    "dropNameMismatch": "資料庫名稱不符",
+    "dropSuccess": "資料庫已刪除",
+    "loadingMetadata": "正在載入中繼資料..."
   },
   "tree": {
     "newConnection": "新建連線",

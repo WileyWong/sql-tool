@@ -25,6 +25,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
+import { getDatabaseTypeConfig } from '@shared/types/connection'
 
 const { t } = useI18n()
 const connectionStore = useConnectionStore()
@@ -51,7 +52,7 @@ const connectionStatus = computed(() => {
 const serverVersion = computed(() => {
   const conn = currentTabConnection.value
   if (conn?.status === 'connected') {
-    return 'MySQL 8.0'
+    return getDatabaseTypeConfig(conn.type || 'mysql').name
   }
   return ''
 })

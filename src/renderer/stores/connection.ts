@@ -37,6 +37,13 @@ export const useConnectionStore = defineStore('connection', () => {
     schema?: string // SQL Server schema
   } | null>(null)
   
+  // 创建数据库对话框状态
+  const createDatabaseDialogVisible = ref(false)
+  const createDatabaseInfo = ref<{
+    connectionId: string
+    dbType: 'mysql' | 'sqlserver'
+  } | null>(null)
+  
   // 当前连接
   const currentConnection = computed(() => {
     if (!currentConnectionId.value) return null
@@ -334,6 +341,18 @@ export const useConnectionStore = defineStore('connection', () => {
     tableDesignInfo.value = null
   }
   
+  // 打开创建数据库对话框
+  function openCreateDatabaseDialog(connectionId: string, dbType: 'mysql' | 'sqlserver') {
+    createDatabaseInfo.value = { connectionId, dbType }
+    createDatabaseDialogVisible.value = true
+  }
+  
+  // 关闭创建数据库对话框
+  function closeCreateDatabaseDialog() {
+    createDatabaseDialogVisible.value = false
+    createDatabaseInfo.value = null
+  }
+  
   // 获取字符集列表
   async function getCharsets(connectionId: string) {
     return window.api.database.charsets(connectionId)
@@ -388,6 +407,8 @@ export const useConnectionStore = defineStore('connection', () => {
     tableDesignDialogVisible,
     tableDesignMode,
     tableDesignInfo,
+    createDatabaseDialogVisible,
+    createDatabaseInfo,
     
     // 方法
     loadConnections,
@@ -414,6 +435,8 @@ export const useConnectionStore = defineStore('connection', () => {
     openCreateTableDialog,
     openEditTableDialog,
     closeTableDesignDialog,
+    openCreateDatabaseDialog,
+    closeCreateDatabaseDialog,
     getCharsets,
     getCollations,
     getEngines,

@@ -356,7 +356,25 @@
     "createTable": "创建表",
     "query100": "查询前100行",
     "manage": "管理",
-    "editTable": "修改表"
+    "editTable": "修改表",
+    "createDatabase": "创建数据库",
+    "dropDatabase": "删除数据库"
+  },
+  "database": {
+    "createDatabase": "创建数据库",
+    "databaseName": "数据库名称",
+    "databaseNamePlaceholder": "请输入数据库名称",
+    "sqlPreview": "SQL 预览",
+    "createSuccess": "数据库创建成功",
+    "nameRequired": "数据库名称不能为空",
+    "nameInvalidChars": "数据库名称包含非法字符",
+    "nameTooLong": "数据库名称不能超过 {max} 个字符",
+    "dropDatabase": "删除数据库",
+    "dropWarning": "此操作将永久删除该数据库及其所有数据，且不可恢复！",
+    "dropConfirmHint": "请输入 \"{name}\" 以确认删除：",
+    "dropNameMismatch": "数据库名称不匹配",
+    "dropSuccess": "数据库已删除",
+    "loadingMetadata": "正在加载元数据..."
   },
   "tree": {
     "newConnection": "新建连接",

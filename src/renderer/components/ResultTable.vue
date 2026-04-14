@@ -597,6 +597,42 @@ function handleNewRowDblClick(tempId: string, column: ColumnDef) {
   })
 }
 
+// 判断列类型是否为数值型
+function isNumericColumnType(columnType: string): boolean {
+  const t = columnType.toUpperCase()
+  return /^(TINY|SMALL|MEDIUM|BIG)?INT|^(FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL|MONEY|SMALLMONEY|NUMBER)/.test(t)
+}
+
+// 根据列类型将编辑框的字符串值转回合适的类型
+function parseEditValue(strValue: string, columnType: string, originalVal: unknown): unknown {
+  if (strValue === '') return null
+  
+  // 优先根据原始值类型还原
+  if (originalVal !== null && originalVal !== undefined) {
+    if (typeof originalVal === 'number') {
+      const num = Number(strValue)
+      if (!isNaN(num)) return num
+    } else if (typeof originalVal === 'boolean') {
+      const lower = strValue.toLowerCase()
+      if (lower === 'true' || lower === '1') return true
+      if (lower === 'false' || lower === '0') return false
+    } else if (typeof originalVal === 'bigint') {
+      try { return BigInt(strValue) } catch { /* fall through */ }
+    } else if (typeof originalVal === 'object') {
+      try { return JSON.parse(strValue) } catch { /* fall through */ }
+    }
+    return strValue
+  }
+  
+  // 没有原始值时（如新增行），根据列类型推断
+  if (isNumericColumnType(columnType)) {
+    const num = Number(strValue)
+    if (!isNaN(num)) return num
+  }
+  
+  return strValue
+}
+
 // 格式化编辑值
 function formatEditValue(value: unknown, columnType: string): string {
   if (value === null || value === undefined) {
@@ -637,17 +673,12 @@ function confirmEdit() {
   const { rowIndex, column } = editingCell.value
   const row = props.data.rows[rowIndex]
   
-  // 解析新值
-  let newValue: unknown = editValue.value === '' ? null : editValue.value
+  // 获取列类型信息
+  const colDef = props.data.columns.find(c => c.name === column)
+  const columnType = colDef?.type ?? ''
   
-  // 如果原始值是对象类型，尝试解析 JSON
-  if (originalValue.value !== null && typeof originalValue.value === 'object' && newValue !== null) {
-    try {
-      newValue = JSON.parse(newValue as string)
-    } catch {
-      // JSON 解析失败，保持字符串形式
-    }
-  }
+  // 解析新值，根据原始值类型做类型还原
+  const newValue = parseEditValue(editValue.value, columnType, originalValue.value)
   
   // 记录修改（通知父组件）
   const rowKey = dataOps.value.getRowKey(row, rowIndex)
@@ -668,8 +699,10 @@ function confirmNewRowEdit() {
   
   const { tempId, column } = editingNewRow.value
   
-  // 解析新值
-  let newValue: unknown = editValue.value === '' ? null : editValue.value
+  // 获取列类型信息，根据类型转换值
+  const colDef = props.data.columns.find(c => c.name === column)
+  const columnType = colDef?.type ?? ''
+  const newValue = parseEditValue(editValue.value, columnType, originalValue.value)
   
   // 更新新增行数据
   dataOps.value.updateNewRowData(tempId, column, newValue)

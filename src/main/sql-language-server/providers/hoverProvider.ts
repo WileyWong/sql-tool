@@ -4,8 +4,10 @@
 
 import { Hover, Position, MarkupKind } from 'vscode-languageserver'
 import { MetadataService } from '../services/metadataService'
-import { SqlParserService } from '../services/sqlParserService'
+import { SqlParserService, splitStatements } from '../services/sqlParserService'
 import { t } from '../../i18n'
+import { HoverActionBuilder } from './hoverActionBuilder'
+import type { HoverAction } from '../types'
 
 /**
  * 扩展的 Hover 结果，包含表信息用于前端交互
@@ -15,35 +17,54 @@ export interface HoverResult {
   tableInfo?: {
     name: string
   }
+  /** 快捷操作列表 */
+  actions?: HoverAction[]
 }
 
 export class HoverProvider {
   private metadataService: MetadataService
   private sqlParser: SqlParserService
+  private actionBuilder: HoverActionBuilder
 
   constructor(metadataService: MetadataService) {
     this.metadataService = metadataService
     this.sqlParser = new SqlParserService()
+    this.actionBuilder = new HoverActionBuilder(
+      this.metadataService, this.sqlParser
+    )
   }
 
   /**
    * 提供悬浮提示
    */
   provideHover(documentText: string, position: Position): HoverResult | null {
+    // * 特殊检测，委托 actionBuilder
+    const starResult = this.actionBuilder.tryProvideStarHover(documentText, position)
+    if (starResult) return starResult
+
     // 获取光标位置的单词
     const wordInfo = this.getWordAtPosition(documentText, position)
     if (!wordInfo) return null
 
     const { word, prefix } = wordInfo
 
+    // 提取光标所在的当前语句（用于表引用解析）
+    const currentStatement = this.extractCurrentStatementText(documentText, position)
+
     // 如果有前缀（表名.字段名），查找字段
     if (prefix) {
-      const tableName = this.resolveTableAlias(documentText, prefix)
+      const tableName = this.resolveTableAlias(currentStatement, prefix)
       const column = this.metadataService.getColumns(tableName).find(
         c => c.name.toLowerCase() === word.toLowerCase()
       )
       if (column) {
-        return { hover: this.createColumnHover(column, tableName) }
+        const actions = this.actionBuilder.buildColumnActions(
+          column, tableName, prefix, documentText, position
+        )
+        return {
+          hover: this.createColumnHover(column, tableName),
+          actions: actions.length > 0 ? actions : undefined
+        }
       }
     }
 
@@ -68,18 +89,51 @@ export class HoverProvider {
       return { hover: this.createFunctionHover(func) }
     }
 
-    // 查找字段（无前缀，从上下文推断表）
+    // 查找字段（无前缀，从当前语句上下文推断表）
     const dbType = this.metadataService.getDatabaseType()
-    const tables = this.sqlParser.extractTablesFromSql(documentText, dbType)
+    const tables = this.sqlParser.extractTablesFromSql(currentStatement, dbType)
     for (const tableRef of tables) {
       const columns = this.metadataService.getColumns(tableRef.name)
       const column = columns.find(c => c.name.toLowerCase() === word.toLowerCase())
       if (column) {
-        return { hover: this.createColumnHover(column, tableRef.name) }
+        const actions = this.actionBuilder.buildColumnActions(
+          column, tableRef.name, undefined, documentText, position
+        )
+        return {
+          hover: this.createColumnHover(column, tableRef.name),
+          actions: actions.length > 0 ? actions : undefined
+        }
       }
     }
 
     return null
+  }
+
+  /**
+   * 从文档文本中提取光标所在的当前语句
+   * 用于多语句场景下的精确表引用解析
+   */
+  private extractCurrentStatementText(documentText: string, position: Position): string {
+    // 计算光标在文档中的偏移量
+    const lines = documentText.split('\n')
+    let offset = 0
+    for (let i = 0; i < position.line && i < lines.length; i++) {
+      offset += lines[i].length + 1 // +1 for newline
+    }
+    offset += position.character
+
+    // 使用 splitStatements 分割语句
+    const statements = splitStatements(documentText)
+    
+    // 找到包含光标的语句
+    for (const stmt of statements) {
+      if (offset >= stmt.start && offset <= stmt.end) {
+        return stmt.text
+      }
+    }
+
+    // 未找到匹配的语句，返回整个文档（降级处理）
+    return documentText
   }
 
   /**
