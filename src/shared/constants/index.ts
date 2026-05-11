@@ -81,6 +81,10 @@ export const IpcChannels = {
   WINDOW_CLOSE_CONFIRMED: 'window:closeConfirmed',
   WINDOW_BEFORE_CLOSE: 'window:beforeClose',
   
+  // 会话状态持久化
+  SESSION_STATE_SAVE: 'sessionState:save',
+  SESSION_STATE_LOAD: 'sessionState:load',
+  
   // 菜单相关
   MENU_NEW_CONNECTION: 'menu:new-connection',
   MENU_NEW_QUERY: 'menu:new-query',

@@ -636,7 +636,7 @@ function initTabSortable() {
 }
 
 onMounted(async () => {
-  editorStore.init()
+  await editorStore.init()
   initEditor()
   // 添加键盘快捷键监听
   window.addEventListener('keydown', handleSaveShortcut)

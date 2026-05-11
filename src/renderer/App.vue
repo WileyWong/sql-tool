@@ -134,42 +134,18 @@ provide('dataOperations', {
   cleanupTab: (tabId: string) => resultPanelRef.value?.cleanupTab(tabId)
 })
 
-// 处理窗口关闭前事件
+// 处理窗口关闭前事件：自动保存会话状态（Hot Exit）
 async function handleBeforeClose() {
-  const unsavedTabs = editorStore.getUnsavedTabs()
-  
-  if (unsavedTabs.length === 0) {
-    // 没有未保存的内容，直接关闭
-    window.api.window.confirmClose()
-    return
+  try {
+    // 序列化所有 tabs 状态（含未保存内容）并持久化
+    const sessionState = editorStore.serializeTabs()
+    console.log('[App] Saving session state, tabs:', sessionState.tabs.length)
+    await window.api.sessionState.save(sessionState)
+    console.log('[App] Session state saved successfully')
+  } catch (error) {
+    console.error('[App] Failed to save session state:', error)
   }
-  
-  // 逐个提示保存
-  for (const tab of unsavedTabs) {
-    const result = await saveConfirmDialogRef.value?.show(
-      tab.id,
-      tab.title,
-      tab.filePath
-    )
-    
-    if (result === 'save') {
-      // 保存文件
-      const saveResult = await editorStore.saveTabById(tab.id)
-      if (!saveResult.success) {
-        if (saveResult.canceled) {
-          // 用户取消了另存为对话框，中止关闭
-          return
-        }
-        // 保存失败，继续询问下一个
-      }
-    } else if (result === 'cancel') {
-      // 用户取消，中止关闭
-      return
-    }
-    // result === 'dontSave' 时继续下一个
-  }
-  
-  // 所有文件都处理完毕，确认关闭
+  // 无论保存是否成功，都确认关闭
   window.api.window.confirmClose()
 }
 
@@ -210,6 +186,7 @@ function setupMenuListeners() {
 onMounted(async () => {
   window.api.window.onBeforeClose(handleBeforeClose)
   setupMenuListeners()
+  
   // 初始化最近文件菜单
   const recentFiles = await window.api.file.getRecentFiles()
   await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))

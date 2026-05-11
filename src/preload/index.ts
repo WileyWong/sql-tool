@@ -151,6 +151,14 @@ const api = {
     }
   },
 
+  // 会话状态持久化（Hot Exit）
+  sessionState: {
+    save: (state: unknown): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke(IpcChannels.SESSION_STATE_SAVE, state),
+    load: (): Promise<unknown> =>
+      ipcRenderer.invoke(IpcChannels.SESSION_STATE_LOAD)
+  },
+
   // SQL Language Server
   sqlLanguageServer: {
     // 自动补全

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { i18n } from '../i18n'
 
 // 获取翻译函数
@@ -53,9 +53,20 @@ export const useEditorStore = defineStore('editor', () => {
     return databaseName ? `${baseTitle}(${databaseName})` : baseTitle
   }
   
-  // 初始化：创建第一个标签页
-  function init() {
+  // 初始化：尝试恢复会话，失败时创建第一个标签页
+  async function init() {
     if (tabs.value.length === 0) {
+      // 尝试恢复上次会话
+      try {
+        const sessionState = await window.api.sessionState.load()
+        if (sessionState) {
+          const restored = restoreTabs(sessionState as Parameters<typeof restoreTabs>[0])
+          if (restored) return
+        }
+      } catch (error) {
+        console.error('[EditorStore] Failed to restore session:', error)
+      }
+      // 恢复失败或无会话数据，创建默认空白 Tab
       createTab()
     }
   }
@@ -319,6 +330,91 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  // 序列化当前所有 tabs 为可持久化的数据
+  function serializeTabs() {
+    return {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      activeTabId: activeTabId.value,
+      tabCounter,
+      tabs: tabs.value.map(tab => ({
+        id: tab.id,
+        title: tab.title,
+        baseTitle: tab.baseTitle,
+        content: tab.content,
+        filePath: tab.filePath,
+        isDirty: tab.isDirty,
+        connectionId: tab.connectionId,
+        databaseName: tab.databaseName,
+        maxRows: tab.maxRows
+      }))
+    }
+  }
+
+  // 从持久化数据恢复 tabs
+  function restoreTabs(state: {
+    activeTabId: string | null
+    tabCounter: number
+    tabs: {
+      id: string
+      title: string
+      baseTitle?: string
+      content: string
+      filePath?: string
+      isDirty: boolean
+      connectionId?: string
+      databaseName?: string
+      maxRows: number
+    }[]
+  }): boolean {
+    if (!state.tabs || state.tabs.length === 0) {
+      return false
+    }
+
+    // 恢复 tabCounter
+    tabCounter = state.tabCounter || 0
+
+    // 恢复 tabs
+    tabs.value = state.tabs.map(t => ({
+      id: t.id,
+      title: t.title,
+      baseTitle: t.baseTitle,
+      content: t.content,
+      filePath: t.filePath,
+      isDirty: t.isDirty,
+      connectionId: t.connectionId,
+      databaseName: t.databaseName,
+      maxRows: t.maxRows ?? 5000
+    }))
+
+    // 恢复激活的 tab
+    if (state.activeTabId && tabs.value.find(t => t.id === state.activeTabId)) {
+      activeTabId.value = state.activeTabId
+    } else {
+      activeTabId.value = tabs.value[0].id
+    }
+
+    return true
+  }
+
+  // 防抖自动保存会话状态（每次 tabs 变化后 3 秒保存）
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
+  function debouncedSaveSession() {
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      try {
+        const state = serializeTabs()
+        window.api.sessionState.save(state).catch(() => {})
+      } catch {
+        // 忽略
+      }
+    }, 3000)
+  }
+
+  // 监听 tabs 的深层变化，自动增量保存
+  watch(tabs, debouncedSaveSession, { deep: true })
+  watch(activeTabId, debouncedSaveSession)
+
   return {
     // 状态
     tabs,
@@ -349,6 +445,8 @@ export const useEditorStore = defineStore('editor', () => {
     clearTabDatabase,
     isTabEmpty,
     hasUnsavedChanges,
-    getUnsavedTabs
+    getUnsavedTabs,
+    serializeTabs,
+    restoreTabs
   }
 })

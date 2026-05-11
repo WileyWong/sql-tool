@@ -11,6 +11,7 @@ import { initI18n } from './i18n'
 import { IpcChannels } from '@shared/constants'
 import { initializeDrivers, cleanupDrivers, cleanupSessionsSync } from './database/init'
 import { DriverFactory } from './database/core/factory'
+import { loadSessionState, saveSessionState, type SessionState } from './storage/session-state-store'
 
 // 禁用硬件加速（解决某些系统上的渲染问题）
 app.disableHardwareAcceleration()
@@ -97,6 +98,16 @@ function setupIpcHandlers() {
   // 更新最近文件菜单
   ipcMain.handle(IpcChannels.MENU_UPDATE_RECENT_FILES, (_, files: string[]) => {
     updateRecentFilesMenu(files)
+  })
+  
+  // 会话状态持久化
+  ipcMain.handle(IpcChannels.SESSION_STATE_SAVE, (_, state: SessionState) => {
+    saveSessionState(state)
+    return { success: true }
+  })
+  
+  ipcMain.handle(IpcChannels.SESSION_STATE_LOAD, () => {
+    return loadSessionState()
   })
   
   // 初始化 SQL Language Server
