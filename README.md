@@ -162,7 +162,10 @@ sql-tool/
 
 ## Changelog
 
-2025-02-27
+2026-05-12
+- Added session auto-restore: automatically saves all tab states on close (including unsaved content and database connections), and restores them on next launch
+
+2026-02-27
 - Added MSSQL database support (not fully tested)
 - Optimized editor connection pool
 - Fixed various interaction issues
