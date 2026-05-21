@@ -333,6 +333,7 @@ const contextMenuItems = computed(() => {
           ]
     case 'database': {
       const items: { key: string; label: string }[] = [
+        { key: 'newQuery', label: t('contextMenu.newQuery') || '新建查询' },
         { key: 'createDatabase', label: t('contextMenu.createDatabase') }
       ]
       // 非系统数据库才显示删除选项
@@ -353,10 +354,15 @@ const contextMenuItems = computed(() => {
       ]
     case 'table':
       return [
+        { key: 'newQuery', label: t('contextMenu.newQuery') || '新建查询' },
         { key: 'query100', label: t('contextMenu.query100') },
         { key: 'manage', label: t('contextMenu.manage') },
         { key: 'editTable', label: t('contextMenu.editTable') },
         { key: 'dropTable', label: t('contextMenu.dropTable') }
+      ]
+    case 'view':
+      return [
+        { key: 'newQuery', label: t('contextMenu.newQuery') || '新建查询' }
       ]
     default:
       return []
@@ -570,6 +576,29 @@ async function handleMenuClick(key: string) {
       } else {
         const querySql = `SELECT * FROM \`${node.databaseName}\`.\`${tableName}\` LIMIT 100`
         editorStore.createTab(querySql)
+      }
+      break
+    }
+    case 'newQuery': {
+      const connForQuery = connectionStore.connections.find(c => c.id === node.connectionId)
+      const dbType = connForQuery?.type || 'mysql'
+      
+      if (node.type === 'database') {
+        // 数据库节点：新开空白 Tab，自动连接到该数据库
+        editorStore.createTabWithConnection(node.connectionId!, node.databaseName || node.label)
+      } else if (node.type === 'table' || node.type === 'view') {
+        // 表/视图节点：新开 Tab + 自动填入 SELECT * FROM
+        const objName = (node.data as TableMeta)?.name || node.label
+        let selectSql: string
+        if (dbType === 'sqlserver') {
+          const schemaName = node.schema || 'dbo'
+          selectSql = schemaName !== 'dbo'
+            ? `SELECT * FROM [${schemaName}].[${objName}];`
+            : `SELECT * FROM [${objName}];`
+        } else {
+          selectSql = `SELECT * FROM \`${objName}\`;`
+        }
+        editorStore.createTabWithConnection(node.connectionId!, node.databaseName!, selectSql)
       }
       break
     }

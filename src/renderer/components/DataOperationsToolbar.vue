@@ -1,5 +1,22 @@
 <template>
   <div class="data-operations-toolbar">
+    <!-- 导出SQL下拉按钮 -->
+    <el-dropdown trigger="click" :disabled="!hasSelectedRows" @command="handleExportSql">
+      <el-button
+        size="small"
+        :disabled="!hasSelectedRows"
+        :title="exportSqlTooltip"
+      >
+        SQL ▼
+      </el-button>
+      <template #dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item command="insert">导出为 INSERT</el-dropdown-item>
+          <el-dropdown-item command="update" :disabled="!hasPrimaryKeys">导出为 UPDATE</el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
+    </el-dropdown>
+
     <!-- 新增按钮 -->
     <el-tooltip :content="addButtonTooltip" placement="top">
       <el-button
@@ -52,7 +69,31 @@ const emit = defineEmits<{
   (e: 'add-row'): void
   (e: 'revert'): void
   (e: 'operation', type: 'delete' | 'submit'): void
+  (e: 'export-sql', type: 'insert' | 'update'): void
 }>()
+
+// 是否有勾选行
+const hasSelectedRows = computed(() => {
+  return props.dataOps.hasSelectedRows.value
+})
+
+// 是否有主键（UPDATE 需要）
+const hasPrimaryKeys = computed(() => {
+  return props.dataOps.canOperate.value
+})
+
+// 导出SQL按钮 tooltip
+const exportSqlTooltip = computed(() => {
+  if (!hasSelectedRows.value) {
+    return '请先勾选要导出的行'
+  }
+  return '导出为 SQL 语句'
+})
+
+// 导出SQL
+function handleExportSql(command: string) {
+  emit('export-sql', command as 'insert' | 'update')
+}
 
 // 新增按钮 tooltip
 const addButtonTooltip = computed(() => {

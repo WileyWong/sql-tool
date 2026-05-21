@@ -62,6 +62,8 @@ export interface UseDataOperationsReturn {
   generateDeleteSQL: () => string[]
   generateUpdateSQL: () => string[]
   generateInsertSQL: () => string[]
+  exportAsInsertSQL: () => string
+  exportAsUpdateSQL: () => string
   executeDelete: () => Promise<{ success: boolean; message?: string; deletedRowKeys?: string[] }>
   executeSubmit: () => Promise<{ success: boolean; message?: string; committedNewRows?: Array<{ tempId: string; data: Record<string, unknown> }> }>
   applyChangesToLocalData: () => void
@@ -422,6 +424,59 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
     
     return sqls
   }
+
+  // 导出勾选行为 INSERT 语句
+  function exportAsInsertSQL(): string {
+    const rs = options.resultSet.value
+    if (!rs || !rs.tableName) return ''
+
+    const sqls: string[] = []
+    const columns = rs.columns.map(c => c.name)
+    const tableName = rs.databaseName
+      ? getFullTableName(rs.databaseName, rs.tableName)
+      : quoteIdentifier(rs.tableName)
+
+    for (const rowKey of state.selectedRowKeys) {
+      const row = findRowByKey(rowKey)
+      if (!row) continue
+
+      const values = columns.map(col => formatSqlValue(row[col]))
+      const sql = `INSERT INTO ${tableName} (${columns.map(c => quoteIdentifier(c)).join(', ')}) VALUES (${values.join(', ')});`
+      sqls.push(sql)
+    }
+
+    return sqls.join('\n')
+  }
+
+  // 导出勾选行为 UPDATE 语句
+  function exportAsUpdateSQL(): string {
+    const rs = options.resultSet.value
+    if (!rs || !rs.tableName || !rs.primaryKeys?.length) return ''
+
+    const sqls: string[] = []
+    const columns = rs.columns.map(c => c.name)
+    const nonPkColumns = columns.filter(c => !rs.primaryKeys!.includes(c))
+    const tableName = rs.databaseName
+      ? getFullTableName(rs.databaseName, rs.tableName)
+      : quoteIdentifier(rs.tableName)
+
+    for (const rowKey of state.selectedRowKeys) {
+      const row = findRowByKey(rowKey)
+      if (!row) continue
+
+      const setClauses = nonPkColumns.map(col =>
+        `${quoteIdentifier(col)} = ${formatSqlValue(row[col])}`
+      )
+      const whereConditions = rs.primaryKeys!.map(pk =>
+        `${quoteIdentifier(pk)} = ${formatSqlValue(row[pk])}`
+      ).join(' AND ')
+
+      const sql = `UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE ${whereConditions};`
+      sqls.push(sql)
+    }
+
+    return sqls.join('\n')
+  }
   
   // 执行删除
   async function executeDelete(): Promise<{ success: boolean; message?: string; deletedRowKeys?: string[] }> {
@@ -542,6 +597,8 @@ export function useDataOperations(options: DataOperationsOptions): UseDataOperat
     generateDeleteSQL,
     generateUpdateSQL,
     generateInsertSQL,
+    exportAsInsertSQL,
+    exportAsUpdateSQL,
     executeDelete,
     executeSubmit,
     getRowKey,

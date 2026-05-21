@@ -75,6 +75,7 @@
           @add-row="handleAddRow"
           @revert="handleRevert"
           @operation="handleOperation"
+          @export-sql="handleExportSql"
         />
       </div>
       
@@ -241,6 +242,19 @@ function handleOperation(type: 'delete' | 'submit') {
       confirmDialog.type = 'update'
     }
     confirmDialog.visible = true
+  }
+}
+
+// 导出勾选行为 SQL 语句（新 Tab 中打开）
+function handleExportSql(type: 'insert' | 'update') {
+  let sql = ''
+  if (type === 'insert') {
+    sql = dataOps.exportAsInsertSQL()
+  } else {
+    sql = dataOps.exportAsUpdateSQL()
+  }
+  if (sql) {
+    editorStore.createTab(sql)
   }
 }
 

@@ -102,6 +102,18 @@ export const useEditorStore = defineStore('editor', () => {
     return tab
   }
   
+  // 创建新标签页并自动关联连接和数据库
+  function createTabWithConnection(connectionId: string, databaseName: string, content = '') {
+    const tab = createTab(content)
+    tab.connectionId = connectionId
+    tab.databaseName = databaseName
+    // 更新标题显示数据库名
+    if (tab.baseTitle) {
+      tab.title = generateTitle(tab.baseTitle, databaseName)
+    }
+    return tab
+  }
+  
   // 更新标签页连接设置
   function updateTabConnection(connectionId?: string, databaseName?: string) {
     if (activeTab.value) {
@@ -428,6 +440,7 @@ export const useEditorStore = defineStore('editor', () => {
     // 方法
     init,
     createTab,
+    createTabWithConnection,
     closeTab,
     switchTab,
     updateContent,
