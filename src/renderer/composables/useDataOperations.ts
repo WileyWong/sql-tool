@@ -617,12 +617,68 @@ function formatSqlValue(value: unknown): string {
   if (typeof value === 'number') {
     return String(value)
   }
+  if (typeof value === 'bigint') {
+    return String(value)
+  }
   if (typeof value === 'boolean') {
     return value ? '1' : '0'
   }
   if (value instanceof Date) {
-    return `'${value.toISOString().slice(0, 19).replace('T', ' ')}'`
+    return `'${formatDateForSql(value)}'`
   }
-  // 字符串转义单引号
+  // 检查字符串是否为 ISO 日期格式（如 mysql2 返回的 Date 被 JSON 序列化后）
+  if (typeof value === 'string') {
+    const dateStr = tryFormatDateString(value)
+    if (dateStr !== null) {
+      return `'${dateStr}'`
+    }
+    // 普通字符串转义单引号
+    return `'${value.replace(/'/g, "''")}'`
+  }
+  // BIT 类型 IPC 传输后的类数组对象 { "0": 0 } 或 { "0": 1 }
+  if (value && typeof value === 'object' && '0' in value && !('type' in value) && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>
+    if (typeof obj['0'] === 'number') {
+      return String(obj['0'])
+    }
+  }
+  // Buffer / Uint8Array
+  if (value instanceof Uint8Array || (value && typeof value === 'object' && 'type' in value && (value as { type: string }).type === 'Buffer')) {
+    const bytes = value instanceof Uint8Array ? value : new Uint8Array((value as { data: number[] }).data)
+    // 单字节 BIT 类型：直接输出 0 或 1
+    if (bytes.length === 1 && (bytes[0] === 0 || bytes[0] === 1)) {
+      return String(bytes[0])
+    }
+    return `X'${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')}'`
+  }
   return `'${String(value).replace(/'/g, "''")}'`
+}
+
+// 将 Date 对象格式化为 SQL 日期时间字符串
+function formatDateForSql(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  const ms = date.getMilliseconds()
+
+  const base = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  if (ms > 0) {
+    return `${base}.${String(ms).padStart(3, '0')}`
+  }
+  return base
+}
+
+// 尝试将 ISO 日期字符串格式化为 SQL 日期时间格式，非日期返回 null
+function tryFormatDateString(value: string): string | null {
+  // 匹配 ISO 8601 格式: 2026-01-16T10:30:00.000Z 或 2026-01-16T10:30:00
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+    const date = new Date(value)
+    if (!isNaN(date.getTime())) {
+      return formatDateForSql(date)
+    }
+  }
+  return null
 }

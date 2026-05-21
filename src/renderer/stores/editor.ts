@@ -181,6 +181,7 @@ export const useEditorStore = defineStore('editor', () => {
       if (filePath) {
         activeTab.value.filePath = filePath
         activeTab.value.title = filePath.split(/[/\\]/).pop()!
+        activeTab.value.baseTitle = undefined
       }
     }
   }
@@ -267,6 +268,7 @@ export const useEditorStore = defineStore('editor', () => {
         tab.isDirty = false
         tab.filePath = result.filePath
         tab.title = result.filePath.split(/[/\\]/).pop()!
+        tab.baseTitle = undefined
       }
       return result
     }

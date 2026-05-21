@@ -96,7 +96,7 @@ export function formatDateTime(value: unknown, type: string): string | null {
  * 格式化 BIT 类型值
  * @param value 原始值
  * @param columnType MySQL 列类型
- * @returns 格式化后的字符串（BIT(1) 返回 'true'/'false'），如果不是 BIT(1) 返回 null
+ * @returns 格式化后的字符串（BIT(1) 返回 '0'/'1'），如果不是 BIT(1) 返回 null
  */
 export function formatBitValue(value: unknown, columnType: string): string | null {
   if (!columnType) return null
@@ -111,7 +111,7 @@ export function formatBitValue(value: unknown, columnType: string): string | nul
   
   const bitLength = bitMatch[1] ? parseInt(bitMatch[1], 10) : 1
   
-  // 只有 BIT(1) 才显示为 true/false
+  // 只有 BIT(1) 才显示为 0/1
   if (bitLength !== 1) return null
   
   // 处理对象类型（Buffer 或类数组对象）
@@ -120,31 +120,31 @@ export function formatBitValue(value: unknown, columnType: string): string | nul
     
     // 处理 Buffer 对象 { type: 'Buffer', data: [...] }
     if (obj.type === 'Buffer' && Array.isArray(obj.data)) {
-      return (obj.data as number[])[0] === 1 ? 'true' : 'false'
+      return (obj.data as number[])[0] === 1 ? '1' : '0'
     }
     
     // 处理类数组对象 { "0": 0 } 或 { "0": 1 }（MySQL BIT 在 IPC 传输后的格式）
     if ('0' in obj) {
       const firstByte = obj['0']
       if (typeof firstByte === 'number') {
-        return firstByte === 1 ? 'true' : 'false'
+        return firstByte === 1 ? '1' : '0'
       }
     }
   }
   
   // 处理数字值
   if (typeof value === 'number') {
-    return value === 1 ? 'true' : 'false'
+    return value === 1 ? '1' : '0'
   }
   
   // 处理字符串值
   if (typeof value === 'string') {
-    return value === '1' || value.toLowerCase() === 'true' ? 'true' : 'false'
+    return value === '1' || value.toLowerCase() === 'true' ? '1' : '0'
   }
   
   // 处理布尔值
   if (typeof value === 'boolean') {
-    return value ? 'true' : 'false'
+    return value ? '1' : '0'
   }
   
   return null
