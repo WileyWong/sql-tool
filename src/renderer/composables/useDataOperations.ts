@@ -644,7 +644,7 @@ function formatSqlValue(value: unknown): string {
   }
   // Buffer / Uint8Array
   if (value instanceof Uint8Array || (value && typeof value === 'object' && 'type' in value && (value as { type: string }).type === 'Buffer')) {
-    const bytes = value instanceof Uint8Array ? value : new Uint8Array((value as { data: number[] }).data)
+    const bytes = value instanceof Uint8Array ? value : new Uint8Array((value as unknown as { data: number[] }).data)
     // 单字节 BIT 类型：直接输出 0 或 1
     if (bytes.length === 1 && (bytes[0] === 0 || bytes[0] === 1)) {
       return String(bytes[0])
