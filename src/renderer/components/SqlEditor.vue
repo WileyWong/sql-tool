@@ -47,6 +47,22 @@
             :label="conn.name"
           />
         </el-select>
+        <el-tooltip
+          v-if="selectedConnectionId"
+          :content="connectionStatusTooltip"
+          placement="bottom"
+          :show-after="300"
+        >
+          <span 
+            class="connection-status-icon"
+            :class="connectionStatusClass"
+            @click.stop="handleConnectionStatusClick"
+          >
+            <el-icon :class="connectionStatusIconClass">
+              <component :is="connectionStatusIcon" />
+            </el-icon>
+          </span>
+        </el-tooltip>
       </div>
       <div class="info-item">
         <span class="label">{{ $t('editor.database') }}:</span>
@@ -94,6 +110,7 @@ import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as monaco from 'monaco-editor'
 import { ElMessage } from 'element-plus'
+import { Connection, Loading } from '@element-plus/icons-vue'
 import Sortable from 'sortablejs'
 import { useEditorStore } from '../stores/editor'
 import { useConnectionStore } from '../stores/connection'
@@ -152,6 +169,102 @@ const connections = computed(() => connectionStore.connections)
 const selectedConnectionId = ref('')
 const selectedDatabase = ref('')
 const maxRowsInput = ref(String(DEFAULT_MAX_ROWS))
+
+// 连接状态刷新中标记
+const isRefreshingStatus = ref(false)
+
+// 记录最近一次元数据刷新对应的 connectionId|databaseName
+// 用于区分"已连接+元数据已就绪"和"已连接+元数据未刷新"
+const metadataRefreshedKey = ref('')
+
+// 当前连接+数据库的元数据是否已刷新
+const hasMetadataRefreshed = computed(() => {
+  if (!selectedConnectionId.value || !selectedDatabase.value) return false
+  return metadataRefreshedKey.value === `${selectedConnectionId.value}|${selectedDatabase.value}`
+})
+
+// 获取当前选中连接的连接状态
+const connectionStatus = computed(() => {
+  if (!selectedConnectionId.value) return 'disconnected'
+  const conn = connectionStore.connections.find(c => c.id === selectedConnectionId.value)
+  return conn?.status || 'disconnected'
+})
+
+// 连接状态图标
+const connectionStatusIcon = computed(() => {
+  if (isRefreshingStatus.value) return Loading
+  return Connection
+})
+
+// 连接状态图标 CSS 类（用于着色）
+const connectionStatusIconClass = computed(() => {
+  if (isRefreshingStatus.value) return ''
+  const status = connectionStatus.value
+  if (status === 'connected') {
+    return hasMetadataRefreshed.value ? 'status-connected-metadata' : 'status-connected-nometa'
+  }
+  if (status === 'connecting') return 'status-connecting'
+  if (status === 'error') return 'status-error'
+  return 'status-disconnected'
+})
+
+// 连接状态容器 CSS 类
+const connectionStatusClass = computed(() => {
+  if (isRefreshingStatus.value) return 'refreshing'
+  return ''
+})
+
+// 连接状态 Tooltip
+const connectionStatusTooltip = computed(() => {
+  if (isRefreshingStatus.value) return t('editor.connectingStatus')
+  const status = connectionStatus.value
+  if (status === 'connected') {
+    return hasMetadataRefreshed.value ? t('editor.metadataReady') : t('editor.needRefreshMetadata')
+  }
+  if (status === 'connecting') return t('editor.connectingStatus')
+  if (status === 'error') return t('editor.clickToReconnect')
+  return t('editor.clickToConnect')
+})
+
+// 标记元数据已刷新（供多处调用后统一记录）
+function markMetadataRefreshed(connId?: string, dbName?: string) {
+  const cid = connId || selectedConnectionId.value
+  const db = dbName || selectedDatabase.value
+  if (cid && db) {
+    metadataRefreshedKey.value = `${cid}|${db}`
+  }
+}
+
+// 点击连接状态图标：连接并强制刷新元数据
+async function handleConnectionStatusClick() {
+  if (isRefreshingStatus.value || !selectedConnectionId.value) return
+
+  isRefreshingStatus.value = true
+  try {
+    const connId = selectedConnectionId.value
+    const conn = connectionStore.connections.find(c => c.id === connId)
+
+    // 如果未连接，先连接（复用左侧树形控件的同一套 connect 代码）
+    if (!conn || conn.status !== 'connected') {
+      const result = await connectionStore.connect(connId)
+      if (!result.success) {
+        ElMessage.error(t('error.connectionFailed', { message: result.message || t('error.unknown') }))
+        return
+      }
+      // 连接成功后更新 Language Server 上下文
+      await languageServer.checkAndUpdateContext(connId, selectedDatabase.value)
+    }
+
+    // 强制刷新元数据（核心目的）
+    await languageServer.checkAndUpdateMetadata(connId, selectedDatabase.value, true)
+    markMetadataRefreshed(connId, selectedDatabase.value)
+    ElMessage.success(t('editor.metadataRefreshed'))
+  } catch (err: any) {
+    ElMessage.error(err?.message || t('error.unknown'))
+  } finally {
+    isRefreshingStatus.value = false
+  }
+}
 
 // 过滤相关
 const connectionFilterText = ref('')
@@ -318,6 +431,10 @@ watch(selectedConnectionId, async (newId, oldId) => {
   
   // 使用 Composable 更新上下文
   await languageServer.checkAndUpdateContext(newId, selectedDatabase.value)
+  // 连接变更后，元数据标记为过时
+  if (oldId && oldId !== newId) {
+    metadataRefreshedKey.value = ''
+  }
 })
 
 // 监听数据库选择变化
@@ -334,6 +451,8 @@ watch(selectedDatabase, async (newDb, oldDb) => {
   
   // 使用 Composable 更新元数据
   await languageServer.checkAndUpdateMetadata(selectedConnectionId.value, newDb)
+  // 标记当前连接+数据库的元数据已刷新
+  markMetadataRefreshed(selectedConnectionId.value, newDb || undefined)
 })
 
 function handleMaxRowsInput(e: Event) {
@@ -594,6 +713,8 @@ function handleConnectionTreeRefresh(payload: EventBusEvents['connectionTree:ref
   ) {
     // 强制刷新 Language Server 元数据
     languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value, true)
+    // 标记元数据已刷新
+    markMetadataRefreshed(selectedConnectionId.value, selectedDatabase.value)
   }
 }
 
@@ -651,7 +772,29 @@ onMounted(async () => {
   eventBus.on('connectionTree:refresh', handleConnectionTreeRefresh)
 
   // 初始化 Language Server 元数据
-  await languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value)
+  // 先确保连接已建立（如果标签页恢复时有 connectionId），再加载元数据
+  const connId = selectedConnectionId.value
+  const dbName = selectedDatabase.value
+  if (connId) {
+    const conn = connectionStore.connections.find(c => c.id === connId)
+    if (!conn || conn.status !== 'connected') {
+      // 等待连接建立（watch 中会触发 connect，这里等待它完成）
+      // 如果 watch 已经在连接中，等它完成；如果已经完成，直接加载元数据
+      const result = await connectionStore.connect(connId)
+      if (result.success) {
+        await languageServer.checkAndUpdateContext(connId, dbName)
+        await languageServer.checkAndUpdateMetadata(connId, dbName, true)
+        markMetadataRefreshed(connId, dbName)
+      }
+    } else {
+      // 已连接，直接刷新元数据
+      await languageServer.checkAndUpdateMetadata(connId, dbName, true)
+      markMetadataRefreshed(connId, dbName)
+    }
+  } else {
+    // 无连接，使用默认初始化
+    await languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value)
+  }
 
   // 初始化标签页拖拽排序
   initTabSortable()
@@ -749,6 +892,62 @@ onUnmounted(() => {
 .info-item .value {
   color: #4ec9b0;
   font-weight: 500;
+}
+
+/* 连接状态图标 */
+.connection-status-icon {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  transition: background 0.2s, opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.connection-status-icon:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.05));
+}
+
+.connection-status-icon.refreshing {
+  cursor: wait;
+  animation: status-spin 1s linear infinite;
+}
+
+@keyframes status-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.connection-status-icon .el-icon {
+  font-size: 14px;
+  transition: color 0.3s;
+}
+
+.connection-status-icon .el-icon.status-connected {
+  color: #4ec9b0;
+}
+
+/* 已连接但元数据未刷新：绿色但半透明+虚框，与上面实心绿色区分 */
+.connection-status-icon .el-icon.status-connected-nometa {
+  color: #4ec9b0;
+  opacity: 0.55;
+}
+
+.connection-status-icon .el-icon.status-connected-metadata {
+  color: #4ec9b0;
+}
+
+.connection-status-icon .el-icon.status-connecting {
+  color: #e6a23c;
+}
+
+.connection-status-icon .el-icon.status-error {
+  color: #f48771;
+}
+
+.connection-status-icon .el-icon.status-disconnected {
+  color: #909399;
 }
 
 .info-select {
