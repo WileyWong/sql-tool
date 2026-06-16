@@ -108,6 +108,11 @@ export interface IDatabaseDriver {
   getTableCreateSql(connectionId: string, database: string, table: string, schema?: string): Promise<string>
 
   /**
+   * 获取视图的创建语句
+   */
+  getViewCreateSql(connectionId: string, database: string, view: string, schema?: string): Promise<string>
+
+  /**
    * 执行 DDL 语句（系统级操作，使用共享连接）
    * 用于不依赖编辑器 Tab 上下文的 DDL（如建表、改表等从连接树发起的操作）
    */

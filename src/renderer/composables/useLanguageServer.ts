@@ -100,6 +100,9 @@ export function useLanguageServer() {
   // 当前 hover 的表信息（用于点击处理）
   const currentHoverTableInfo = ref<{ name: string } | null>(null)
   
+  // 当前 hover 的视图信息（用于点击处理）
+  const currentHoverViewInfo = ref<{ name: string } | null>(null)
+  
   // 当前 hover 的快捷操作列表
   const currentHoverActions = ref<HoverAction[] | null>(null)
   
@@ -278,9 +281,10 @@ export function useLanguageServer() {
           const result = await window.api.sqlLanguageServer.hover(documentText, line, character)
           
           if (!result.success || !result.hover) {
-            // 清除状态栏提示和表信息
+            // 清除状态栏提示和表/视图信息
             editorStore.setHoverHint(null)
             currentHoverTableInfo.value = null
+            currentHoverViewInfo.value = null
             currentHoverActions.value = null
             return null
           }
@@ -289,9 +293,15 @@ export function useLanguageServer() {
           if (result.tableInfo) {
             editorStore.setHoverHint('💡 点击表名打开表管理')
             currentHoverTableInfo.value = result.tableInfo
+            currentHoverViewInfo.value = null
+          } else if (result.viewInfo) {
+            editorStore.setHoverHint('💡 点击视图名查看创建语句')
+            currentHoverViewInfo.value = result.viewInfo
+            currentHoverTableInfo.value = null
           } else {
             editorStore.setHoverHint(null)
             currentHoverTableInfo.value = null
+            currentHoverViewInfo.value = null
           }
 
           // 保存快捷操作并追加到 Markdown
@@ -393,29 +403,6 @@ export function useLanguageServer() {
   }
 
   /**
-   * 格式化文档
-   */
-  async function formatDocument(editor: monaco.editor.IStandaloneCodeEditor | null) {
-    if (!editor) return
-
-    const model = editor.getModel()
-    if (!model) return
-
-    const documentText = model.getValue()
-
-    try {
-      const result = await window.api.sqlLanguageServer.format(documentText)
-      
-      if (result.success && result.edits.length > 0) {
-        const edit = result.edits[0]
-        editor.setValue(edit.newText)
-      }
-    } catch (error) {
-      console.error('格式化失败:', error)
-    }
-  }
-
-  /**
    * 打开表管理对话框（处理 hover 中的表名点击）
    */
   function openTableManageFromHover() {
@@ -429,11 +416,63 @@ export function useLanguageServer() {
   }
 
   /**
+   * 获取 hover 中的视图信息（用于外部判断是否显示弹窗）
+   */
+  function getHoverViewInfo() {
+    return currentHoverViewInfo.value
+  }
+
+  /**
+   * 格式化文档或选中区域
+   */
+  async function formatDocument(editor: monaco.editor.IStandaloneCodeEditor | null) {
+    if (!editor) return
+
+    const model = editor.getModel()
+    if (!model) return
+
+    // 检查是否有选中文本
+    const selection = editor.getSelection()
+    if (selection && !selection.isEmpty()) {
+      // 格式化选中区域
+      const selectedText = model.getValueInRange(selection)
+      if (!selectedText.trim()) return
+
+      try {
+        const result = await window.api.sqlLanguageServer.format(selectedText)
+        if (result.success && result.edits.length > 0) {
+          const formattedText = result.edits[0].newText
+          editor.executeEdits('sql-format-selection', [{
+            range: selection,
+            text: formattedText,
+            forceMoveMarkers: true
+          }])
+        }
+      } catch (error) {
+        console.error('格式化选中区域失败:', error)
+      }
+    } else {
+      // 格式化整个文档
+      const documentText = model.getValue()
+      try {
+        const result = await window.api.sqlLanguageServer.format(documentText)
+        if (result.success && result.edits.length > 0) {
+          const edit = result.edits[0]
+          editor.setValue(edit.newText)
+        }
+      } catch (error) {
+        console.error('格式化失败:', error)
+      }
+    }
+  }
+
+  /**
    * 清除 hover 状态（当 hover widget 关闭时调用）
    */
   function clearHoverState() {
     editorStore.setHoverHint(null)
     currentHoverTableInfo.value = null
+    currentHoverViewInfo.value = null
     currentHoverActions.value = null
   }
 
@@ -494,6 +533,7 @@ export function useLanguageServer() {
     lastConnectionId,
     lastDatabaseName,
     currentHoverTableInfo,
+    currentHoverViewInfo,
     currentHoverActions,
     
     // 上下文管理
@@ -512,6 +552,7 @@ export function useLanguageServer() {
     
     // Hover 交互
     openTableManageFromHover,
+    getHoverViewInfo,
     clearHoverState,
     executeHoverAction,
     

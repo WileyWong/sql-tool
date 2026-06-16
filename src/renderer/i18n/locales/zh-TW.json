@@ -365,7 +365,9 @@
     "manage": "管理",
     "editTable": "修改資料表",
     "createDatabase": "建立資料庫",
-    "dropDatabase": "刪除資料庫"
+    "dropDatabase": "刪除資料庫",
+    "viewCreateSql": "檢視建立語句",
+    "formatSql": "格式化 SQL"
   },
   "database": {
     "createDatabase": "建立資料庫",
@@ -427,6 +429,7 @@
     "noDatabase": "請先連線到資料庫",
     "noSql": "請輸入 SQL 陳述式",
     "connectionNotExist": "連線不存在",
+    "viewCreateSqlFailed": "取得檢視建立語句失敗",
     "copyFailed": "複製失敗"
   },
   "message": {

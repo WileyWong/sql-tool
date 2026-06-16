@@ -17,6 +17,9 @@ export interface HoverResult {
   tableInfo?: {
     name: string
   }
+  viewInfo?: {
+    name: string
+  }
   /** 快捷操作列表 */
   actions?: HoverAction[]
 }
@@ -80,7 +83,10 @@ export class HoverProvider {
     // 查找视图
     const view = this.metadataService.getView(word)
     if (view) {
-      return { hover: this.createViewHover(view) }
+      return {
+        hover: this.createViewHover(view),
+        viewInfo: { name: view.name }
+      }
     }
 
     // 查找函数

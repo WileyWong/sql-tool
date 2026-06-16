@@ -462,6 +462,23 @@ export class MySQLDriver implements IDatabaseDriver {
     return result[0]?.['Create Table'] || ''
   }
 
+  /**
+   * 获取视图的创建语句
+   */
+  async getViewCreateSql(connectionId: string, database: string, view: string): Promise<string> {
+    const connection = await this.getConnectionWithReconnect(connectionId)
+    if (!connection) {
+      throw new Error('连接不存在')
+    }
+    
+    const [rows] = await connection.query(
+      `SHOW CREATE VIEW \`${database}\`.\`${view}\``
+    )
+    
+    const result = rows as { View: string; 'Create View': string }[]
+    return result[0]?.['Create View'] || ''
+  }
+
   // ==================== MySQL 特有功能 ====================
 
   /**

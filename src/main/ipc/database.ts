@@ -95,6 +95,19 @@ export function setupDatabaseHandlers(ipcMain: IpcMain): void {
     }
   })
   
+  // 获取视图的创建语句
+  ipcMain.handle(IpcChannels.DATABASE_VIEW_CREATE_SQL, async (_, data: { connectionId: string; database: string; view: string; schema?: string }) => {
+    try {
+      const dbType = getConnectionDbType(data.connectionId)
+      const driver = DriverFactory.getDriver(dbType)
+      const sql = await driver.getViewCreateSql(data.connectionId, data.database, data.view, data.schema)
+      return { success: true, sql }
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return { success: false, message: err.message || '获取视图创建语句失败' }
+    }
+  })
+  
   // 获取表的索引信息
   ipcMain.handle(IpcChannels.DATABASE_INDEXES, async (_, data: { connectionId: string; database: string; table: string; schema?: string }) => {
     try {

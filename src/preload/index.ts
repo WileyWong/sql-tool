@@ -48,6 +48,9 @@ const api = {
     tableCreateSql: (connectionId: string, database: string, table: string): Promise<{ success: boolean; sql?: string; message?: string }> =>
       ipcRenderer.invoke(IpcChannels.DATABASE_TABLE_CREATE_SQL, { connectionId, database, table }),
     
+    viewCreateSql: (connectionId: string, database: string, view: string, schema?: string): Promise<{ success: boolean; sql?: string; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_VIEW_CREATE_SQL, { connectionId, database, view, schema }),
+    
     indexes: (connectionId: string, database: string, table: string, schema?: string) =>
       ipcRenderer.invoke(IpcChannels.DATABASE_INDEXES, { connectionId, database, table, schema }),
     

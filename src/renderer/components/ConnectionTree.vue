@@ -89,6 +89,14 @@
         {{ item.label }}
       </div>
     </div>
+
+    <!-- 视图创建语句弹窗 -->
+    <ViewCreateSqlDialog
+      v-model="viewCreateDialogVisible"
+      :connection-id="viewCreateInfo.connectionId"
+      :database="viewCreateInfo.database"
+      :view-name="viewCreateInfo.viewName"
+    />
   </div>
 </template>
 
@@ -101,6 +109,7 @@ import { useConnectionStore } from '../stores/connection'
 import { useEditorStore } from '../stores/editor'
 import { eventBus } from '../utils/eventBus'
 import { useTreeFilter } from '../composables/useTreeFilter'
+import ViewCreateSqlDialog from './ViewCreateSqlDialog.vue'
 import type { TreeNode, TreeNodeType, TableMeta } from '@shared/types'
 import type Node from 'element-plus/es/components/tree/src/model/node'
 
@@ -126,6 +135,14 @@ const contextMenu = ref({
   x: 0,
   y: 0,
   node: null as TreeNode | null
+})
+
+// 视图创建语句弹窗状态
+const viewCreateDialogVisible = ref(false)
+const viewCreateInfo = ref({
+  connectionId: '',
+  database: '',
+  viewName: ''
 })
 
 // 构建树数据 - 只包含连接节点
@@ -362,7 +379,8 @@ const contextMenuItems = computed(() => {
       ]
     case 'view':
       return [
-        { key: 'newQuery', label: t('contextMenu.newQuery') || '新建查询' }
+        { key: 'newQuery', label: t('contextMenu.newQuery') || '新建查询' },
+        { key: 'showCreateView', label: t('contextMenu.viewCreateSql') || '查看创建语句' }
       ]
     default:
       return []
@@ -625,6 +643,15 @@ async function handleMenuClick(key: string) {
       connectionStore.openCreateDatabaseDialog(node.connectionId!, dbTypeForCreate as 'mysql' | 'sqlserver')
       break
     }
+    case 'showCreateView':
+      // 查看视图创建语句
+      viewCreateInfo.value = {
+        connectionId: node.connectionId!,
+        database: node.databaseName!,
+        viewName: node.label
+      }
+      viewCreateDialogVisible.value = true
+      break
     case 'dropDatabase':
       // 删除数据库
       handleDropDatabase(node)

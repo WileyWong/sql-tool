@@ -102,6 +102,14 @@
     
     <!-- 编辑器容器 -->
     <div ref="editorContainer" class="editor-container"></div>
+
+    <!-- 视图创建语句弹窗 -->
+    <ViewCreateSqlDialog
+      v-model="viewCreateDialogVisible"
+      :connection-id="viewCreateInfo.connectionId"
+      :database="viewCreateInfo.database"
+      :view-name="viewCreateInfo.viewName"
+    />
   </div>
 </template>
 
@@ -119,6 +127,7 @@ import { eventBus, type EventBusEvents } from '../utils/eventBus'
 import { registerSqlDarkTheme, getDefaultTheme } from '../config/monaco-theme'
 import { useLanguageServer } from '../composables/useLanguageServer'
 import { useEditorModel } from '../composables/useEditorModel'
+import ViewCreateSqlDialog from './ViewCreateSqlDialog.vue'
 import { DEFAULT_MAX_ROWS } from '../constants/layout'
 
 const { t } = useI18n()
@@ -176,6 +185,14 @@ const isRefreshingStatus = ref(false)
 // 记录最近一次元数据刷新对应的 connectionId|databaseName
 // 用于区分"已连接+元数据已就绪"和"已连接+元数据未刷新"
 const metadataRefreshedKey = ref('')
+
+// 视图创建语句弹窗状态
+const viewCreateDialogVisible = ref(false)
+const viewCreateInfo = ref({
+  connectionId: '',
+  database: '',
+  viewName: ''
+})
 
 // 当前连接+数据库的元数据是否已刷新
 const hasMetadataRefreshed = computed(() => {
@@ -518,6 +535,15 @@ function initEditor() {
     }
   })
   
+  // 注册格式化 SQL 右键菜单
+  editor.addAction({
+    id: 'sql.format-context',
+    label: t('contextMenu.formatSql'),
+    contextMenuGroupId: 'navigation',
+    contextMenuOrder: 1,
+    run: () => languageServer.formatDocument(editor)
+  })
+  
   // 监听 hover widget 的显示/隐藏（用于清除状态栏提示）
   // @ts-ignore - Monaco 内部 API，可能不在类型定义中
   editor.onDidChangeHoverVisibility?.((e: { visible: boolean }) => {
@@ -610,7 +636,7 @@ async function handleSaveShortcut(e: KeyboardEvent) {
 
 /**
  * 处理 hover widget 点击事件
- * 只有点击表名（code 标签）时才打开表管理对话框
+ * 支持点击表名打开表管理，点击视图名查看创建语句
  */
 function handleHoverClick(e: MouseEvent) {
   const target = e.target as HTMLElement
@@ -651,23 +677,40 @@ function handleHoverClick(e: MouseEvent) {
     }
   }
 
-  // ===== 现有逻辑：检查是否点击了表名 =====
-  if (!languageServer.currentHoverTableInfo.value) return
-  if (!codeElement) return
-  
-  // 获取 hover 内容的第一个段落（表名所在行）
+  // 获取 hover 内容的第一个段落（名称所在行）
   const hoverContent = hoverWidget.querySelector('.monaco-hover-content')
   if (!hoverContent) return
-  
-  // 检查这个 code 是否在第一个段落中（表名行）
   const firstParagraph = hoverContent.querySelector('p')
-  if (firstParagraph && firstParagraph.contains(codeElement)) {
-    // 验证 code 内容是否与当前 hover 的表名一致
+
+  // ===== 检查是否点击了表名 =====
+  if (languageServer.currentHoverTableInfo.value && codeElement && firstParagraph && firstParagraph.contains(codeElement)) {
     const tableName = languageServer.currentHoverTableInfo.value.name
     if (codeElement.textContent === tableName) {
       e.preventDefault()
       e.stopPropagation()
       languageServer.openTableManageFromHover()
+      return
+    }
+  }
+
+  // ===== 检查是否点击了视图名 =====
+  if (languageServer.currentHoverViewInfo.value && codeElement && firstParagraph && firstParagraph.contains(codeElement)) {
+    const viewName = languageServer.currentHoverViewInfo.value.name
+    if (codeElement.textContent === viewName) {
+      e.preventDefault()
+      e.stopPropagation()
+      // 打开视图创建语句弹窗
+      const connId = languageServer.lastConnectionId.value
+      const dbName = languageServer.lastDatabaseName.value
+      if (connId && dbName) {
+        viewCreateInfo.value = {
+          connectionId: connId,
+          database: dbName,
+          viewName: viewName
+        }
+        viewCreateDialogVisible.value = true
+      }
+      return
     }
   }
 }
@@ -677,7 +720,7 @@ function handleHoverClick(e: MouseEvent) {
  */
 function handleMouseMove(e: MouseEvent) {
   // 如果没有 hover 状态，不需要检测
-  if (!languageServer.currentHoverTableInfo.value && !languageServer.currentHoverActions.value) return
+  if (!languageServer.currentHoverTableInfo.value && !languageServer.currentHoverViewInfo.value && !languageServer.currentHoverActions.value) return
   
   const target = e.target as HTMLElement
   // 检查鼠标是否在 hover widget 或编辑器内

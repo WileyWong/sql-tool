@@ -365,7 +365,9 @@
     "manage": "管理",
     "editTable": "修改表",
     "createDatabase": "创建数据库",
-    "dropDatabase": "删除数据库"
+    "dropDatabase": "删除数据库",
+    "viewCreateSql": "查看创建语句",
+    "formatSql": "格式化 SQL"
   },
   "database": {
     "createDatabase": "创建数据库",
@@ -427,6 +429,7 @@
     "noDatabase": "请先连接数据库",
     "noSql": "请输入 SQL 语句",
     "connectionNotExist": "连接不存在",
+    "viewCreateSqlFailed": "获取视图创建语句失败",
     "copyFailed": "复制失败"
   },
   "message": {

@@ -591,6 +591,33 @@ export class SqlServerDriver implements IDatabaseDriver {
     return createSql
   }
 
+  /**
+   * 获取视图的创建语句（SQL Server 使用 OBJECT_DEFINITION）
+   */
+  async getViewCreateSql(connectionId: string, database: string, view: string, schema?: string): Promise<string> {
+    const pool = await this.getPoolWithReconnect(connectionId)
+    if (!pool) {
+      throw new Error('连接不存在')
+    }
+    
+    const schemaName = schema || 'dbo'
+    
+    // 切换到指定数据库
+    await pool.request().query(`USE [${database}]`)
+    
+    // 使用 OBJECT_DEFINITION 获取视图定义
+    const result = await pool.request()
+      .input('viewName', sql.NVarChar, `${schemaName}.${view}`)
+      .query(`SELECT OBJECT_DEFINITION(OBJECT_ID(@viewName)) AS view_definition`)
+    
+    const definition = result.recordset[0]?.view_definition
+    if (!definition) {
+      throw new Error(`视图 ${schemaName}.${view} 不存在或无法获取定义`)
+    }
+    
+    return `CREATE VIEW [${schemaName}].[${view}] AS\n${definition}`
+  }
+
   // ==================== SQL Server 特有功能 ====================
 
   /**

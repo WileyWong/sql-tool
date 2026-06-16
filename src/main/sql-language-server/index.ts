@@ -90,6 +90,7 @@ function registerIpcHandlers(): void {
           success: true,
           hover: result.hover,
           tableInfo: result.tableInfo,
+          viewInfo: result.viewInfo,
           actions: result.actions
         }
       }

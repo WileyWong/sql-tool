@@ -365,7 +365,9 @@
     "manage": "Manage",
     "editTable": "Edit Table",
     "createDatabase": "Create Database",
-    "dropDatabase": "Drop Database"
+    "dropDatabase": "Drop Database",
+    "viewCreateSql": "View Create Statement",
+    "formatSql": "Format SQL"
   },
   "database": {
     "createDatabase": "Create Database",
@@ -427,6 +429,7 @@
     "noDatabase": "Please connect to a database first",
     "noSql": "Please enter SQL statement",
     "connectionNotExist": "Connection does not exist",
+    "viewCreateSqlFailed": "Failed to retrieve view creation statement",
     "copyFailed": "Copy failed"
   },
   "message": {
