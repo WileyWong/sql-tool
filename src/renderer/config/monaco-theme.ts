@@ -15,7 +15,7 @@ export const THEME_SQL_DARK = 'sql-dark'
  */
 export const themeColors = {
   /** 字符串颜色（橙色） */
-  string: 'f5b801',
+  string: '#f5b801',
 }
 
 /**

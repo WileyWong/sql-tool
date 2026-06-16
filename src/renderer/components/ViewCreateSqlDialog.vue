@@ -35,6 +35,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Loading, WarningFilled } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
+import { registerSqlDarkTheme, getDefaultTheme } from '../config/monaco-theme'
 import * as monaco from 'monaco-editor'
 
 const { t } = useI18n()
@@ -110,11 +111,13 @@ function initEditor() {
   if (!editorContainer.value || !sqlText.value) return
 
   disposeEditor()
+  
+  registerSqlDarkTheme()
 
   editor = monaco.editor.create(editorContainer.value, {
     value: sqlText.value,
     language: 'sql',
-    theme: 'vs-dark',
+    theme: getDefaultTheme(),
     readOnly: true,
     minimap: { enabled: false },
     lineNumbers: 'on',
