@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed, nextTick, watch } from 'vue'
 import { i18n } from '../i18n'
+import type { ErDiagramFile } from '../../shared/types/erd'
+import { createEmptyErDiagram } from '../../shared/types/erd'
 
 // 获取翻译函数
 const t = i18n.global.t
@@ -16,6 +18,10 @@ export interface EditorTab {
   connectionId?: string
   databaseName?: string
   maxRows: number
+  // 标签页类型，默认 'sql'
+  tabType?: 'sql' | 'erd'
+  // ER 图数据（tabType === 'erd' 时有效）
+  erdData?: ErDiagramFile
 }
 
 export const useEditorStore = defineStore('editor', () => {
@@ -45,6 +51,7 @@ export const useEditorStore = defineStore('editor', () => {
   
   // 判断标签页是否为空（可复用）
   function isTabEmpty(tab: EditorTab): boolean {
+    if (tab.tabType === 'erd') return false  // ER 图标签页不可复用
     return tab.content === '' && !tab.filePath
   }
   
@@ -102,6 +109,31 @@ export const useEditorStore = defineStore('editor', () => {
     return tab
   }
   
+  // 创建新 ER 图标签页
+  function createErdTab(erdData?: ErDiagramFile) {
+    tabCounter++
+    const id = `tab-${Date.now()}`
+    const baseTitle = `${t('erd.diagramTab')}${tabCounter}`
+    
+    const tab: EditorTab = {
+      id,
+      title: baseTitle,
+      baseTitle,
+      content: '',
+      filePath: undefined,
+      isDirty: false,
+      connectionId: undefined,
+      databaseName: undefined,
+      maxRows: 5000,
+      tabType: 'erd',
+      erdData: erdData || createEmptyErDiagram()
+    }
+    
+    tabs.value.push(tab)
+    activeTabId.value = id
+    return tab
+  }
+
   // 创建新标签页并自动关联连接和数据库
   function createTabWithConnection(connectionId: string, databaseName: string, content = '') {
     const tab = createTab(content)
@@ -186,41 +218,74 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
   
+  // ER 文件检测：尝试解析 JSON + 检查结构
+  function isErdFile(content: string): boolean {
+    try {
+      const data = JSON.parse(content)
+      return data.version === 1 && Array.isArray(data.tables) && Array.isArray(data.relations)
+    } catch {
+      return false
+    }
+  }
+
   // 打开文件（智能复用空标签页）
   async function openFile() {
     const result = await window.api.file.open()
     if (result.success && result.content !== undefined) {
-      openFileInTab(result.content, result.filePath)
+      if (isErdFile(result.content)) {
+        openErdFileInTab(result.content, result.filePath)
+      } else {
+        openFileInTab(result.content, result.filePath)
+      }
     }
     return result
   }
-  
-  // 智能打开文件（复用空标签页或新建）
+
+  // 智能打开 SQL 文件（复用空标签页或新建）
   function openFileInTab(content: string, filePath?: string) {
     const currentTab = activeTab.value
     
     if (currentTab && isTabEmpty(currentTab)) {
-      // 复用当前空标签页
+      // 复用当前空 SQL 标签页
       currentTab.content = content
       currentTab.filePath = filePath
+      currentTab.tabType = 'sql'
+      currentTab.erdData = undefined
       if (filePath) {
         currentTab.title = filePath.split(/[/\\]/).pop()!
         currentTab.baseTitle = undefined
       } else {
-        // 无文件路径，使用基础标题并考虑数据库名
         const baseTitle = currentTab.baseTitle || `${t('editor.queryTab')}${tabCounter}`
         currentTab.baseTitle = baseTitle
         currentTab.title = generateTitle(baseTitle, currentTab.databaseName)
       }
       currentTab.isDirty = false
       
-      // 使用 nextTick 确保响应式更新完成后再触发编辑器刷新
       nextTick(() => {
         contentUpdateTrigger.value++
       })
     } else {
-      // 新建标签页
       createTab(content, filePath)
+    }
+  }
+
+  // 打开 ER 图文件（始终新建标签页）
+  function openErdFileInTab(content: string, filePath?: string) {
+    try {
+      const data = JSON.parse(content) as ErDiagramFile
+      createErdTab(data)
+      if (filePath) {
+        const tab = activeTab.value
+        if (tab) {
+          tab.filePath = filePath
+          tab.title = filePath.split(/[/\\]/).pop()!
+          tab.baseTitle = undefined
+          tab.isDirty = false
+        }
+      }
+    } catch {
+      // JSON 解析失败，降级为 SQL 打开
+      openFileInTab(content, filePath)
     }
   }
   
@@ -231,7 +296,11 @@ export const useEditorStore = defineStore('editor', () => {
   async function openRecentFile(filePath: string): Promise<{ success: boolean; message?: string }> {
     const result = await window.api.file.readFile(filePath)
     if (result.success && result.content !== undefined) {
-      openFileInTab(result.content, filePath)
+      if (isErdFile(result.content)) {
+        openErdFileInTab(result.content, filePath)
+      } else {
+        openFileInTab(result.content, filePath)
+      }
       return { success: true }
     } else {
       // 文件不存在，从列表移除
@@ -255,15 +324,20 @@ export const useEditorStore = defineStore('editor', () => {
     const tab = tabs.value.find(t => t.id === tabId)
     if (!tab) return { success: false }
     
+    const isErd = tab.tabType === 'erd'
+    const content = isErd ? JSON.stringify(tab.erdData || createEmptyErDiagram(), null, 2) : tab.content
+    
     if (tab.filePath) {
-      const result = await window.api.file.save(tab.filePath, tab.content)
+      const result = await window.api.file.save(tab.filePath, content)
       if (result.success) {
         tab.isDirty = false
       }
       return result
     } else {
       // 无路径，弹出另存为对话框
-      const result = await window.api.file.saveAs(tab.content)
+      const result = isErd 
+        ? await window.api.file.saveAs(content, 'erd')
+        : await window.api.file.saveAs(content)
       if (result.success && result.filePath) {
         tab.isDirty = false
         tab.filePath = result.filePath
@@ -278,16 +352,32 @@ export const useEditorStore = defineStore('editor', () => {
   async function saveFile() {
     if (!activeTab.value) return { success: false }
     
+    const isErd = activeTab.value.tabType === 'erd'
+    const content = isErd ? JSON.stringify(activeTab.value.erdData || createEmptyErDiagram(), null, 2) : activeTab.value.content
+    
     if (activeTab.value.filePath) {
-      const result = await window.api.file.save(activeTab.value.filePath, activeTab.value.content)
+      const result = await window.api.file.save(activeTab.value.filePath, content)
       if (result.success) {
         markSaved()
-        recentFilesVersion.value++ // 触发最近文件列表刷新
+        recentFilesVersion.value++
       }
       return result
     } else {
-      return saveFileAs()
+      return isErd ? saveErdFileAs() : saveFileAs()
     }
+  }
+
+  // ER 图另存为
+  async function saveErdFileAs() {
+    if (!activeTab.value) return { success: false }
+    
+    const content = JSON.stringify(activeTab.value.erdData || createEmptyErDiagram(), null, 2)
+    const result = await window.api.file.saveAs(content, 'erd')
+    if (result.success && result.filePath) {
+      markSaved(result.filePath)
+      recentFilesVersion.value++
+    }
+    return result
   }
   
   // 另存为
@@ -297,7 +387,7 @@ export const useEditorStore = defineStore('editor', () => {
     const result = await window.api.file.saveAs(activeTab.value.content)
     if (result.success && result.filePath) {
       markSaved(result.filePath)
-      recentFilesVersion.value++ // 触发最近文件列表刷新
+      recentFilesVersion.value++
     }
     return result
   }
@@ -360,7 +450,9 @@ export const useEditorStore = defineStore('editor', () => {
         isDirty: tab.isDirty,
         connectionId: tab.connectionId,
         databaseName: tab.databaseName,
-        maxRows: tab.maxRows
+        maxRows: tab.maxRows,
+        tabType: tab.tabType,
+        erdData: tab.erdData
       }))
     }
   }
@@ -379,6 +471,8 @@ export const useEditorStore = defineStore('editor', () => {
       connectionId?: string
       databaseName?: string
       maxRows: number
+      tabType?: 'sql' | 'erd'
+      erdData?: ErDiagramFile
     }[]
   }): boolean {
     if (!state.tabs || state.tabs.length === 0) {
@@ -393,12 +487,14 @@ export const useEditorStore = defineStore('editor', () => {
       id: t.id,
       title: t.title,
       baseTitle: t.baseTitle,
-      content: t.content,
+      content: t.content || '',
       filePath: t.filePath,
       isDirty: t.isDirty,
       connectionId: t.connectionId,
       databaseName: t.databaseName,
-      maxRows: t.maxRows ?? 5000
+      maxRows: t.maxRows ?? 5000,
+      tabType: t.tabType || 'sql',
+      erdData: t.erdData
     }))
 
     // 恢复激活的 tab
@@ -411,10 +507,13 @@ export const useEditorStore = defineStore('editor', () => {
     return true
   }
 
-  // 防抖自动保存会话状态（每次 tabs 变化后 3 秒保存）
+  // 防抖自动保存会话状态（每次 tabs 变化后保存，ERD 使用更长间隔）
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   function debouncedSaveSession() {
     if (saveTimer) clearTimeout(saveTimer)
+    // ERD 标签页数据量大，使用 10 秒间隔；纯 SQL 标签页使用 3 秒
+    const hasErdDirty = tabs.value.some(t => t.tabType === 'erd' && t.isDirty)
+    const delay = hasErdDirty ? 10000 : 3000
     saveTimer = setTimeout(() => {
       try {
         const state = serializeTabs()
@@ -422,7 +521,7 @@ export const useEditorStore = defineStore('editor', () => {
       } catch {
         // 忽略
       }
-    }, 3000)
+    }, delay)
   }
 
   // 监听 tabs 的深层变化，自动增量保存
@@ -442,6 +541,7 @@ export const useEditorStore = defineStore('editor', () => {
     // 方法
     init,
     createTab,
+    createErdTab,
     createTabWithConnection,
     closeTab,
     switchTab,
@@ -453,12 +553,14 @@ export const useEditorStore = defineStore('editor', () => {
     openRecentFile,
     saveFile,
     saveFileAs,
+    saveErdFileAs,
     saveTabById,
     getSelectedSql,
     setHoverHint,
     reorderTabs,
     clearTabDatabase,
     isTabEmpty,
+    isErdFile,
     hasUnsavedChanges,
     getUnsavedTabs,
     serializeTabs,

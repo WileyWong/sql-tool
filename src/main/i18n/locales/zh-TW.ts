@@ -8,6 +8,7 @@ export default {
     help: '說明(&H)',
     newConnection: '新建連線',
     newQuery: '新建查詢',
+    newErDiagram: '新建 ER 圖',
     openFile: '開啟檔案',
     save: '儲存',
     saveAs: '另存新檔',

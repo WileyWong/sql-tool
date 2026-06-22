@@ -26,146 +26,33 @@
       </el-tab-pane>
     </el-tabs>
     
-    <!-- 连接信息栏 -->
-    <div class="connection-info">
-      <div class="info-item">
-        <span class="label">{{ $t('editor.server') }}:</span>
-        <el-select 
-          v-model="selectedConnectionId" 
-          class="info-select"
-          filterable
-          clearable
-          :placeholder="$t('editor.selectConnection')"
-          popper-class="info-select-dropdown"
-          :filter-method="filterConnections"
-          @visible-change="handleConnectionDropdownVisibleChange"
-        >
-          <el-option 
-            v-for="conn in filteredConnections" 
-            :key="conn.id" 
-            :value="conn.id"
-            :label="conn.name"
-          />
-        </el-select>
-        <el-tooltip
-          v-if="selectedConnectionId"
-          :content="connectionStatusTooltip"
-          placement="bottom"
-          :show-after="300"
-        >
-          <span 
-            class="connection-status-icon"
-            :class="connectionStatusClass"
-            @click.stop="handleConnectionStatusClick"
-          >
-            <el-icon :class="connectionStatusIconClass">
-              <component :is="connectionStatusIcon" />
-            </el-icon>
-          </span>
-        </el-tooltip>
-      </div>
-      <div class="info-item">
-        <span class="label">{{ $t('editor.database') }}:</span>
-        <el-select 
-          v-model="selectedDatabase" 
-          class="info-select"
-          filterable
-          clearable
-          :placeholder="$t('editor.selectDatabase')"
-          popper-class="info-select-dropdown"
-          :filter-method="filterDatabases"
-          @visible-change="handleDatabaseDropdownVisibleChange"
-        >
-          <el-option 
-            v-for="db in filteredDatabases" 
-            :key="db" 
-            :value="db"
-            :label="db"
-          />
-        </el-select>
-      </div>
-      <div class="info-item">
-        <span class="label">{{ $t('editor.user') }}:</span>
-        <span class="value">{{ currentUser }}</span>
-      </div>
-      <div class="info-item">
-        <span class="label">{{ $t('editor.maxRows') }}:</span>
-        <input 
-          type="text" 
-          v-model="maxRowsInput" 
-          class="max-rows-input"
-          @input="handleMaxRowsInput"
-          @change="handleMaxRowsChange"
-        />
-      </div>
-    </div>
+    <!-- SQL 标签页内容 -->
+    <SqlEditorPanel v-if="isSqlTab" ref="sqlEditorPanelRef" />
     
-    <!-- 编辑器容器 -->
-    <div ref="editorContainer" class="editor-container"></div>
-
-    <!-- 视图创建语句弹窗 -->
-    <ViewCreateSqlDialog
-      v-model="viewCreateDialogVisible"
-      :connection-id="viewCreateInfo.connectionId"
-      :database="viewCreateInfo.database"
-      :view-name="viewCreateInfo.viewName"
-    />
+    <!-- ER 图标签页内容 -->
+    <ErDiagramPanel v-else-if="isErdTab" ref="erdDiagramPanelRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
+import { computed, ref, onMounted, onUnmounted, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
-import * as monaco from 'monaco-editor'
-import { ElMessage } from 'element-plus'
-import { Connection, Loading } from '@element-plus/icons-vue'
 import Sortable from 'sortablejs'
 import { useEditorStore } from '../stores/editor'
-import { useConnectionStore } from '../stores/connection'
 import { useResultStore } from '../stores/result'
-import { eventBus, type EventBusEvents } from '../utils/eventBus'
-import { registerSqlDarkTheme, getDefaultTheme } from '../config/monaco-theme'
-import { useLanguageServer } from '../composables/useLanguageServer'
-import { useEditorModel } from '../composables/useEditorModel'
-import ViewCreateSqlDialog from './ViewCreateSqlDialog.vue'
-import { DEFAULT_MAX_ROWS } from '../constants/layout'
+import SqlEditorPanel from './SqlEditorPanel.vue'
+import ErDiagramPanel from './ErDiagram/ErDiagramPanel.vue'
 
 const { t } = useI18n()
 const editorStore = useEditorStore()
-const connectionStore = useConnectionStore()
 const resultStore = useResultStore()
 
-// 使用 Composables
-const languageServer = useLanguageServer()
-const editorModelManager = useEditorModel()
+const sqlEditorPanelRef = ref<InstanceType<typeof SqlEditorPanel>>()
 
-// 注入保存确认对话框
 const saveConfirmDialog = inject<{ show: (tabId: string, title: string, filePath?: string) => Promise<'save' | 'dontSave' | 'cancel'> }>('saveConfirmDialog')
-// 注入数据操作（用于关闭 Tab 时清理状态）
 const dataOperations = inject<{ hasUnsavedChanges: () => boolean; clearChanges: () => void; cleanupTab: (tabId: string) => void }>('dataOperations')
 
-const editorContainer = ref<HTMLElement>()
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let sortableInstance: Sortable | null = null
-
-// 获取选中的文本（如果有选中则返回选中内容，否则返回全部）
-function getSelectedText(): string {
-  if (!editor) return editorStore.currentSql
-  
-  const selection = editor.getSelection()
-  if (selection && !selection.isEmpty()) {
-    const selectedText = editor.getModel()?.getValueInRange(selection)
-    if (selectedText && selectedText.trim()) {
-      return selectedText.trim()
-    }
-  }
-  return editorStore.currentSql
-}
-
-// 暴露方法给父组件
-defineExpose({
-  getSelectedText
-})
 
 const tabs = computed(() => editorStore.tabs)
 const activeTabId = computed({
@@ -173,601 +60,65 @@ const activeTabId = computed({
   set: (val) => editorStore.switchTab(val)
 })
 
-// 连接信息
-const connections = computed(() => connectionStore.connections)
-const selectedConnectionId = ref('')
-const selectedDatabase = ref('')
-const maxRowsInput = ref(String(DEFAULT_MAX_ROWS))
+const isSqlTab = computed(() => editorStore.activeTab?.tabType !== 'erd')
+const isErdTab = computed(() => editorStore.activeTab?.tabType === 'erd')
 
-// 连接状态刷新中标记
-const isRefreshingStatus = ref(false)
-
-// 记录最近一次元数据刷新对应的 connectionId|databaseName
-// 用于区分"已连接+元数据已就绪"和"已连接+元数据未刷新"
-const metadataRefreshedKey = ref('')
-
-// 视图创建语句弹窗状态
-const viewCreateDialogVisible = ref(false)
-const viewCreateInfo = ref({
-  connectionId: '',
-  database: '',
-  viewName: ''
-})
-
-// 当前连接+数据库的元数据是否已刷新
-const hasMetadataRefreshed = computed(() => {
-  if (!selectedConnectionId.value || !selectedDatabase.value) return false
-  return metadataRefreshedKey.value === `${selectedConnectionId.value}|${selectedDatabase.value}`
-})
-
-// 获取当前选中连接的连接状态
-const connectionStatus = computed(() => {
-  if (!selectedConnectionId.value) return 'disconnected'
-  const conn = connectionStore.connections.find(c => c.id === selectedConnectionId.value)
-  return conn?.status || 'disconnected'
-})
-
-// 连接状态图标
-const connectionStatusIcon = computed(() => {
-  if (isRefreshingStatus.value) return Loading
-  return Connection
-})
-
-// 连接状态图标 CSS 类（用于着色）
-const connectionStatusIconClass = computed(() => {
-  if (isRefreshingStatus.value) return ''
-  const status = connectionStatus.value
-  if (status === 'connected') {
-    return hasMetadataRefreshed.value ? 'status-connected-metadata' : 'status-connected-nometa'
-  }
-  if (status === 'connecting') return 'status-connecting'
-  if (status === 'error') return 'status-error'
-  return 'status-disconnected'
-})
-
-// 连接状态容器 CSS 类
-const connectionStatusClass = computed(() => {
-  if (isRefreshingStatus.value) return 'refreshing'
-  return ''
-})
-
-// 连接状态 Tooltip
-const connectionStatusTooltip = computed(() => {
-  if (isRefreshingStatus.value) return t('editor.connectingStatus')
-  const status = connectionStatus.value
-  if (status === 'connected') {
-    return hasMetadataRefreshed.value ? t('editor.metadataReady') : t('editor.needRefreshMetadata')
-  }
-  if (status === 'connecting') return t('editor.connectingStatus')
-  if (status === 'error') return t('editor.clickToReconnect')
-  return t('editor.clickToConnect')
-})
-
-// 标记元数据已刷新（供多处调用后统一记录）
-function markMetadataRefreshed(connId?: string, dbName?: string) {
-  const cid = connId || selectedConnectionId.value
-  const db = dbName || selectedDatabase.value
-  if (cid && db) {
-    metadataRefreshedKey.value = `${cid}|${db}`
-  }
+// 获取选中的 SQL 文本（桥接给 Toolbar）
+function getSelectedText(): string {
+  return sqlEditorPanelRef.value?.getSelectedText() || ''
 }
 
-// 点击连接状态图标：连接并强制刷新元数据
-async function handleConnectionStatusClick() {
-  if (isRefreshingStatus.value || !selectedConnectionId.value) return
+defineExpose({ getSelectedText })
 
-  isRefreshingStatus.value = true
-  try {
-    const connId = selectedConnectionId.value
-    const conn = connectionStore.connections.find(c => c.id === connId)
-
-    // 如果未连接，先连接（复用左侧树形控件的同一套 connect 代码）
-    if (!conn || conn.status !== 'connected') {
-      const result = await connectionStore.connect(connId)
-      if (!result.success) {
-        ElMessage.error(t('error.connectionFailed', { message: result.message || t('error.unknown') }))
-        return
-      }
-      // 连接成功后更新 Language Server 上下文
-      await languageServer.checkAndUpdateContext(connId, selectedDatabase.value)
-    }
-
-    // 强制刷新元数据（核心目的）
-    await languageServer.checkAndUpdateMetadata(connId, selectedDatabase.value, true)
-    markMetadataRefreshed(connId, selectedDatabase.value)
-    ElMessage.success(t('editor.metadataRefreshed'))
-  } catch (err: any) {
-    ElMessage.error(err?.message || t('error.unknown'))
-  } finally {
-    isRefreshingStatus.value = false
-  }
-}
-
-// 过滤相关
-const connectionFilterText = ref('')
-const databaseFilterText = ref('')
-
-// 过滤后的连接列表
-const filteredConnections = computed(() => {
-  if (!connectionFilterText.value) {
-    return connections.value
-  }
-  const keyword = connectionFilterText.value.toLowerCase()
-  return connections.value.filter(conn => 
-    conn.name.toLowerCase().includes(keyword)
-  )
-})
-
-// 过滤后的数据库列表
-const filteredDatabases = computed(() => {
-  if (!selectedConnectionId.value) return []
-  const conn = connections.value.find(c => c.id === selectedConnectionId.value)
-  if (!conn || conn.status !== 'connected') return []
-  const allDatabases = connectionStore.getDatabaseNames(selectedConnectionId.value)
-  
-  if (!databaseFilterText.value) {
-    return allDatabases
-  }
-  const keyword = databaseFilterText.value.toLowerCase()
-  return allDatabases.filter(db => 
-    db.toLowerCase().includes(keyword)
-  )
-})
-
-// 连接过滤方法
-const filterConnections = (query: string) => {
-  connectionFilterText.value = query
-}
-
-// 数据库过滤方法
-const filterDatabases = (query: string) => {
-  databaseFilterText.value = query
-}
-
-// 连接下拉框显示/隐藏时重置过滤
-const handleConnectionDropdownVisibleChange = (visible: boolean) => {
-  if (!visible) {
-    connectionFilterText.value = ''
-  }
-}
-
-// 数据库下拉框显示/隐藏时重置过滤
-const handleDatabaseDropdownVisibleChange = (visible: boolean) => {
-  if (!visible) {
-    databaseFilterText.value = ''
-  }
-}
-
-// 标志：是否正在恢复标签页设置（防止 watch 触发时覆盖数据）
-let isRestoringTabSettings = false
-
-// 当前用户
-const currentUser = computed(() => {
-  if (!selectedConnectionId.value) return '-'
-  const conn = connections.value.find(c => c.id === selectedConnectionId.value)
-  return conn?.username || '-'
-})
-
-// 语法验证回调
-function scheduleValidation() {
-  languageServer.scheduleValidation(() => {
-    languageServer.validateDocument(editor?.getModel() ?? null)
-  })
-}
-
-// 切换 Model 封装
-function switchToTabModel(tabId: string, content: string) {
-  editorModelManager.switchToTabModel(editor, tabId, content, scheduleValidation)
-}
-
-// 监听标签页切换，恢复该标签页的连接设置
-watch(() => editorStore.activeTab, (tab, oldTab) => {
-  if (tab) {
-    // 切换结果面板到对应的编辑器标签页
-    resultStore.switchToEditorTab(tab.id)
-    
-    // 设置标志，防止 watch 触发时覆盖 databaseName
-    isRestoringTabSettings = true
-    selectedConnectionId.value = tab.connectionId || ''
-    selectedDatabase.value = tab.databaseName || ''
-    maxRowsInput.value = String(tab.maxRows || DEFAULT_MAX_ROWS)
-    
-    // 同步重置标志（不需要等待 nextTick）
-    isRestoringTabSettings = false
-    
-    // 切换 Monaco Model（高性能方案）
-    if (editor) {
-      switchToTabModel(tab.id, tab.content)
-    }
-    
-    // 仅在连接或数据库变化时更新 Language Server
-    const connectionChanged = tab.connectionId !== oldTab?.connectionId
-    const databaseChanged = tab.databaseName !== oldTab?.databaseName
-    
-    if (connectionChanged || databaseChanged) {
-      // 延迟更新，避免阻塞切换
-      queueMicrotask(() => {
-        languageServer.checkAndUpdateContext(selectedConnectionId.value, selectedDatabase.value)
-        if (databaseChanged) {
-          languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value)
-        }
-      })
-    }
-  }
-}, { immediate: true })
-
-// 监听内容更新触发器（用于复用空标签页时刷新编辑器）
-watch(() => editorStore.contentUpdateTrigger, () => {
-  const tab = editorStore.activeTab
-  if (tab && editor) {
-    // 使用 Model 切换方式
-    switchToTabModel(tab.id, tab.content)
-  }
-})
-
-// 监听当前标签页的连接设置变化（用于响应外部切换，如双击数据库树）
-watch(() => editorStore.activeTab?.connectionId, (newConnectionId) => {
-  // 恢复标签页设置时跳过
-  if (isRestoringTabSettings) return
-  if (newConnectionId !== undefined && newConnectionId !== selectedConnectionId.value) {
-    selectedConnectionId.value = newConnectionId || ''
-  }
-})
-
-watch(() => editorStore.activeTab?.databaseName, (newDatabaseName) => {
-  // 恢复标签页设置时跳过
-  if (isRestoringTabSettings) return
-  if (newDatabaseName !== undefined && newDatabaseName !== selectedDatabase.value) {
-    selectedDatabase.value = newDatabaseName || ''
-  }
-})
-
-// 监听连接选择变化
-watch(selectedConnectionId, async (newId, oldId) => {
-  if (newId) {
-    const conn = connections.value.find(c => c.id === newId)
-    if (conn && conn.status !== 'connected') {
-      const result = await connectionStore.connect(newId)
-      if (!result.success) {
-        ElMessage.error(t('error.connectionFailed', { message: result.message || t('error.unknown') }))
-        return
-      }
-    }
-    connectionStore.setCurrentConnection(newId)
-  }
-  
-  // 恢复标签页设置时不更新（避免覆盖 databaseName）
-  if (!isRestoringTabSettings) {
-    // 连接切换时，主动销毁旧 session 释放连接资源
-    const tabId = editorStore.activeTabId
-    if (tabId && oldId && oldId !== newId) {
-      window.api.session.destroy(tabId, oldId).catch(() => {})
-    }
-    editorStore.updateTabConnection(newId || undefined, selectedDatabase.value || undefined)
-  }
-  
-  // 使用 Composable 更新上下文
-  await languageServer.checkAndUpdateContext(newId, selectedDatabase.value)
-  // 连接变更后，元数据标记为过时
-  if (oldId && oldId !== newId) {
-    metadataRefreshedKey.value = ''
-  }
-})
-
-// 监听数据库选择变化
-watch(selectedDatabase, async (newDb, oldDb) => {
-  if (!isRestoringTabSettings) {
-    // 切换数据库时，销毁旧 session 释放连接，下次执行时会自动重建
-    const tabId = editorStore.activeTabId
-    const connId = selectedConnectionId.value
-    if (tabId && connId && oldDb && oldDb !== newDb) {
-      window.api.session.destroy(tabId, connId).catch(() => {})
-    }
-    editorStore.updateTabConnection(connId || undefined, newDb || undefined)
-  }
-  
-  // 使用 Composable 更新元数据
-  await languageServer.checkAndUpdateMetadata(selectedConnectionId.value, newDb)
-  // 标记当前连接+数据库的元数据已刷新
-  markMetadataRefreshed(selectedConnectionId.value, newDb || undefined)
-})
-
-function handleMaxRowsInput(e: Event) {
-  const target = e.target as HTMLInputElement
-  target.value = target.value.replace(/[^0-9]/g, '')
-  maxRowsInput.value = target.value
-}
-
-function handleMaxRowsChange() {
-  const maxRows = parseInt(maxRowsInput.value) || DEFAULT_MAX_ROWS
-  editorStore.updateTabMaxRows(maxRows)
-}
-
-// 初始化编辑器
-function initEditor() {
-  if (!editorContainer.value) return
-  
-  // 注册自定义主题
-  registerSqlDarkTheme()
-  
-  // 获取当前标签页的 Model
-  const currentTab = editorStore.activeTab
-  const initialModel = currentTab 
-    ? editorModelManager.getOrCreateModel(currentTab.id, currentTab.content, scheduleValidation)
-    : null
-  
-  editor = monaco.editor.create(editorContainer.value, {
-    model: initialModel,  // 直接使用 Model
-    language: 'sql',
-    theme: getDefaultTheme(),
-    automaticLayout: true,
-    minimap: { enabled: false },
-    fontSize: 14,
-    lineNumbers: 'on',
-    scrollBeyondLastLine: false,
-    wordWrap: 'on',
-    tabSize: 2,
-    suggestOnTriggerCharacters: true,
-    quickSuggestions: true
-  })
-  
-  // 注册 Language Server 提供者
-  languageServer.registerProviders()
-  
-  // 注册格式化快捷键
-  editor.addAction({
-    id: 'sql.format',
-    label: '格式化 SQL',
-    keybindings: [
-      monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF
-    ],
-    run: () => languageServer.formatDocument(editor)
-  })
-  
-  // 注册执行 SQL 右键菜单
-  editor.addAction({
-    id: 'sql.execute',
-    label: t('common.execute'),
-    contextMenuGroupId: 'navigation',
-    contextMenuOrder: 0,
-    run: () => {
-      eventBus.emit('execute-sql')
-    }
-  })
-  
-  // 注册格式化 SQL 右键菜单
-  editor.addAction({
-    id: 'sql.format-context',
-    label: t('contextMenu.formatSql'),
-    contextMenuGroupId: 'navigation',
-    contextMenuOrder: 1,
-    run: () => languageServer.formatDocument(editor)
-  })
-  
-  // 监听 hover widget 的显示/隐藏（用于清除状态栏提示）
-  // @ts-ignore - Monaco 内部 API，可能不在类型定义中
-  editor.onDidChangeHoverVisibility?.((e: { visible: boolean }) => {
-    if (!e.visible) {
-      languageServer.clearHoverState()
-    }
-  })
-}
-
-// 获取标签页 Tooltip 内容
 function getTabTooltip(tab: typeof editorStore.tabs[0]): string {
-  if (!tab.filePath) {
-    // 从未保存的文件
-    return t('editor.unsaved')
-  }
-  if (tab.isDirty) {
-    // 已保存但被修改
-    return `${tab.filePath} (${t('editor.modified')})`
-  }
-  // 已保存且未修改
+  if (!tab.filePath) return t('editor.unsaved')
+  if (tab.isDirty) return `${tab.filePath} (${t('editor.modified')})`
   return tab.filePath
 }
 
-// 标签页移除（带保存确认）
 async function handleTabRemove(tabId: string | number) {
   const id = String(tabId)
   const tab = editorStore.tabs.find(t => t.id === id)
-  
   if (tab && tab.isDirty) {
-    // 有未保存的更改，弹出确认对话框
     if (!saveConfirmDialog) {
-      // 降级到 window.confirm
       const fileName = tab.filePath ? tab.filePath.split(/[/\\]/).pop() : tab.title
-      const result = window.confirm(`文件 "${fileName}" 已修改，是否保存更改？\n\n点击"确定"保存，点击"取消"不保存并关闭。`)
-      
-      if (result) {
+      const confirmed = window.confirm(`文件 "${fileName}" 已修改，是否保存更改？\n\n点击"确定"保存，点击"取消"不保存并关闭。`)
+      if (confirmed) {
         const saveResult = await editorStore.saveTabById(id)
-        if (!saveResult.success && saveResult.canceled) {
-          return
-        }
+        if (!saveResult.success && (saveResult as any).canceled) return
       }
     } else {
-      const result = await saveConfirmDialog.show(
-        tab.id,
-        tab.title,
-        tab.filePath
-      )
-      
+      const result = await saveConfirmDialog.show(tab.id, tab.title, tab.filePath)
       if (result === 'save') {
-        // 用户选择保存
         const saveResult = await editorStore.saveTabById(id)
-        if (!saveResult.success && saveResult.canceled) {
-          // 用户取消了另存为对话框，不关闭标签页
-          return
-        }
-      } else if (result === 'cancel') {
-        // 用户取消，不关闭标签页
-        return
-      }
-      // result === 'dontSave' 时继续关闭
+        if (!saveResult.success && (saveResult as any).canceled) return
+      } else if (result === 'cancel') return
     }
   }
-  
-  // 清理该标签页的结果数据
   resultStore.cleanupEditorTab(id)
-  // 清理该标签页的数据操作状态
   dataOperations?.cleanupTab(id)
-  // 清理该标签页的 Monaco Model
-  editorModelManager.disposeTabModel(id)
   editorStore.closeTab(id)
 }
 
-// 标签页切换
 function handleTabChange(tabId: string | number) {
   editorStore.switchTab(String(tabId))
 }
 
-// 保存快捷键处理
 async function handleSaveShortcut(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault()
     const result = await editorStore.saveFile()
     if (result.success) {
-      // 更新最近文件菜单
       const recentFiles = await window.api.file.getRecentFiles()
       await window.api.menu.updateRecentFiles(recentFiles.slice(0, 10))
     }
   }
 }
 
-/**
- * 处理 hover widget 点击事件
- * 支持点击表名打开表管理，点击视图名查看创建语句
- */
-function handleHoverClick(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  
-  // 检查点击的是否在 hover widget 内
-  const hoverWidget = target.closest('.monaco-hover')
-  if (!hoverWidget) {
-    // 点击非 hover 区域，清除 hover 状态
-    languageServer.clearHoverState()
-    return
-  }
-  
-  // 检查点击的是否是 code 标签
-  const codeElement = target.tagName === 'CODE' ? target : target.closest('code')
-
-  // ===== 检查是否点击了快捷操作 =====
-  if (codeElement && languageServer.currentHoverActions.value) {
-    const hoverContent = hoverWidget.querySelector('.monaco-hover-content')
-    if (hoverContent) {
-      const hr = hoverContent.querySelector('hr')
-      if (hr) {
-        // 检查 code 元素是否在 hr 之后
-        const isAfterHr = !!(hr.compareDocumentPosition(codeElement) & Node.DOCUMENT_POSITION_FOLLOWING)
-        if (isAfterHr) {
-          // 通过 title 文本匹配操作索引
-          const clickedTitle = codeElement.textContent
-          const actionIndex = languageServer.currentHoverActions.value.findIndex(
-            a => a.title === clickedTitle
-          )
-          if (actionIndex !== -1 && editor) {
-            e.preventDefault()
-            e.stopPropagation()
-            languageServer.executeHoverAction(editor, actionIndex)
-            return
-          }
-        }
-      }
-    }
-  }
-
-  // 获取 hover 内容的第一个段落（名称所在行）
-  const hoverContent = hoverWidget.querySelector('.monaco-hover-content')
-  if (!hoverContent) return
-  const firstParagraph = hoverContent.querySelector('p')
-
-  // ===== 检查是否点击了表名 =====
-  if (languageServer.currentHoverTableInfo.value && codeElement && firstParagraph && firstParagraph.contains(codeElement)) {
-    const tableName = languageServer.currentHoverTableInfo.value.name
-    if (codeElement.textContent === tableName) {
-      e.preventDefault()
-      e.stopPropagation()
-      languageServer.openTableManageFromHover()
-      return
-    }
-  }
-
-  // ===== 检查是否点击了视图名 =====
-  if (languageServer.currentHoverViewInfo.value && codeElement && firstParagraph && firstParagraph.contains(codeElement)) {
-    const viewName = languageServer.currentHoverViewInfo.value.name
-    if (codeElement.textContent === viewName) {
-      e.preventDefault()
-      e.stopPropagation()
-      // 打开视图创建语句弹窗
-      const connId = languageServer.lastConnectionId.value
-      const dbName = languageServer.lastDatabaseName.value
-      if (connId && dbName) {
-        viewCreateInfo.value = {
-          connectionId: connId,
-          database: dbName,
-          viewName: viewName
-        }
-        viewCreateDialogVisible.value = true
-      }
-      return
-    }
-  }
-}
-
-/**
- * 监听鼠标移动，检测 hover widget 是否关闭
- */
-function handleMouseMove(e: MouseEvent) {
-  // 如果没有 hover 状态，不需要检测
-  if (!languageServer.currentHoverTableInfo.value && !languageServer.currentHoverViewInfo.value && !languageServer.currentHoverActions.value) return
-  
-  const target = e.target as HTMLElement
-  // 检查鼠标是否在 hover widget 或编辑器内
-  const hoverWidget = document.querySelector('.monaco-hover')
-  const editorElement = editorContainer.value
-  
-  if (hoverWidget && hoverWidget.contains(target)) {
-    // 鼠标在 hover widget 内，保持状态
-    return
-  }
-  
-  if (editorElement && editorElement.contains(target)) {
-    // 鼠标在编辑器内但不在 hover widget 内
-    // 检查 hover widget 是否还存在（可能已关闭）
-    if (!hoverWidget || !document.body.contains(hoverWidget)) {
-      languageServer.clearHoverState()
-    }
-    return
-  }
-  
-  // 鼠标离开了编辑器区域，清除状态
-  languageServer.clearHoverState()
-}
-
-/**
- * 处理连接树刷新事件
- */
-function handleConnectionTreeRefresh(payload: EventBusEvents['connectionTree:refresh']) {
-  // 检查是否是当前编辑器使用的连接和数据库
-  if (
-    payload.connectionId === selectedConnectionId.value &&
-    (!payload.databaseName || payload.databaseName === selectedDatabase.value)
-  ) {
-    // 强制刷新 Language Server 元数据
-    languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value, true)
-    // 标记元数据已刷新
-    markMetadataRefreshed(selectedConnectionId.value, selectedDatabase.value)
-  }
-}
-
-// 初始化标签页拖拽排序
 function initTabSortable() {
-  // 等待 DOM 更新
   setTimeout(() => {
     const tabNav = document.querySelector('.sql-editor .el-tabs__nav') as HTMLElement
     if (!tabNav) return
-
     sortableInstance = new Sortable(tabNav, {
       animation: 150,
       draggable: '.el-tabs__item',
@@ -775,25 +126,11 @@ function initTabSortable() {
       dragClass: 'sortable-drag',
       delay: 0,
       onEnd: (evt) => {
-
-        // 如果位置没有变化，不做任何操作
         if (evt.oldIndex === evt.newIndex) return
-
-        // 获取新的标签页顺序
         const newOrder: string[] = []
         const tabItems = tabNav.querySelectorAll('.el-tabs__item')
-        tabItems.forEach((item) => {
-          // 从 data-name 属性获取 tab id
-          const tabId = item.getAttribute('data-name')
-          if (tabId) {
-            newOrder.push(tabId)
-          }
-        })
-
-        // 更新 store 中的标签页顺序
-        if (newOrder.length > 0) {
-          editorStore.reorderTabs(newOrder)
-        }
+        tabItems.forEach((item) => newOrder.push(item.getAttribute('data-name') || ''))
+        if (newOrder.length > 0) editorStore.reorderTabs(newOrder)
       }
     })
   }, 100)
@@ -801,379 +138,26 @@ function initTabSortable() {
 
 onMounted(async () => {
   await editorStore.init()
-  initEditor()
-  // 添加键盘快捷键监听
   window.addEventListener('keydown', handleSaveShortcut)
-
-  // 添加 hover widget 点击监听
-  document.addEventListener('click', handleHoverClick)
-
-  // 添加鼠标移动监听，用于检测 hover widget 关闭
-  document.addEventListener('mousemove', handleMouseMove)
-
-  // 监听连接树刷新事件
-  eventBus.on('connectionTree:refresh', handleConnectionTreeRefresh)
-
-  // 初始化 Language Server 元数据
-  // 先确保连接已建立（如果标签页恢复时有 connectionId），再加载元数据
-  const connId = selectedConnectionId.value
-  const dbName = selectedDatabase.value
-  if (connId) {
-    const conn = connectionStore.connections.find(c => c.id === connId)
-    if (!conn || conn.status !== 'connected') {
-      // 等待连接建立（watch 中会触发 connect，这里等待它完成）
-      // 如果 watch 已经在连接中，等它完成；如果已经完成，直接加载元数据
-      const result = await connectionStore.connect(connId)
-      if (result.success) {
-        await languageServer.checkAndUpdateContext(connId, dbName)
-        await languageServer.checkAndUpdateMetadata(connId, dbName, true)
-        markMetadataRefreshed(connId, dbName)
-      }
-    } else {
-      // 已连接，直接刷新元数据
-      await languageServer.checkAndUpdateMetadata(connId, dbName, true)
-      markMetadataRefreshed(connId, dbName)
-    }
-  } else {
-    // 无连接，使用默认初始化
-    await languageServer.checkAndUpdateMetadata(selectedConnectionId.value, selectedDatabase.value)
-  }
-
-  // 初始化标签页拖拽排序
   initTabSortable()
 })
 
 onUnmounted(() => {
-  // 清理 Language Server 资源
-  languageServer.dispose()
-
-  // 清理所有 Model
-  editorModelManager.disposeAllModels()
-
-  editor?.dispose()
-  // 移除键盘快捷键监听
   window.removeEventListener('keydown', handleSaveShortcut)
-
-  // 移除 hover widget 点击监听
-  document.removeEventListener('click', handleHoverClick)
-
-  // 移除鼠标移动监听
-  document.removeEventListener('mousemove', handleMouseMove)
-
-  // 移除事件总线监听
-  eventBus.off('connectionTree:refresh', handleConnectionTreeRefresh)
-
-  // 销毁 Sortable 实例
-  if (sortableInstance) {
-    sortableInstance.destroy()
-    sortableInstance = null
-  }
+  if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null }
 })
 </script>
 
 <style scoped>
-.sql-editor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: var(--bg-base);
-}
+.sql-editor { display: flex; flex-direction: column; height: 100%; background: var(--bg-base); }
 
-.sql-editor :deep(.el-tabs__header) {
-  margin: 0;
-  padding: 0 8px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.sql-editor :deep(.el-tabs__nav-wrap) {
-  background: var(--bg-surface);
-}
-
-.sql-editor :deep(.el-tabs__item) {
-  height: 32px;
-  line-height: 32px;
-  color: var(--text-primary);
-  border-color: var(--border-color) !important;
-  background: var(--bg-surface);
-}
-
-.sql-editor :deep(.el-tabs__item:hover) {
-  color: var(--text-bright);
-}
-
-.sql-editor :deep(.el-tabs__item.is-active) {
-  color: var(--text-bright);
-  background: var(--bg-base);
-  border-bottom-color: var(--color-primary) !important;
-}
-
-.sql-editor :deep(.el-tabs__nav) {
-  border-color: var(--border-color);
-}
-
-/* 连接信息栏 */
-.connection-info {
-  background: var(--bg-surface);
-  padding: 8px 12px;
-  display: flex;
-  gap: 20px;
-  font-size: 12px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.info-item .label {
-  color: var(--text-placeholder);
-}
-
-.info-item .value {
-  color: #4ec9b0;
-  font-weight: 500;
-}
-
-/* 连接状态图标 */
-.connection-status-icon {
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 3px;
-  transition: background 0.2s, opacity 0.2s;
-  flex-shrink: 0;
-}
-
-.connection-status-icon:hover {
-  background: var(--bg-hover, rgba(255,255,255,0.05));
-}
-
-.connection-status-icon.refreshing {
-  cursor: wait;
-  animation: status-spin 1s linear infinite;
-}
-
-@keyframes status-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.connection-status-icon .el-icon {
-  font-size: 14px;
-  transition: color 0.3s;
-}
-
-.connection-status-icon .el-icon.status-connected {
-  color: #4ec9b0;
-}
-
-/* 已连接但元数据未刷新：绿色但半透明+虚框，与上面实心绿色区分 */
-.connection-status-icon .el-icon.status-connected-nometa {
-  color: #4ec9b0;
-  opacity: 0.55;
-}
-
-.connection-status-icon .el-icon.status-connected-metadata {
-  color: #4ec9b0;
-}
-
-.connection-status-icon .el-icon.status-connecting {
-  color: #e6a23c;
-}
-
-.connection-status-icon .el-icon.status-error {
-  color: #f48771;
-}
-
-.connection-status-icon .el-icon.status-disconnected {
-  color: #909399;
-}
-
-.info-select {
-  width: 180px;
-}
-
-.info-select :deep(.el-select__wrapper) {
-  background-color: var(--bg-elevated);
-  box-shadow: 0 0 0 1px var(--border-color) inset;
-}
-
-.info-select :deep(.el-select__wrapper:hover) {
-  box-shadow: 0 0 0 1px var(--color-primary) inset;
-}
-
-.info-select :deep(.el-select__wrapper.is-focused) {
-  box-shadow: 0 0 0 1px var(--color-primary) inset;
-}
-
-.info-select :deep(.el-select__selected-item) {
-  color: #4ec9b0 !important;
-}
-
-.info-select :deep(.el-select__placeholder span) {
-  color: #4ec9b0 !important;
-}
-
-.info-select :deep(.el-input__wrapper) {
-  background-color: var(--bg-elevated);
-  box-shadow: 0 0 0 1px var(--border-color) inset;
-  border-radius: 4px;
-  padding: 0 8px;
-  height: 28px;
-}
-
-.info-select :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px var(--color-primary) inset;
-}
-
-.info-select :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--color-primary) inset;
-}
-
-.info-select :deep(.el-input__inner) {
-  color: #4ec9b0;
-  font-size: 12px;
-  font-weight: 500;
-  height: 28px;
-  line-height: 28px;
-}
-
-.info-select :deep(.el-input__inner::placeholder) {
-  color: var(--text-placeholder);
-}
-
-.info-select :deep(.el-select__caret) {
-  color: var(--text-placeholder);
-}
-
-.info-select :deep(.el-select__suffix) {
-  color: var(--text-placeholder);
-}
-
-.max-rows-input {
-  width: 70px;
-  background: var(--bg-elevated);
-  color: #4ec9b0;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 500;
-  outline: none;
-  text-align: center;
-}
-
-.max-rows-input:hover {
-  border-color: var(--color-primary);
-}
-
-.max-rows-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-}
-
-.editor-container {
-  flex: 1;
-  min-height: 0;
-}
-
-/* 拖拽排序样式 - 保持默认鼠标样式 */
-.sql-editor :deep(.el-tabs__item) {
-  user-select: none;
-}
-
-/* Sortable 拖拽时的占位符样式 */
-.sql-editor :deep(.sortable-ghost) {
-  opacity: 0.4;
-  background: #094771 !important;
-  border: 1px dashed var(--color-primary) !important;
-}
-
-/* Sortable 拖拽中的元素样式 */
-.sql-editor :deep(.sortable-drag) {
-  opacity: 0.8;
-  background: var(--bg-base) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-}
-</style>
-
-<!-- 全局样式：下拉框样式 -->
-<style>
-.info-select-dropdown .el-select-dropdown__item {
-  background-color: transparent !important;
-}
-
-.info-select-dropdown .el-select-dropdown__item:hover {
-  background-color: var(--bg-elevated) !important;
-}
-
-.info-select-dropdown .el-select-dropdown__item.is-hovering {
-  background-color: var(--bg-elevated) !important;
-}
-
-/* Monaco hover widget 样式优化 */
-.monaco-editor .monaco-hover {
-  max-width: 600px !important;
-}
-
-.monaco-editor .monaco-hover-content {
-  max-height: 300px !important;
-  overflow-y: auto !important;
-}
-
-/* hover widget 滚动条样式 */
-.monaco-editor .monaco-hover-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.monaco-editor .monaco-hover-content::-webkit-scrollbar-track {
-  background: var(--bg-base);
-}
-
-.monaco-editor .monaco-hover-content::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb);
-  border-radius: 4px;
-}
-
-.monaco-editor .monaco-hover-content::-webkit-scrollbar-thumb:hover {
-  background-color: var(--scrollbar-thumb-hover);
-}
-
-/* hover widget 中表名 code 标签样式 - 可点击效果 */
-/* 只选择第一个 p 标签中紧跟 strong 后的 code（即 **表**: `表名` 中的表名） */
-/* 排除 li 中的 code（字段列表中的列名） */
-.monaco-editor .monaco-hover-content p:first-of-type > strong + code {
-  color: #4fc3f7 !important;
-  cursor: pointer !important;
-  border-bottom: 1px dashed #4fc3f7;
-  transition: all 0.2s ease;
-  padding: 1px 4px;
-  border-radius: 3px;
-}
-
-.monaco-editor .monaco-hover-content p:first-of-type > strong + code:hover {
-  color: #81d4fa !important;
-  border-bottom-style: solid;
-  background-color: rgba(79, 195, 247, 0.2) !important;
-}
-
-/* 快捷操作链接样式 - 分割线之后的 code 标签 */
-.monaco-editor .monaco-hover-content hr ~ p > code {
-  color: #4fc3f7 !important;
-  cursor: pointer !important;
-  border-bottom: 1px dashed #4fc3f7;
-  transition: all 0.15s ease;
-  padding: 1px 4px;
-  border-radius: 3px;
-}
-
-.monaco-editor .monaco-hover-content hr ~ p > code:hover {
-  color: #81d4fa !important;
-  border-bottom-color: #81d4fa;
-  background-color: rgba(79, 195, 247, 0.1) !important;
-}
+.sql-editor :deep(.el-tabs__header) { margin: 0; padding: 0 8px; background: var(--bg-surface); border-bottom: 1px solid var(--border-color); }
+.sql-editor :deep(.el-tabs__nav-wrap) { background: var(--bg-surface); }
+.sql-editor :deep(.el-tabs__item) { height: 32px; line-height: 32px; color: var(--text-primary); border-color: var(--border-color) !important; background: var(--bg-surface); }
+.sql-editor :deep(.el-tabs__item:hover) { color: var(--text-bright); }
+.sql-editor :deep(.el-tabs__item.is-active) { color: var(--text-bright); background: var(--bg-base); border-bottom-color: var(--color-primary) !important; }
+.sql-editor :deep(.el-tabs__nav) { border-color: var(--border-color); }
+.sql-editor :deep(.el-tabs__item) { user-select: none; }
+.sql-editor :deep(.sortable-ghost) { opacity: 0.4; background: #094771 !important; border: 1px dashed var(--color-primary) !important; }
+.sql-editor :deep(.sortable-drag) { opacity: 0.8; background: var(--bg-base) !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
 </style>

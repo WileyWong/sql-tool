@@ -10,7 +10,9 @@ export function setupFileHandlers(ipcMain: IpcMain): void {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [
+        { name: 'SQL 文件 & ER 图', extensions: ['sql', 'json'] },
         { name: 'SQL Files', extensions: ['sql'] },
+        { name: 'ER 图', extensions: ['json'] },
         { name: 'All Files', extensions: ['*'] }
       ]
     })
@@ -61,13 +63,20 @@ export function setupFileHandlers(ipcMain: IpcMain): void {
   })
   
   // 另存为
-  ipcMain.handle(IpcChannels.FILE_SAVE_AS, async (_, content: string) => {
+  ipcMain.handle(IpcChannels.FILE_SAVE_AS, async (_, content: string, fileType?: string) => {
+    const isErd = fileType === 'erd'
     const result = await dialog.showSaveDialog({
-      filters: [
-        { name: 'SQL Files', extensions: ['sql'] },
-        { name: 'All Files', extensions: ['*'] }
-      ],
-      defaultPath: 'query.sql'
+      filters: isErd
+        ? [
+            { name: 'ER 图', extensions: ['erd.json'] },
+            { name: 'JSON 文件', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] }
+          ]
+        : [
+            { name: 'SQL Files', extensions: ['sql'] },
+            { name: 'All Files', extensions: ['*'] }
+          ],
+      defaultPath: isErd ? 'diagram.erd.json' : 'query.sql'
     })
     
     if (result.canceled || !result.filePath) {

@@ -8,6 +8,7 @@ export default {
     help: 'Help(&H)',
     newConnection: 'New Connection',
     newQuery: 'New Query',
+    newErDiagram: 'New ER Diagram',
     openFile: 'Open File',
     save: 'Save',
     saveAs: 'Save As',

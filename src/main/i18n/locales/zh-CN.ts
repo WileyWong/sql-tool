@@ -8,6 +8,7 @@ export default {
     help: '帮助(&H)',
     newConnection: '新建连接',
     newQuery: '新建查询',
+    newErDiagram: '新建 ER 图',
     openFile: '打开文件',
     save: '保存',
     saveAs: '另存为',

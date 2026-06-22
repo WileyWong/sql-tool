@@ -116,8 +116,8 @@ const api = {
     save: (filePath: string, content: string): Promise<{ success: boolean; message?: string }> =>
       ipcRenderer.invoke(IpcChannels.FILE_SAVE, { filePath, content }),
     
-    saveAs: (content: string): Promise<{ success: boolean; filePath?: string; canceled?: boolean; message?: string }> =>
-      ipcRenderer.invoke(IpcChannels.FILE_SAVE_AS, content),
+    saveAs: (content: string, fileType?: string): Promise<{ success: boolean; filePath?: string; canceled?: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.FILE_SAVE_AS, content, fileType),
     
     export: (
       columns: { name: string; type: string }[],
@@ -226,6 +226,9 @@ const api = {
     onSaveAs: (callback: () => void): void => {
       ipcRenderer.on(IpcChannels.MENU_SAVE_AS, callback)
     },
+    onNewErDiagram: (callback: () => void): void => {
+      ipcRenderer.on(IpcChannels.MENU_NEW_ER_DIAGRAM, callback)
+    },
     onOpenSettings: (callback: () => void): void => {
       ipcRenderer.on(IpcChannels.MENU_OPEN_SETTINGS, callback)
     },
@@ -240,6 +243,7 @@ const api = {
       ipcRenderer.removeAllListeners(IpcChannels.MENU_OPEN_RECENT)
       ipcRenderer.removeAllListeners(IpcChannels.MENU_SAVE)
       ipcRenderer.removeAllListeners(IpcChannels.MENU_SAVE_AS)
+      ipcRenderer.removeAllListeners(IpcChannels.MENU_NEW_ER_DIAGRAM)
       ipcRenderer.removeAllListeners(IpcChannels.MENU_OPEN_SETTINGS)
     }
   },

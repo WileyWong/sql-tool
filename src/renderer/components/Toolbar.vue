@@ -7,6 +7,9 @@
     <button class="toolbar-btn secondary" @click="handleNew">
       📄 {{ $t('toolbar.newQuery') }}
     </button>
+    <button class="toolbar-btn secondary" @click="handleNewErd">
+      🔷 {{ $t('toolbar.newErDiagram') }}
+    </button>
     <button class="toolbar-btn secondary" @click="handleOpen">
       📂 {{ $t('toolbar.openFile') }}
     </button>
@@ -19,14 +22,14 @@
     <!-- 执行操作 -->
     <button 
       class="toolbar-btn run" 
-      :disabled="!canExecute || isRunning"
+      :disabled="!canExecute || isRunning || isErdTab"
       @click="handleExecute"
     >
       ▶ {{ $t('toolbar.execute') }}
     </button>
     <button 
       class="toolbar-btn secondary" 
-      :disabled="!isRunning"
+      :disabled="!isRunning || isErdTab"
       @click="handleStop"
     >
       ⏹ {{ $t('toolbar.stop') }}
@@ -74,6 +77,7 @@ const currentTabConnection = computed(() => {
 
 const canExecute = computed(() => !!currentTabConnection.value)
 const isRunning = computed(() => resultStore.executionStatus === 'running')
+const isErdTab = computed(() => editorStore.activeTab?.tabType === 'erd')
 
 // 新建连接
 function handleNewConnection() {
@@ -83,6 +87,11 @@ function handleNewConnection() {
 // 新建
 function handleNew() {
   editorStore.createTab()
+}
+
+// 新建 ER 图
+function handleNewErd() {
+  editorStore.createErdTab()
 }
 
 // 打开

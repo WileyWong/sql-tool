@@ -111,11 +111,27 @@
   "toolbar": {
     "newConnection": "新建连接",
     "newQuery": "新建查询",
+    "newErDiagram": "新建 ER 图",
     "openFile": "打开文件",
     "save": "保存",
     "execute": "执行",
     "stop": "停止",
     "explain": "执行计划"
+  },
+  "erd": {
+    "diagramTab": "ER图",
+    "addTable": "添加表",
+    "format": "格式",
+    "backgroundColor": "背景颜色",
+    "defaultColor": "预设颜色",
+    "selectTables": "选择表",
+    "selectRelationFields": "选择关联字段",
+    "sourceFields": "源表字段",
+    "targetFields": "目标表字段",
+    "deleteElement": "删除",
+    "deleteConfirm": "确认删除该元素？关联的连线也将一并删除。",
+    "noDatabase": "请先选择连接和数据库",
+    "moreFields": "...等 {n} 个字段"
   },
   "editor": {
     "queryTab": "查询",

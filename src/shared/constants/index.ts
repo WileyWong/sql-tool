@@ -96,6 +96,7 @@ export const IpcChannels = {
   MENU_ABOUT: 'menu:about',
   MENU_UPDATE_RECENT_FILES: 'menu:update-recent-files',
   MENU_OPEN_SETTINGS: 'menu:open-settings',
+  MENU_NEW_ER_DIAGRAM: 'menu:new-er-diagram',
   
   // 国际化相关
   LOCALE_CHANGED: 'locale:changed',

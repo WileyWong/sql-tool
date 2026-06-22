@@ -111,11 +111,27 @@
   "toolbar": {
     "newConnection": "新建連線",
     "newQuery": "新建查詢",
+    "newErDiagram": "新建 ER 圖",
     "openFile": "開啟檔案",
     "save": "儲存",
     "execute": "執行",
     "stop": "停止",
     "explain": "執行計畫"
+  },
+  "erd": {
+    "diagramTab": "ER圖",
+    "addTable": "新增表",
+    "format": "格式",
+    "backgroundColor": "背景顏色",
+    "defaultColor": "預設顏色",
+    "selectTables": "選擇表",
+    "selectRelationFields": "選擇關聯欄位",
+    "sourceFields": "源表欄位",
+    "targetFields": "目標表欄位",
+    "deleteElement": "刪除",
+    "deleteConfirm": "確認刪除該元素？",
+    "noDatabase": "請先選擇連線和資料庫",
+    "moreFields": "...等 {n} 個欄位"
   },
   "editor": {
     "queryTab": "查詢",

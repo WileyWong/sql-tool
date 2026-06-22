@@ -153,6 +153,7 @@ async function handleBeforeClose() {
 function setupMenuListeners() {
   window.api.menu.onNewConnection(() => connectionStore.openNewConnectionDialog())
   window.api.menu.onNewQuery(() => editorStore.createTab())
+  window.api.menu.onNewErDiagram(() => editorStore.createErdTab())
   window.api.menu.onOpenFile(async () => {
     await editorStore.openFile()
     const recentFiles = await window.api.file.getRecentFiles()

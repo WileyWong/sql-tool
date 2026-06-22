@@ -111,11 +111,27 @@
   "toolbar": {
     "newConnection": "New Connection",
     "newQuery": "New Query",
+    "newErDiagram": "New ER Diagram",
     "openFile": "Open File",
     "save": "Save",
     "execute": "Execute",
     "stop": "Stop",
     "explain": "Explain"
+  },
+  "erd": {
+    "diagramTab": "ER Diagram",
+    "addTable": "Add Table",
+    "format": "Format",
+    "backgroundColor": "Background Color",
+    "defaultColor": "Preset Colors",
+    "selectTables": "Select Tables",
+    "selectRelationFields": "Select Relation Fields",
+    "sourceFields": "Source Fields",
+    "targetFields": "Target Fields",
+    "deleteElement": "Delete",
+    "deleteConfirm": "Confirm delete?",
+    "noDatabase": "Please select a connection and database first",
+    "moreFields": "...and {n} more fields"
   },
   "editor": {
     "queryTab": "Query",

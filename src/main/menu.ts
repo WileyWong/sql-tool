@@ -63,6 +63,11 @@ function buildMenuTemplate(): MenuItemConstructorOptions[] {
         accelerator: 'CmdOrCtrl+T',
         click: () => mainWindow?.webContents.send(IpcChannels.MENU_NEW_QUERY)
       },
+      {
+        label: t('menu.newErDiagram'),
+        accelerator: 'CmdOrCtrl+E',
+        click: () => mainWindow?.webContents.send(IpcChannels.MENU_NEW_ER_DIAGRAM)
+      },
       { type: 'separator' },
       {
         label: t('menu.recentFiles'),
