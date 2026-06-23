@@ -164,11 +164,13 @@ function initGraph() {
         })
         return !hasDup
       },
-      createEdge() { return this.createEdge({ shape: 'edge' }) }
+      // 手画的连线也置于节点下方（zIndex 低于节点），避免压住节点 port
+      createEdge() { return this.createEdge({ shape: 'edge', zIndex: ER_STYLE.edgeZIndex }) }
     },
     mousewheel: { enabled: true, modifiers: 'ctrl', zoomAtMousePosition: true },
     panning: { enabled: true, modifiers: 'ctrl' },
-    interacting: { edgeMovable: true }
+    // edgeMovable 必须为 false：连线端点不可拖拽，避免干扰从节点 port 拉新连线
+    interacting: { edgeMovable: false }
   })
 
   // ===== Selection 插件（框选 + 多选拖拽） =====

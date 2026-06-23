@@ -29,6 +29,10 @@ export const ER_STYLE = {
   edgeWidthSelected: 3,
   /** manhattan 路由 padding */
   manhattanPadding: 20,
+  /** 节点层级（高于连线，保证 port 磁吸点始终在最上层可抓取） */
+  nodeZIndex: 10,
+  /** 连线层级（低于节点，避免连线压住节点 port 导致无法建新连线） */
+  edgeZIndex: 1,
 } as const
 
 /** 根据字段数量估算表节点高度 */
@@ -48,18 +52,19 @@ export function buildNodeMeta(table: ErTableData) {
     y: table.y,
     width: ER_STYLE.nodeWidth,
     height: getNodeHeight((table.fields || []).length),
+    zIndex: ER_STYLE.nodeZIndex,
     table,
     data: table,
   }
 }
 
-/** 生成连线的默认 attrs（无箭头、灰色直角线） */
+/** 生成连线的默认 attrs（灰色直角线 + 目标端箭头，恢复/手画保持一致） */
 export function buildEdgeAttrs() {
   return {
     line: {
       stroke: ER_STYLE.edgeColor,
       strokeWidth: ER_STYLE.edgeWidth,
-      targetMarker: null,
+      targetMarker: { name: 'block', width: 12, height: 8 },
     },
   }
 }
@@ -101,6 +106,7 @@ export function buildEdgeMeta(relation: ErRelationData) {
     connector: { name: 'rounded' },
     attrs: buildEdgeAttrs(),
     labels: [] as any[],
+    zIndex: ER_STYLE.edgeZIndex,
     vertices: relation.vertices,
     data: {
       id: relation.id,
