@@ -46,7 +46,9 @@
 | 9 | 关系字段选择 | 双击连线弹出字段勾选对话框 | 勾选的关联字段显示在连线上 |
 | 10 | 删除节点/连线 | 选中后右键删除或按 Del 键删除 | 节点和连线均可删除 |
 | 11 | 选中高亮 | 点击表节点或连线，显示蓝色高亮边框，点击空白取消 | 节点显示蓝色边框（`#4fc3f7`），连线变蓝加粗 |
-| 12 | 保存 ER 图 | 将画布数据序列化为 JSON 保存为 `.erd.json` 文件 | 保存后可重新打开恢复 |
+| 12 | 框选多选 | 空白区域左键拖拽绘制矩形，框内的节点/连线全部选中高亮 | 蓝色虚线框选矩形，选中后可批量删除 |
+| 13 | 多选拖拽 | 多选后拖拽任一选中节点，所有选中节点同步移动 | ⚠️ 待实现（连线随节点自动更新路径） |
+| 14 | 保存 ER 图 | 将画布数据序列化为 JSON 保存为 `.erd.json` 文件 | 保存后可重新打开恢复 |
 
 ### 3.2 非功能需求
 
@@ -495,8 +497,8 @@ const graph = new Graph({
     allowNode: true, allowPort: true, allowMulti: false,   // 端口拖出 → 节点落点
     validateConnection({ sourceCell, targetCell }) { ... } // 去重 + 禁自引用
   },
-  mousewheel: { enabled: true, zoomAtMousePosition: true },
-  panning: { enabled: true },  // 左键拖拽空白区域平移画布
+  mousewheel: { enabled: true, modifiers: 'ctrl', zoomAtMousePosition: true },  // Ctrl+滚轮缩放
+  panning: { enabled: true, modifiers: 'ctrl' },  // Ctrl+左键拖拽平移，避免与框选冲突
   interacting: { edgeMovable: false }
 })
 
@@ -899,7 +901,8 @@ src/preload/
 - 实际安装 `@antv/x6@3.x`（`@antv/x6-vue-shape` 虽安装但最终未使用，改为 x6 原生 `foreignObject` 渲染表节点）
 - 第一版只做手动绘制，不包含"反向工程自动生成 ER 图"功能（可规划为 RC-027）
 - 连线标签显示支持多个字段对（如 `id = user_id, name = user_name`），用换行分隔
-- 画布支持缩放（Ctrl+滚轮）和拖拽平移（Ctrl+左键拖拽空白区域），避免与框选（左键拖拽）冲突
+- 画布支持缩放（Ctrl+滚轮）和拖拽平移（Ctrl+左键拖拽空白区域），与框选（无修饰键左键拖拽）互不冲突
+- 框选：空白区域左键拖拽绘制矩形，松开后矩形内节点/连线全部选中（蓝色高亮），支持批量删除（Del 键或右键菜单"删除选中 N"）
 - 撤销/重做暂不支持（x6 的 History 插件可后续集成）
 - 自引用连线（同一张表连接自身）**禁止**，拖拽到自身时不创建连线
 - 连线去重：A→B 同方向只允许一条线（`validateConnection` 中检查 `getEdges()`）

@@ -81,8 +81,10 @@ function clearAllSelectedCells() {
   selectedCells.forEach(id => {
     const cell = graph!.getCellById(id)
     if (cell) {
-      if (cell.isNode()) cell.setAttrs({ fo: { html: buildTableHtml(cell.getData() as ErTableData, false) } })
-      else if (cell.isEdge()) { cell.attr('line/stroke', '#888888'); cell.attr('line/strokeWidth', 2) }
+      if (cell.isNode()) {
+        const d = (cell as any).getData?.() as ErTableData | undefined
+        if (d?.fields) cell.setAttrs({ fo: { html: buildTableHtml(d, false) } })
+      } else if (cell.isEdge()) { cell.attr('line/stroke', '#888888'); cell.attr('line/strokeWidth', 2) }
     }
   })
   selectedCells.clear()
@@ -99,8 +101,10 @@ function isCellInRect(cell: import('@antv/x6').Cell, rect: { x: number; y: numbe
 function clearSelectionHighlight() {
   if (!lastSelectedCell || !graph) return
   if (lastSelectedCell.isNode()) {
-    const data = lastSelectedCell.getData() as ErTableData
-    lastSelectedCell.setAttrs({ fo: { html: buildTableHtml(data, false) } })
+    const data = (lastSelectedCell as any).getData?.() as ErTableData | undefined
+    if (data?.fields) {
+      lastSelectedCell.setAttrs({ fo: { html: buildTableHtml(data, false) } })
+    }
   } else if (lastSelectedCell.isEdge()) {
     lastSelectedCell.attr('line/stroke', '#888888')
     lastSelectedCell.attr('line/strokeWidth', 2)
@@ -286,8 +290,10 @@ function initGraph() {
   // 连线：修改 stroke 颜色为蓝色加粗
   function applySelectionHighlight(cell: import('@antv/x6').Cell) {
     if (cell.isNode()) {
-      const data = cell.getData() as ErTableData
-      cell.setAttrs({ fo: { html: buildTableHtml(data, true) } })
+      const data = (cell as any).getData?.() as ErTableData | undefined
+      if (data?.fields) {
+        cell.setAttrs({ fo: { html: buildTableHtml(data, true) } })
+      }
     } else if (cell.isEdge()) {
       cell.attr('line/stroke', '#4fc3f7')
       cell.attr('line/strokeWidth', 3)
@@ -364,7 +370,10 @@ function initGraph() {
     graph.getCells().forEach(cell => {
       if (isCellInRect(cell, rubberBand.value)) {
         selectedCells.add(cell.id)
-        if (cell.isNode()) cell.setAttrs({ fo: { html: buildTableHtml(cell.getData() as ErTableData, true) } })
+        if (cell.isNode()) {
+          const d = (cell as any).getData?.() as ErTableData | undefined
+          if (d?.fields) cell.setAttrs({ fo: { html: buildTableHtml(d, true) } })
+        }
         else if (cell.isEdge()) { cell.attr('line/stroke', '#4fc3f7'); cell.attr('line/strokeWidth', 3) }
       }
     })
