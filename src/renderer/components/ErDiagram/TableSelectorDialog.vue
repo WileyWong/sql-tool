@@ -24,7 +24,13 @@ import { useConnectionStore } from '../../stores/connection'
 import type { ErTableData } from '../../../shared/types/erd'
 import { v4 as uuidv4 } from 'uuid'
 
-const props = defineProps<{ modelValue: boolean; connectionId: string; databaseName: string }>()
+const props = defineProps<{
+  modelValue: boolean
+  connectionId: string
+  databaseName: string
+  dropPosition?: { x: number; y: number } | null
+  addedTableNames?: string[]
+}>()
 const emit = defineEmits<{ 'update:modelValue': [v: boolean]; confirm: [tables: ErTableData[]] }>()
 
 const connectionStore = useConnectionStore()
@@ -52,13 +58,17 @@ async function loadTables() {
 }
 
 const filteredTables = computed(() => {
-  if (!searchText.value) return allTables.value
+  const added = new Set(props.addedTableNames || [])
+  let list = allTables.value.filter(t => !added.has(t))
+  if (!searchText.value) return list
   const kw = searchText.value.toLowerCase()
-  return allTables.value.filter(t => t.toLowerCase().includes(kw))
+  return list.filter(t => t.toLowerCase().includes(kw))
 })
 
 function handleConfirm() {
   const meta = connectionStore.getDatabaseMeta(props.connectionId, props.databaseName)
+  const baseX = props.dropPosition?.x ?? 50
+  const baseY = props.dropPosition?.y ?? 50
   const tables: ErTableData[] = selectedTables.value.map((name, i) => {
     let fields: any[] = []
     if (meta) {
@@ -70,8 +80,8 @@ function handleConfirm() {
       name,
       databaseName: props.databaseName,
       connectionId: props.connectionId,
-      x: 50 + (i % 4) * 260,
-      y: 50 + Math.floor(i / 4) * 300,
+      x: baseX + (i % 4) * 260,
+      y: baseY + Math.floor(i / 4) * 300,
       fields: fields.map((f: any) => ({
         name: f.name || f.column_name || f.COLUMN_NAME || '',
         type: f.type || f.data_type || f.DATA_TYPE || f.column_type || f.COLUMN_TYPE || '',

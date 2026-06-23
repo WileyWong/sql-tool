@@ -20,6 +20,7 @@ export const useErdStore = defineStore('erd', () => {
   const graph = shallowRef<Graph | null>(null)
   const selectedCell = shallowRef<Cell | null>(null)
   const isDirty = ref(false)
+  const graphVersion = ref(0)  // 画布节点变更版本号，驱动 addedTableNames 等响应式更新
   
   // 当前活跃的 ER 图标签页 ID（用于关联 editorStore 中的 tab）
   const activeTabId = ref<string | null>(null)
@@ -64,6 +65,7 @@ export const useErdStore = defineStore('erd', () => {
       table: table,
       data: table
     })
+    graphVersion.value++
     markDirty()
   }
 
@@ -76,6 +78,7 @@ export const useErdStore = defineStore('erd', () => {
       connectedEdges.forEach(e => graph.value!.removeEdge(e.id))
       graph.value.removeNode(cell.id)
     }
+    graphVersion.value++
     markDirty()
   }
 
@@ -264,6 +267,7 @@ export const useErdStore = defineStore('erd', () => {
     graph.value = null
     selectedCell.value = null
     isDirty.value = false
+    graphVersion.value = 0
     activeTabId.value = null
   }
 
@@ -273,6 +277,7 @@ export const useErdStore = defineStore('erd', () => {
     selectedCell,
     isDirty,
     activeTabId,
+    graphVersion,
 
     // 初始化
     init,

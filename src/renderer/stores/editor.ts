@@ -3,6 +3,7 @@ import { ref, computed, nextTick, watch } from 'vue'
 import { i18n } from '../i18n'
 import type { ErDiagramFile } from '../../shared/types/erd'
 import { createEmptyErDiagram } from '../../shared/types/erd'
+import { useErdStore } from './erd'
 
 // 获取翻译函数
 const t = i18n.global.t
@@ -325,6 +326,9 @@ export const useEditorStore = defineStore('editor', () => {
     if (!tab) return { success: false }
     
     const isErd = tab.tabType === 'erd'
+    if (isErd) {
+      tab.erdData = useErdStore().serializeToErdData()
+    }
     const content = isErd ? JSON.stringify(tab.erdData || createEmptyErDiagram(), null, 2) : tab.content
     
     if (tab.filePath) {
@@ -353,6 +357,9 @@ export const useEditorStore = defineStore('editor', () => {
     if (!activeTab.value) return { success: false }
     
     const isErd = activeTab.value.tabType === 'erd'
+    if (isErd) {
+      activeTab.value.erdData = useErdStore().serializeToErdData()
+    }
     const content = isErd ? JSON.stringify(activeTab.value.erdData || createEmptyErDiagram(), null, 2) : activeTab.value.content
     
     if (activeTab.value.filePath) {
@@ -371,6 +378,7 @@ export const useEditorStore = defineStore('editor', () => {
   async function saveErdFileAs() {
     if (!activeTab.value) return { success: false }
     
+    activeTab.value.erdData = useErdStore().serializeToErdData()
     const content = JSON.stringify(activeTab.value.erdData || createEmptyErDiagram(), null, 2)
     const result = await window.api.file.saveAs(content, 'erd')
     if (result.success && result.filePath) {
@@ -452,7 +460,9 @@ export const useEditorStore = defineStore('editor', () => {
         databaseName: tab.databaseName,
         maxRows: tab.maxRows,
         tabType: tab.tabType,
-        erdData: tab.erdData
+        erdData: tab.tabType === 'erd' && tab.id === activeTabId.value
+          ? useErdStore().serializeToErdData()
+          : tab.erdData
       }))
     }
   }

@@ -56,6 +56,8 @@
       v-model="tableSelectorVisible"
       :connection-id="selectedConnectionId"
       :database-name="selectedDatabase"
+      :drop-position="tableSelectorDropPosition"
+      :added-table-names="addedTableNames"
       @confirm="handleAddTables"
     />
 
@@ -140,9 +142,26 @@ const sourceTableForRelation = ref<ErTableData | null>(null)
 const targetTableForRelation = ref<ErTableData | null>(null)
 const activeEdgeId = ref('')
 
+const tableSelectorDropPosition = ref<{ x: number; y: number } | null>(null)
+
+// 当前连接+数据库下已在画布上的表名（用于表选择器过滤）
+const addedTableNames = computed(() => {
+  erdStore.graphVersion  // 依赖版本号触发响应式更新（graph 是 shallowRef，节点增删不触发）
+  const g = erdStore.graph
+  if (!g) return []
+  return g.getNodes()
+    .map(n => n.getData() as ErTableData)
+    .filter(d => d.connectionId === selectedConnectionId.value
+              && d.databaseName === selectedDatabase.value)
+    .map(d => d.name)
+})
+
 // 暴露给 ErCanvas
 provide('erdPanel', {
-  openTableSelector: () => { tableSelectorVisible.value = true },
+  openTableSelector: (pos?: { x: number; y: number } | null) => {
+    tableSelectorDropPosition.value = pos ?? null
+    tableSelectorVisible.value = true
+  },
   openFormatDialog: (color: string) => {
     editingTableColor.value = color || '#2d2d2d'
     formatDialogVisible.value = true

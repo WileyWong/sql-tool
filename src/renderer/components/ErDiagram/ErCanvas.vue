@@ -41,7 +41,7 @@ const connectionStore = useConnectionStore()
 
 const canvasContainer = ref<HTMLElement>()
 const erdPanel = inject<{
-  openTableSelector: () => void
+  openTableSelector: (pos?: { x: number; y: number } | null) => void
   openFormatDialog: (color: string) => void
   openRelationDialog: (sourceTable: ErTableData, targetTable: ErTableData, edgeId: string) => void
   getConnectionId: () => string
@@ -50,6 +50,7 @@ const erdPanel = inject<{
 
 const contextMenu = ref({ visible: false, x: 0, y: 0, type: 'canvas' as 'canvas' | 'node' | 'edge' })
 let contextMenuCell: import('@antv/x6').Cell | null = null
+const dropPosition = ref<{ x: number; y: number } | null>(null)
 
 const selectionCellCount = ref(0)
 
@@ -147,6 +148,7 @@ function initGraph() {
 
   graph = new Graph({
     container: canvasContainer.value,
+    autoResize: true,
     background: { color: '#1e1e1e' },
     grid: { size: 10, visible: true },
     connecting: {
@@ -225,6 +227,10 @@ function initGraph() {
     e.preventDefault()
     contextMenuCell = null
     updateSelectionCount()
+    if (graph) {
+      const local = graph.clientToLocal(e.clientX, e.clientY)
+      dropPosition.value = { x: local.x, y: local.y }
+    }
     contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, type: 'canvas' }
   })
 
@@ -278,7 +284,8 @@ function handleAddTable() {
   contextMenu.value.visible = false
   const connId = connectionStore.connections.find(c => c.status === 'connected')?.id
   if (!connId) { ElMessage.warning(t('erd.noDatabase')); return }
-  erdPanel?.openTableSelector()
+  erdPanel?.openTableSelector(dropPosition.value)
+  dropPosition.value = null
 }
 
 function handleFormatNode() {

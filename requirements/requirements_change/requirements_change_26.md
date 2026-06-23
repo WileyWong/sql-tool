@@ -893,6 +893,7 @@ src/main/
 
 src/preload/
 └── index.ts                           [修改] 暴露 onNewErDiagram, saveAs 支持 fileType 参数
+```
 
 ---
 
@@ -918,3 +919,216 @@ src/preload/
 | 日期 | 变更内容 | 状态 |
 |------|----------|------|
 | 2026-06-22 | 初始创建（需求分析+方案设计） | 待实现 |
+| 2026-06-23 | 新增增量需求：右键位置添加表 + 过滤已添加表（见第 12 节） | 待实现 |
+
+---
+
+## 12. 增量需求：右键位置添加表 + 过滤已添加表
+
+### 12.1 需求背景
+
+**现状问题：**
+
+| 序号 | 问题 | 根因 |
+|------|------|------|
+| 1 | 每次右键"添加表"，新表总是从画布固定起点 `(50, 50)` 排列，导致 B 表完全覆盖在 A 表上面 | `TableSelectorDialog.handleConfirm()` 中坐标硬编码为 `50 + (i%4)*260, 50 + (i/4)*300`，未使用右键位置 |
+| 2 | 表选择器列出数据库所有表，不区分是否已添加到画布 | `TableSelectorDialog.loadTables()` 从 `getDatabaseMeta()` 获取全部表，未过滤画布已有表 |
+
+### 12.2 期望行为
+
+| 序号 | 需求点 | 期望行为 |
+|------|--------|----------|
+| 1 | 在右键位置添加表 | 勾选的表以**鼠标右键点击的画布位置**为起点排列 |
+| 2 | 过滤已添加的表 | 已在当前画布上的表（同连接+同数据库）不再出现在选择器列表中 |
+
+### 12.3 可行性分析
+
+**需求 1 — 可行**
+
+- x6 Graph 提供 `graph.clientToLocal(clientX, clientY)` 方法，可将屏幕坐标转为画布坐标
+- `blank:contextmenu` 事件回调已提供 `e.clientX / e.clientY`
+- `erdStore.addTable()` 中 `if (table.x === undefined || table.y === undefined)` 判断——当 `table.x/y` 有值时直接使用，不会重新分配
+- 只需将右键坐标传递到 `TableSelectorDialog`，在 `handleConfirm` 中作为排列起点即可，无需修改 `erdStore`
+
+**需求 2 — 可行**
+
+- `erdStore.graph.getNodes()` 可获取画布所有节点
+- 每个节点的 `getData()` 返回 `ErTableData`，含 `name`、`connectionId`、`databaseName`
+- 在 `TableSelectorDialog` 打开时传入已添加表名列表，过滤展示即可
+- 过滤范围按 `connectionId + databaseName + name` 匹配，避免误过滤其他数据库的同名表
+
+### 12.4 方案设计
+
+#### 12.4.1 数据流变更
+
+```text
+用户右键画布空白处
+  │
+  ▼
+blank:contextmenu 事件
+  ├── 记录 contextMenu.x/y（屏幕坐标，用于菜单 div 定位）
+  └── graph.clientToLocal(e.clientX, e.clientY) → 记录 dropPosition（画布坐标）
+  │
+  ▼
+点击"添加表" → handleAddTable()
+  └── erdPanel.openTableSelector(dropPosition)
+  │
+  ▼
+ErDiagramPanel.openTableSelector(pos)
+  ├── 存储 tableSelectorDropPosition = pos
+  └── 打开 TableSelectorDialog
+  │
+  ▼
+TableSelectorDialog 打开
+  ├── prop dropPosition → 作为表排列起点
+  └── prop addedTableNames → 过滤列表（ErDiagramPanel 计算属性实时获取）
+  │
+  ▼
+handleConfirm()
+  └── x: dropPosition.x + (i % 4) * 260
+      y: dropPosition.y + Math.floor(i / 4) * 300
+```
+
+#### 12.4.2 修改点清单
+
+| 文件 | 修改点 |
+|------|--------|
+| `ErCanvas.vue` | ① 新增 `dropPosition` ref 记录右键画布坐标；② `blank:contextmenu` 中调用 `graph.clientToLocal()` 转换并存储；③ `handleAddTable()` 将 `dropPosition` 传给 `openTableSelector`；④ 更新 `erdPanel` inject 类型签名 |
+| `ErDiagramPanel.vue` | ① `openTableSelector` 接收 `pos` 参数；② 新增 `tableSelectorDropPosition` ref；③ 新增 `addedTableNames` computed（从 `erdStore.graph` 获取当前连接+数据库的已有表名）；④ `TableSelectorDialog` 传入 `:drop-position` 和 `:added-table-names` |
+| `TableSelectorDialog.vue` | ① 新增 prop `dropPosition`、`addedTableNames`；② `handleConfirm` 用 `dropPosition` 作为排列起点（fallback 默认 50,50）；③ `filteredTables` 过滤掉 `addedTableNames` |
+
+#### 12.4.3 关键代码变更
+
+**`ErCanvas.vue` — 右键坐标转换与传递：**
+
+```typescript
+// 新增：记录右键落点的画布坐标
+const dropPosition = ref<{ x: number; y: number } | null>(null)
+
+// inject 类型签名增加 pos 参数
+const erdPanel = inject<{
+  openTableSelector: (pos?: { x: number; y: number } | null) => void
+  // ... 其他不变
+}>('erdPanel')
+
+// blank:contextmenu 中转换坐标
+graph.on('blank:contextmenu', ({ e }) => {
+  e.preventDefault()
+  contextMenuCell = null
+  updateSelectionCount()
+  if (graph) {
+    const local = graph.clientToLocal(e.clientX, e.clientY)
+    dropPosition.value = { x: local.x, y: local.y }
+  }
+  contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, type: 'canvas' }
+})
+
+// handleAddTable 传递坐标
+function handleAddTable() {
+  contextMenu.value.visible = false
+  const connId = connectionStore.connections.find(c => c.status === 'connected')?.id
+  if (!connId) { ElMessage.warning(t('erd.noDatabase')); return }
+  erdPanel?.openTableSelector(dropPosition.value)
+  dropPosition.value = null  // 用完重置
+}
+```
+
+**`ErDiagramPanel.vue` — 计算已有表名 + 传递坐标：**
+
+```typescript
+const tableSelectorDropPosition = ref<{ x: number; y: number } | null>(null)
+
+// 当前连接+数据库下已在画布上的表名
+const addedTableNames = computed(() => {
+  const g = erdStore.graph
+  if (!g) return []
+  return g.getNodes()
+    .map(n => n.getData() as ErTableData)
+    .filter(d => d.connectionId === selectedConnectionId.value
+              && d.databaseName === selectedDatabase.value)
+    .map(d => d.name)
+})
+
+provide('erdPanel', {
+  openTableSelector: (pos?: { x: number; y: number } | null) => {
+    tableSelectorDropPosition.value = pos ?? null
+    tableSelectorVisible.value = true
+  },
+  // ... 其他方法不变
+})
+
+// 模板中增加 props
+// <TableSelectorDialog
+//   v-model="tableSelectorVisible"
+//   :connection-id="selectedConnectionId"
+//   :database-name="selectedDatabase"
+//   :drop-position="tableSelectorDropPosition"
+//   :added-table-names="addedTableNames"
+//   @confirm="handleAddTables"
+// />
+```
+
+**`TableSelectorDialog.vue` — 使用坐标 + 过滤已添加表：**
+
+```typescript
+const props = defineProps<{
+  modelValue: boolean
+  connectionId: string
+  databaseName: string
+  dropPosition?: { x: number; y: number } | null    // 新增
+  addedTableNames?: string[]                          // 新增
+}>()
+
+// filteredTables 增加过滤
+const filteredTables = computed(() => {
+  const added = new Set(props.addedTableNames || [])
+  let list = allTables.value.filter(t => !added.has(t))
+  if (!searchText.value) return list
+  const kw = searchText.value.toLowerCase()
+  return list.filter(t => t.toLowerCase().includes(kw))
+})
+
+// handleConfirm 使用 dropPosition 作为起点
+function handleConfirm() {
+  const meta = connectionStore.getDatabaseMeta(props.connectionId, props.databaseName)
+  const baseX = props.dropPosition?.x ?? 50
+  const baseY = props.dropPosition?.y ?? 50
+  const tables: ErTableData[] = selectedTables.value.map((name, i) => {
+    // ... fields 获取逻辑不变
+    return {
+      id: `table-${uuidv4()}`,
+      name,
+      databaseName: props.databaseName,
+      connectionId: props.connectionId,
+      x: baseX + (i % 4) * 260,
+      y: baseY + Math.floor(i / 4) * 300,
+      fields: /* ... */
+    }
+  })
+  emit('confirm', tables)
+  visible.value = false
+}
+```
+
+#### 12.4.4 边界情况处理
+
+| 场景 | 处理方式 |
+|------|----------|
+| `dropPosition` 为 `null`（理论上不会发生，因为只有右键才能触发添加表） | fallback 使用默认起点 `(50, 50)` |
+| 画布上已有当前数据库所有表 | 列表为空，显示"暂无数据" |
+| 用户切换连接/数据库后添加表 | `addedTableNames` 只匹配当前 `connectionId + databaseName`，其他数据库的表不影响 |
+| 右键位置在画布边缘 | 不特殊处理，表可能部分超出可视区域，用户可拖拽或 Ctrl+滚轮缩放调整 |
+| 多选表超出右键位置可视区域 | 按 4 列网格排列，超出部分用户可平移画布查看 |
+| 删除表后重新添加 | 删除后 `addedTableNames` 实时更新（computed），该表重新出现在列表中 |
+
+### 12.5 测试用例补充
+
+| 用例ID | 场景 | 操作 | 期望结果 |
+|--------|------|------|----------|
+| TC21 | 右键位置添加单表 | 在画布 `(300, 200)` 处右键 → 添加表 → 选 1 张表 | 表节点出现在 `(300, 200)` 附近 |
+| TC22 | 右键位置添加多表 | 在画布 `(300, 200)` 处右键 → 添加表 → 选 3 张表 | 3 张表以 `(300, 200)` 为起点按网格排列，不重叠 |
+| TC23 | 连续两次右键添加不覆盖 | 第一次右键 `(100,100)` 添加 A 表 → 第二次右键 `(500,400)` 添加 B 表 | B 表出现在 `(500,400)` 附近，不覆盖 A 表 |
+| TC24 | 已添加表过滤 | 画布已有 `users` 表 → 右键添加表 | 列表中不显示 `users` |
+| TC25 | 切换数据库后过滤 | 画布有 `db1.users` → 切换到 `db2` → 右键添加表 | 列表显示 `db2` 的所有表（含 `db2.users` 如果存在） |
+| TC26 | 所有表已添加 | 画布已添加当前数据库所有表 → 右键添加表 | 列表为空，显示"暂无数据" |
+| TC27 | 删除后重新出现 | 删除画布上的 `users` 表 → 右键添加表 | 列表重新显示 `users` |
