@@ -45,7 +45,8 @@
 | 8 | 画关系连线 | 鼠标悬停表节点右侧出现拖拽锚点，拖拽到目标表画线 | 连线走直角路径，自动避障 |
 | 9 | 关系字段选择 | 双击连线弹出字段勾选对话框 | 勾选的关联字段显示在连线上 |
 | 10 | 删除节点/连线 | 选中后右键删除或按 Del 键删除 | 节点和连线均可删除 |
-| 11 | 保存 ER 图 | 将画布数据序列化为 JSON 保存为 `.erd.json` 文件 | 保存后可重新打开恢复 |
+| 11 | 选中高亮 | 点击表节点或连线，显示蓝色高亮边框，点击空白取消 | 节点显示蓝色边框（`#4fc3f7`），连线变蓝加粗 |
+| 12 | 保存 ER 图 | 将画布数据序列化为 JSON 保存为 `.erd.json` 文件 | 保存后可重新打开恢复 |
 
 ### 3.2 非功能需求
 
@@ -93,12 +94,13 @@
 ### 示例 3：画关系连线
 
 **操作：**
-1. 鼠标悬停 `users` 表节点，右侧出现拖拽锚点（小三角）
-2. 点击锚点，拖拽到 `orders` 表上释放
+1. 鼠标悬停 `users` 表节点，上下左右四个方向各出现一个拖拽锚点（小圆圈）
+2. 从最近的端口拖出连线到 `orders` 表上释放
 
 **期望结果：**
 - 生成一条从 `users` 到 `orders` 的直角连线
 - 连线自动避让其他表节点
+- manhattan 路由器根据两表相对位置自动选择最优起点/终点端口
 
 ### 示例 4：设置关系字段
 
@@ -455,46 +457,82 @@ window.api.sessionState.save(state)
 #### 7.5.1 画布初始化
 
 ```typescript
-import { Graph } from '@antv/x6'
-import { register } from '@antv/x6-vue-shape'
+import { Graph, Markup } from '@antv/x6'
+import { buildTableHtml } from './erdUtils'
 
-// 注册 Vue 节点
-register({
-  shape: 'er-table-node',
-  component: ErTableNode,
-  // ...
-})
+// 注册表节点（body rect + foreignObject 双层 markup，4 方向端口）
+Graph.registerNode('er-table-node', {
+  inherit: 'rect',
+  markup: [
+    { tagName: 'rect', selector: 'body' },
+    Markup.getForeignObjectMarkup()        // foreignObject
+  ],
+  attrs: {
+    body: { fill: '#ffffff', fillOpacity: 0, strokeWidth: 0, rx: 8, ry: 8 },
+    fo: { refWidth: '100%', refHeight: '100%', width: 220, style: { pointerEvents: 'none' } }
+  },
+  ports: {
+    groups: {
+      top: { position: 'top' }, right: { position: 'right' },
+      bottom: { position: 'bottom' }, left: { position: 'left' }
+    },
+    items: [
+      { id: 'port-top', group: 'top' },     { id: 'port-right', group: 'right' },
+      { id: 'port-bottom', group: 'bottom' }, { id: 'port-left', group: 'left' }
+    ]
+  },
+  propHooks(metadata) { /* 从 table 属性生成 fo.html */ }
+}, true)
 
 const graph = new Graph({
   container: canvasElement,
-  background: { color: '#1e1e1e' },    // --bg-base
-  grid: {
-    size: 10,
-    visible: true,
-    args: { color: '#333333' }          // 网格线颜色
-  },
+  background: { color: '#1e1e1e' },
+  grid: { size: 10, visible: true },
   connecting: {
-    router: 'manhattan',                // 直角路由 + 自动避障
+    router: { name: 'manhattan', args: { padding: 20 } },  // 4 方向自适应
     connector: { name: 'rounded' },
-    allowBlank: false                   // 必须连接目标节点
+    allowBlank: false, allowLoop: false,
+    allowNode: true, allowPort: true, allowMulti: false,   // 端口拖出 → 节点落点
+    validateConnection({ sourceCell, targetCell }) { ... } // 去重 + 禁自引用
   },
-  // ...
+  mousewheel: { enabled: true, zoomAtMousePosition: true },
+  panning: { enabled: true, modifiers: 'shift' },
+  interacting: { edgeMovable: false }
 })
+
+// 端口 hover 显隐（程序化控制，不依赖 CSS）
+const ports = ['port-top','port-right','port-bottom','port-left']
+graph.on('node:mouseenter', ({ node }) => ports.forEach(p => node.setPortProp(p, 'attrs/portBody/style/visibility', 'visible')))
+graph.on('node:mouseleave', ({ node }) => ports.forEach(p => node.setPortProp(p, 'attrs/portBody/style/visibility', 'hidden')))
+
+// 选中高亮（x6 v3 无内置 selecting，手动管理）
+let lastSelectedCell: Cell | null = null
+graph.on('cell:click', ({ cell }) => {
+  clearSelectionHighlight()
+  if (cell.isNode()) cell.setAttrs({ body: { stroke: '#4fc3f7', strokeWidth: 2 } })
+  else if (cell.isEdge()) cell.setAttrs({ line: { stroke: '#4fc3f7', strokeWidth: 3 } })
+  lastSelectedCell = cell
+})
+graph.on('blank:mousedown', () => { clearSelectionHighlight(); lastSelectedCell = null })
 ```
 
 #### 7.5.2 表节点设计
 
-- 使用 `@antv/x6-vue-shape` 将 Vue 组件注册为 x6 节点
-- 表节点为圆角矩形，内容分区：表名区（粗体）+ 字段列表区
-- 宽度固定（如 220px），高度根据字段数量自动计算
+- 使用 x6 原生 `foreignObject` + `Markup.getForeignObjectMarkup()` 渲染 HTML 内容（**弃用 `@antv/x6-vue-shape`**，避免 HMR 和 i18n 上下文问题）
+- 双层 markup：`rect`（body，捕捉鼠标事件） + `foreignObject`（fo，渲染 HTML，`pointer-events: none` 穿透）
+- 表节点为圆角矩形，内容用 `buildTableHtml()` 纯函数生成 innerHTML：表名区（粗体）+ 字段列表区
+- HTML 字段行交替背景色（内联样式）
+- 宽度固定 220px，高度 = `max(40, min(fieldsCount, 5) * 24 + 45)`
 - 默认背景色：`#2d2d2d`（`--bg-surface`）
-- 字段行交替背景色：`#2d2d2d` / `#252526`
+- **端口**：上下左右 4 方向各一个端口圆圈（`portMarkup`，r=6，`magnet: true`），默认隐藏，hover 节点时程序化显示
 
 #### 7.5.3 连线设计
 
-- 使用 `manhattan` 路由器实现直角连线 + 自动避障
-- 连线颜色：`#888`
-- 关联字段标签：在连线中间位置显示，背景半透明
+- 使用 `manhattan` 路由器实现直角连线 + 自动避障，**不指定 `startDirections/endDirections`**，由 manhattan 根据两表相对位置自动选择最优起点/终点端口
+- 交互模式：`allowNode: true` + `allowPort: true` — 从端口拖出，落到目标节点任意位置即完成连线
+- 去重：`validateConnection` + `edge:connected` 双重守卫确保 A→B 同方向只有一条线
+- 连线颜色：`#888`，无箭头（`targetMarker: null`）
+- 关联字段标签：双击连线弹出 `RelationFieldDialog` 勾选后，显示在连线中间位置（半透明背景）
 
 #### 7.5.4 右键菜单
 
@@ -858,13 +896,16 @@ src/preload/
 
 ## 10. 备注
 
-- `@antv/x6` 锁定版本 `2.18.2`，`@antv/x6-vue-shape` 锁定版本 `2.1.3`（x6 2.x 大版本内 API 较稳定）
+- 实际安装 `@antv/x6@3.x`（`@antv/x6-vue-shape` 虽安装但最终未使用，改为 x6 原生 `foreignObject` 渲染表节点）
 - 第一版只做手动绘制，不包含"反向工程自动生成 ER 图"功能（可规划为 RC-027）
 - 连线标签显示支持多个字段对（如 `id = user_id, name = user_name`），用换行分隔
-- 画布支持缩放和拖拽（x6 内置功能）
+- 画布支持缩放（滚轮）和拖拽（Shift+拖拽，x6 内置功能）
 - 撤销/重做暂不支持（x6 的 History 插件可后续集成）
 - 自引用连线（同一张表连接自身）**禁止**，拖拽到自身时不创建连线
+- 连线去重：A→B 同方向只允许一条线（`validateConnection` 中检查 `getEdges()`）
 - 连线恢复：`vertices` 由 manhattan 路由器重新计算，恢复时路径可能与保存前不完全一致（不影响视觉效果）
+- 表节点渲染：用纯函数 `buildTableHtml()` 生成 innerHTML（`foreignObject`），避免 Vue 组件在 x6 上下文中的 i18n/HMR 问题
+- 端口显隐：通过 x6 事件 `node:mouseenter/mouseleave` + `setPortProp()` 程序化控制（不用 CSS，避免 DOM 选择器不匹配）
 - 表选择器的数据来源：确保 `loadTablesWithColumns(connId, db)` 已被调用，`databaseCache` 中有字段信息后再打开表选择器
 
 ---

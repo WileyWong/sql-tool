@@ -48,12 +48,53 @@ const erdPanel = inject<{
 const contextMenu = ref({ visible: false, x: 0, y: 0, type: 'canvas' as 'canvas' | 'node' | 'edge' })
 let contextMenuCell: import('@antv/x6').Cell | null = null  // 右键菜单目标 Cell
 
+/** x6 Graph 实例 —— 画布上所有节点、连线、事件都由它管理 */
 let graph: Graph | null = null
 
+/** 上一次选中的 Cell（节点或连线），用于取消高亮时恢复样式 */
+let lastSelectedCell: import('@antv/x6').Cell | null = null
+
+/** 清除选中高亮：节点 → 重建 HTML 去掉蓝色边框；连线 → 恢复灰色 */
+function clearSelectionHighlight() {
+  if (!lastSelectedCell || !graph) return
+  if (lastSelectedCell.isNode()) {
+    const data = lastSelectedCell.getData() as ErTableData
+    lastSelectedCell.setAttrs({ fo: { html: buildTableHtml(data, false) } })
+  } else if (lastSelectedCell.isEdge()) {
+    lastSelectedCell.attr('line/stroke', '#888888')
+    lastSelectedCell.attr('line/strokeWidth', 2)
+  }
+  lastSelectedCell = null
+}
+
+/**
+ * 初始化 x6 画布
+ *
+ * 架构概览:
+ *   节点渲染: 注册 'er-table-node' 自定义节点
+ *     ├── markup: rect(body) + foreignObject(fo) 双层结构
+ *     │   ├── body rect: SVG 层，fillOpacity=0 透明但可命中鼠标事件
+ *     │   └── fo foreignObject: HTML 层，pointer-events=none 穿透到 body
+ *     ├── ports: 上/右/下/左 4 个端口圆圈，hover 时程序化显示
+ *     └── propHooks: 节点实例化时自动将 table 数据注入 fo.html
+ *
+ *   Graph 配置:
+ *     ├── connecting: manhattan 直角路由，端口拖出→节点落点
+ *     ├── mousewheel: 滚轮缩放
+ *     └── panning: Shift+拖拽平移
+ *
+ *   事件绑定:
+ *     ├── node:mouseenter/mouseleave → 端口显隐
+ *     ├── edge:connected → 连线完成（去重+样式+注册关系）
+ *     ├── edge:dblclick → 打开字段选择弹窗
+ *     ├── cell:click / blank:click → 选中高亮
+ *     └── cell:contextmenu / blank:contextmenu → 右键菜单
+ */
 function initGraph() {
   if (!canvasContainer.value) return
 
-  // 用 x6 原生 foreignObject 注册表节点（带右侧连接端口）
+  // ===== 注册自定义节点类型 'er-table-node' =====
+  // markup 决定节点的 DOM 结构，propHooks 在每个节点 add 时自动执行
   const foMarkup = Markup.getForeignObjectMarkup()
   // @ts-ignore - x6 v3 registerNode type overload
   Graph.registerNode('er-table-node', {
@@ -84,10 +125,16 @@ function initGraph() {
     ],
     ports: {
       groups: {
-        right: { position: { name: 'right', args: { dy: 0 } } }
+        top:    { position: 'top' },
+        right:  { position: 'right' },
+        bottom: { position: 'bottom' },
+        left:   { position: 'left' }
       },
       items: [
-        { id: 'port-right', group: 'right' }
+        { id: 'port-top',    group: 'top' },
+        { id: 'port-right',  group: 'right' },
+        { id: 'port-bottom', group: 'bottom' },
+        { id: 'port-left',   group: 'left' }
       ]
     },
     propHooks(metadata: any) {
@@ -105,12 +152,15 @@ function initGraph() {
     }
   }, true)
 
+  // ===== 创建 x6 Graph 实例 =====
+  // connecting: 连线交互配置（manhattan 直角路由、端口拖出→节点落点）
+  // mousewheel: 滚轮缩放  panning: Shift+拖拽平移画布
   graph = new Graph({
     container: canvasContainer.value,
     background: { color: '#1e1e1e' },
     grid: { size: 10, visible: true },
     connecting: {
-      router: { name: 'manhattan', args: { padding: 20, startDirections: ['right'], endDirections: ['left'] } },
+      router: { name: 'manhattan', args: { padding: 20 } },
       connector: { name: 'rounded' },
       allowBlank: false,
       allowLoop: false,
@@ -138,19 +188,25 @@ function initGraph() {
     interacting: { edgeMovable: false }
   })
 
-  // 端口 hover 显隐：程序化控制（CSS 选择器在 x6 中不可靠）
+  // ===== 端口 hover 显隐 =====
+  // x6 端口在注册时定义，通过 setPortProp() 动态控制 visibility
+  // 鼠标进入节点 → 显示 4 个方向的端口圆圈；离开 → 隐藏
+  const allPorts = ['port-top', 'port-right', 'port-bottom', 'port-left']
   graph.on('node:mouseenter', ({ node }) => {
-    node.setPortProp('port-right', 'attrs/portBody/style/visibility', 'visible')
+    allPorts.forEach(pid => node.setPortProp(pid, 'attrs/portBody/style/visibility', 'visible'))
   })
   graph.on('node:mouseleave', ({ node }) => {
-    node.setPortProp('port-right', 'attrs/portBody/style/visibility', 'hidden')
+    allPorts.forEach(pid => node.setPortProp(pid, 'attrs/portBody/style/visibility', 'hidden'))
   })
-  // 初始隐藏所有端口
   graph.on('node:added', ({ node }) => {
-    node.setPortProp('port-right', 'attrs/portBody/style/visibility', 'hidden')
+    allPorts.forEach(pid => node.setPortProp(pid, 'attrs/portBody/style/visibility', 'hidden'))
   })
 
-  // 连线完成事件：设置样式 + 注册关系（去重）
+  // ===== 连线完成事件 =====
+  // 用户从端口拖出连线并在目标节点释放后触发
+  // 1. 去重检查（A→B 同方向只保留一条线）
+  // 2. 设置连线样式（灰色、无箭头）
+  // 3. 注册关系到 erdStore
   graph.on('edge:connected', ({ edge, currentCell }) => {
     const sourceCell = edge.getSourceCell()
     if (!sourceCell || !currentCell) return
@@ -183,17 +239,37 @@ function initGraph() {
     }
   })
 
-  // 手动管理选中态（x6 v3 移除了 selecting 图选项）
+  // ===== 选中高亮 =====
+  // 节点：重建 fo.html 把边框从 #555 改成蓝色 #4fc3f7
+  // 连线：修改 stroke 颜色为蓝色加粗
+  function applySelectionHighlight(cell: import('@antv/x6').Cell) {
+    if (cell.isNode()) {
+      const data = cell.getData() as ErTableData
+      cell.setAttrs({ fo: { html: buildTableHtml(data, true) } })
+    } else if (cell.isEdge()) {
+      cell.attr('line/stroke', '#4fc3f7')
+      cell.attr('line/strokeWidth', 3)
+    }
+  }
+
+  // cell:click —— x6 统一事件，节点和连线点击都会触发
   graph.on('cell:click', ({ cell }) => {
+    clearSelectionHighlight()
+    applySelectionHighlight(cell)
+    lastSelectedCell = cell
     erdStore.selectedCell = cell
     canvasContainer.value?.focus()
   })
   graph.on('blank:click', () => {
+    clearSelectionHighlight()
     erdStore.selectedCell = null
     canvasContainer.value?.focus()
   })
 
-  // 右键菜单
+  // ===== 右键菜单 =====
+  // cell:contextmenu —— 节点/连线上右键 → 显示“格式”/“删除”
+  // blank:contextmenu —— 画布空白区域右键 → 显示“添加表”
+  // 用 contextMenuCell 单独存储右键目标，防止 blank:mousedown 把 selectedCell 清掉
   graph.on('cell:contextmenu', ({ e, cell }) => {
     e.preventDefault()
     erdStore.selectedCell = cell
@@ -210,25 +286,29 @@ function initGraph() {
     contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, type: 'canvas' }
   })
 
-  // 点击空白清除选中 + 关闭菜单
+  // 点击空白清除选中 + 高亮 + 关闭菜单
   graph.on('blank:mousedown', () => {
+    clearSelectionHighlight()
     erdStore.selectedCell = null
     contextMenu.value.visible = false
     canvasContainer.value?.focus()
   })
 
+  // 将 Graph 实例注入 erdStore，后续增删改操作都通过 erdStore 方法
   erdStore.setGraph(graph)
 
-  // 从 editorStore 恢复数据
+  // 从 editorStore 恢复上次保存的 ER 图数据
   const tab = editorStore.activeTab
   if (tab?.erdData) {
     renderFromErdData(tab.erdData)
   }
 }
 
+/** 从持久化数据恢复画布上的节点和连线 */
 function renderFromErdData(data: Parameters<typeof erdStore.addTable>[0] extends ErTableData ? any : never) {
   if (!graph) return
   const d = data as import('../../../shared/types/erd').ErDiagramFile
+  // 恢复所有表节点（propHooks 会自动将 table 数据注入 foreignObject）
   d.tables.forEach((t: ErTableData) => {
     graph!.addNode({
       id: t.id,
@@ -236,7 +316,7 @@ function renderFromErdData(data: Parameters<typeof erdStore.addTable>[0] extends
       x: t.x,
       y: t.y,
       width: 220,
-      height: Math.max(40, Math.min(t.fields.length, 5) * 24 + 45),
+      height: Math.max(100, Math.min(t.fields.length, 5) * 22 + 55),
       table: t,
       data: t
     })
@@ -246,7 +326,7 @@ function renderFromErdData(data: Parameters<typeof erdStore.addTable>[0] extends
       id: r.id,
       source: { cell: r.sourceTableId },
       target: { cell: r.targetTableId },
-      router: { name: 'manhattan', args: { padding: 20, startDirections: ['right'], endDirections: ['left'] } },
+      router: { name: 'manhattan', args: { padding: 20 } },
       connector: { name: 'rounded' },
       attrs: { line: { stroke: '#888888', strokeWidth: 2 } },
       vertices: r.vertices,
@@ -263,6 +343,7 @@ function renderFromErdData(data: Parameters<typeof erdStore.addTable>[0] extends
 }
 
 function handleDeleteKey() {
+  clearSelectionHighlight()
   erdStore.removeSelected()
   contextMenu.value.visible = false
 }
@@ -284,6 +365,7 @@ function handleFormatNode() {
 
 function handleDeleteSelected() {
   contextMenu.value.visible = false
+  clearSelectionHighlight()
   // 优先用 contextMenuCell（防止被 blank:mousedown 清掉）
   const target = contextMenuCell || erdStore.selectedCell
   if (target && target.isNode()) {
@@ -295,11 +377,12 @@ function handleDeleteSelected() {
   erdStore.selectedCell = null
 }
 
-// 切换标签页时重初始化
+/** 切换标签页时销毁旧 Graph，释放内存 */
 watch(() => editorStore.activeTabId, (newId) => {
   if (newId !== erdStore.activeTabId) {
     erdStore.dispose()
     graph = null
+    lastSelectedCell = null
   }
 })
 
@@ -311,6 +394,7 @@ onMounted(() => {
 onUnmounted(() => {
   erdStore.dispose()
   graph = null
+  lastSelectedCell = null
 })
 </script>
 
@@ -340,5 +424,7 @@ onUnmounted(() => {
 .menu-item.dangerous { color: #f48771; }
 .menu-item.dangerous:hover { background: rgba(244, 135, 113, 0.15); }
 </style>
+
+
 
 

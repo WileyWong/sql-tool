@@ -60,7 +60,7 @@ export const useErdStore = defineStore('erd', () => {
       x: table.x,
       y: table.y,
       width: 220,
-      height: Math.max(40, Math.min(table.fields.length, 5) * 24 + 45),
+      height: Math.max(100, Math.min(table.fields.length, 5) * 22 + 55),
       table: table,
       data: table
     })
@@ -106,7 +106,7 @@ export const useErdStore = defineStore('erd', () => {
         target: { cell: targetTableId },
         router: {
           name: 'manhattan',
-          args: { padding: 20, startDirections: ['right'], endDirections: ['left'] }
+          args: { padding: 20 }
         },
         connector: { name: 'rounded' },
         attrs: {
