@@ -8,8 +8,8 @@
  */
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
-import type { Graph, Cell, Node, Edge } from '@antv/x6'
-import type { ErDiagramFile, ErTableData, ErRelationData, ErFieldData } from '../../shared/types/erd'
+import type { Graph, Cell } from '@antv/x6'
+import type { ErDiagramFile, ErTableData, ErRelationData } from '../../shared/types/erd'
 import { createEmptyErDiagram } from '../../shared/types/erd'
 import { useEditorStore } from './editor'
 import { buildTableHtml } from '../components/ErDiagram/erdUtils'
@@ -180,7 +180,7 @@ export const useErdStore = defineStore('erd', () => {
     const node = graph.value.getCellById(tableId)
     if (!node || !node.isNode()) return
 
-    const data = node.getData() as import('../../../shared/types/erd').ErTableData
+    const data = node.getData() as ErTableData
     data.backgroundColor = color
     node.setData(data)
     node.setAttrs({ fo: { html: buildTableHtml({ ...data, backgroundColor: color }) } })
