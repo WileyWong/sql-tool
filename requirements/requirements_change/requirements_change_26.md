@@ -496,7 +496,7 @@ const graph = new Graph({
     validateConnection({ sourceCell, targetCell }) { ... } // 去重 + 禁自引用
   },
   mousewheel: { enabled: true, zoomAtMousePosition: true },
-  panning: { enabled: true, modifiers: 'shift' },
+  panning: { enabled: true },  // 左键拖拽空白区域平移画布
   interacting: { edgeMovable: false }
 })
 
@@ -899,7 +899,7 @@ src/preload/
 - 实际安装 `@antv/x6@3.x`（`@antv/x6-vue-shape` 虽安装但最终未使用，改为 x6 原生 `foreignObject` 渲染表节点）
 - 第一版只做手动绘制，不包含"反向工程自动生成 ER 图"功能（可规划为 RC-027）
 - 连线标签显示支持多个字段对（如 `id = user_id, name = user_name`），用换行分隔
-- 画布支持缩放（滚轮）和拖拽（Shift+拖拽，x6 内置功能）
+- 画布支持缩放（Ctrl+滚轮）和拖拽平移（Ctrl+左键拖拽空白区域），避免与框选（左键拖拽）冲突
 - 撤销/重做暂不支持（x6 的 History 插件可后续集成）
 - 自引用连线（同一张表连接自身）**禁止**，拖拽到自身时不创建连线
 - 连线去重：A→B 同方向只允许一条线（`validateConnection` 中检查 `getEdges()`）

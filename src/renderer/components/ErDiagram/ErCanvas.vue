@@ -1,5 +1,8 @@
 <template>
   <div ref="canvasContainer" class="er-canvas" tabindex="0" @keydown.delete.prevent="handleDeleteKey">
+    <!-- 框选矩形 -->
+    <div v-if="rubberBand.show" class="rubber-band" :style="rubberBandStyle"></div>
+
     <!-- 右键菜单 -->
     <div 
       v-if="contextMenu.visible" 
@@ -16,12 +19,15 @@
       <div v-if="contextMenu.type === 'node' || contextMenu.type === 'edge'" class="menu-item dangerous" @click="handleDeleteSelected">
         🗑 {{ $t('erd.deleteElement') }}
       </div>
+      <div v-if="selectedCells.size >= 2" class="menu-item dangerous" @click="handleBatchDelete">
+        🗑 删除选中 ({{ selectedCells.size }})
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, inject, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, inject, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Graph, Markup } from '@antv/x6'
@@ -48,11 +54,46 @@ const erdPanel = inject<{
 const contextMenu = ref({ visible: false, x: 0, y: 0, type: 'canvas' as 'canvas' | 'node' | 'edge' })
 let contextMenuCell: import('@antv/x6').Cell | null = null  // 右键菜单目标 Cell
 
-/** x6 Graph 实例 —— 画布上所有节点、连线、事件都由它管理 */
+// ===== 框选状态 =====
+const rubberBand = ref({ show: false, x: 0, y: 0, width: 0, height: 0 })
+const rubberBandStyle = computed(() => ({
+  left: `${rubberBand.value.x}px`,
+  top: `${rubberBand.value.y}px`,
+  width: `${rubberBand.value.width}px`,
+  height: `${rubberBand.value.height}px`
+}))
+const selectedCells = reactive(new Set<string>())  // 多选 cell ID 集合
+let rubberBandStart = { x: 0, y: 0 }
+
+/** x6 可视化 Graph 实例 —— 画布上所有节点、连线、事件都由它管理 */
 let graph: Graph | null = null
+
+/** 框选全局事件处理器（挂 document，卸载时移除） */
+let rbMoveHandler: ((e: MouseEvent) => void) | null = null
+let rbUpHandler: (() => void) | null = null
 
 /** 上一次选中的 Cell（节点或连线），用于取消高亮时恢复样式 */
 let lastSelectedCell: import('@antv/x6').Cell | null = null
+
+/** 清除所有多选高亮 */
+function clearAllSelectedCells() {
+  if (!graph) return
+  selectedCells.forEach(id => {
+    const cell = graph!.getCellById(id)
+    if (cell) {
+      if (cell.isNode()) cell.setAttrs({ fo: { html: buildTableHtml(cell.getData() as ErTableData, false) } })
+      else if (cell.isEdge()) { cell.attr('line/stroke', '#888888'); cell.attr('line/strokeWidth', 2) }
+    }
+  })
+  selectedCells.clear()
+}
+
+/** 判断 cell 的 bounding box 是否与矩形相交（框选检测） */
+function isCellInRect(cell: import('@antv/x6').Cell, rect: { x: number; y: number; width: number; height: number }): boolean {
+  const bbox = cell.getBBox()
+  return !(bbox.x + bbox.width < rect.x || rect.x + rect.width < bbox.x ||
+           bbox.y + bbox.height < rect.y || rect.y + rect.height < bbox.y)
+}
 
 /** 清除选中高亮：节点 → 重建 HTML 去掉蓝色边框；连线 → 恢复灰色 */
 function clearSelectionHighlight() {
@@ -80,8 +121,8 @@ function clearSelectionHighlight() {
  *
  *   Graph 配置:
  *     ├── connecting: manhattan 直角路由，端口拖出→节点落点
- *     ├── mousewheel: 滚轮缩放
- *     └── panning: Shift+拖拽平移
+ *     ├── mousewheel: Ctrl+滚轮缩放
+ *     └── panning: Ctrl+左键拖拽平移画布（避免与框选拖拽冲突）
  *
  *   事件绑定:
  *     ├── node:mouseenter/mouseleave → 端口显隐
@@ -159,6 +200,7 @@ function initGraph() {
     container: canvasContainer.value,
     background: { color: '#1e1e1e' },
     grid: { size: 10, visible: true },
+    autoResize: true,
     connecting: {
       router: { name: 'manhattan', args: { padding: 20 } },
       connector: { name: 'rounded' },
@@ -183,8 +225,8 @@ function initGraph() {
       },
       createEdge() { return this.createEdge({ shape: 'edge' }) }
     },
-    mousewheel: { enabled: true, zoomAtMousePosition: true },
-    panning: { enabled: true, modifiers: 'shift' },
+    mousewheel: { enabled: true, modifiers: 'ctrl', zoomAtMousePosition: true },  // Ctrl+滚轮缩放
+    panning: { enabled: true, modifiers: 'ctrl' },  // Ctrl+左键拖拽平移画布
     interacting: { edgeMovable: false }
   })
 
@@ -254,6 +296,7 @@ function initGraph() {
 
   // cell:click —— x6 统一事件，节点和连线点击都会触发
   graph.on('cell:click', ({ cell }) => {
+    clearAllSelectedCells()
     clearSelectionHighlight()
     applySelectionHighlight(cell)
     lastSelectedCell = cell
@@ -261,6 +304,7 @@ function initGraph() {
     canvasContainer.value?.focus()
   })
   graph.on('blank:click', () => {
+    clearAllSelectedCells()
     clearSelectionHighlight()
     erdStore.selectedCell = null
     canvasContainer.value?.focus()
@@ -286,13 +330,47 @@ function initGraph() {
     contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, type: 'canvas' }
   })
 
-  // 点击空白清除选中 + 高亮 + 关闭菜单
-  graph.on('blank:mousedown', () => {
-    clearSelectionHighlight()
+  // ===== 框选 =====
+  // blank:mousedown → 开始框选（记录起点，显示矩形）
+  // document mousemove → 更新矩形大小
+  // document mouseup → 查找矩形内 cell，多选高亮
+  graph.on('blank:mousedown', ({ e }) => {
+    // Ctrl 按下时留给 panning，不触发框选
+    if (e.ctrlKey || e.metaKey) return
+    clearAllSelectedCells()
     erdStore.selectedCell = null
     contextMenu.value.visible = false
     canvasContainer.value?.focus()
+    // 记录框选起点
+    const rect = canvasContainer.value!.getBoundingClientRect()
+    rubberBandStart = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    rubberBand.value = { show: true, x: rubberBandStart.x, y: rubberBandStart.y, width: 0, height: 0 }
   })
+
+  rbMoveHandler = (e: MouseEvent) => {
+    if (!rubberBand.value.show) return
+    const rect = canvasContainer.value!.getBoundingClientRect()
+    const cx = e.clientX - rect.left; const cy = e.clientY - rect.top
+    rubberBand.value.x = Math.min(rubberBandStart.x, cx)
+    rubberBand.value.y = Math.min(rubberBandStart.y, cy)
+    rubberBand.value.width = Math.abs(cx - rubberBandStart.x)
+    rubberBand.value.height = Math.abs(cy - rubberBandStart.y)
+  }
+  rbUpHandler = () => {
+    if (!rubberBand.value.show || !graph) return
+    rubberBand.value.show = false
+    if (rubberBand.value.width < 5 && rubberBand.value.height < 5) return  // 太小=点击
+    // 查找矩形内的 cell 并高亮
+    graph.getCells().forEach(cell => {
+      if (isCellInRect(cell, rubberBand.value)) {
+        selectedCells.add(cell.id)
+        if (cell.isNode()) cell.setAttrs({ fo: { html: buildTableHtml(cell.getData() as ErTableData, true) } })
+        else if (cell.isEdge()) { cell.attr('line/stroke', '#4fc3f7'); cell.attr('line/strokeWidth', 3) }
+      }
+    })
+  }
+  document.addEventListener('mousemove', rbMoveHandler!)
+  document.addEventListener('mouseup', rbUpHandler!)
 
   // 将 Graph 实例注入 erdStore，后续增删改操作都通过 erdStore 方法
   erdStore.setGraph(graph)
@@ -343,9 +421,29 @@ function renderFromErdData(data: Parameters<typeof erdStore.addTable>[0] extends
 }
 
 function handleDeleteKey() {
-  clearSelectionHighlight()
-  erdStore.removeSelected()
+  if (selectedCells.size > 0) {
+    selectedCells.forEach(id => {
+      const cell = graph?.getCellById(id)
+      if (cell?.isNode()) erdStore.removeTable(id)
+      else if (cell?.isEdge()) erdStore.removeRelation(id)
+    })
+    selectedCells.clear()
+  } else {
+    clearSelectionHighlight()
+    erdStore.removeSelected()
+  }
   contextMenu.value.visible = false
+}
+
+function handleBatchDelete() {
+  contextMenu.value.visible = false
+  selectedCells.forEach(id => {
+    const cell = graph?.getCellById(id)
+    if (cell?.isNode()) erdStore.removeTable(id)
+    else if (cell?.isEdge()) erdStore.removeRelation(id)
+  })
+  selectedCells.clear()
+  contextMenuCell = null
 }
 
 function handleAddTable() {
@@ -392,6 +490,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (rbMoveHandler) document.removeEventListener('mousemove', rbMoveHandler)
+  if (rbUpHandler) document.removeEventListener('mouseup', rbUpHandler)
+  rbMoveHandler = null
+  rbUpHandler = null
   erdStore.dispose()
   graph = null
   lastSelectedCell = null
@@ -400,6 +502,14 @@ onUnmounted(() => {
 
 <style scoped>
 .er-canvas { width: 100%; height: 100%; outline: none; position: relative; }
+
+.rubber-band {
+  position: absolute;
+  border: 1px dashed #4fc3f7;
+  background: rgba(79, 195, 247, 0.1);
+  pointer-events: none;
+  z-index: 9999;
+}
 
 .context-menu {
   position: fixed;
