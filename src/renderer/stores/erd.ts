@@ -12,7 +12,12 @@ import type { Graph, Cell } from '@antv/x6'
 import type { ErDiagramFile, ErTableData, ErRelationData } from '../../shared/types/erd'
 import { createEmptyErDiagram } from '../../shared/types/erd'
 import { useEditorStore } from './editor'
-import { buildTableHtml } from '../components/ErDiagram/erdUtils'
+import {
+  buildTableHtml,
+  buildNodeMeta,
+  buildEdgeMeta,
+  buildEdgeLabel,
+} from '../components/ErDiagram/erdUtils'
 import { v4 as uuidv4 } from 'uuid'
 
 export const useErdStore = defineStore('erd', () => {
@@ -26,15 +31,9 @@ export const useErdStore = defineStore('erd', () => {
   const activeTabId = ref<string | null>(null)
 
   // === 初始化 ===
-  function init(tabId: string, data?: ErDiagramFile) {
+  function init(tabId: string) {
     activeTabId.value = tabId
-    if (data) {
-      // 从持久化数据恢复
-      isDirty.value = false
-    } else {
-      // 新建空白 ER 图
-      isDirty.value = false
-    }
+    isDirty.value = false
   }
 
   // === Graph 注册 ===
@@ -42,29 +41,43 @@ export const useErdStore = defineStore('erd', () => {
     graph.value = g
   }
 
+  /** 设置/清除当前选中的 cell（由画布 cell:selected/unselected 事件驱动） */
+  function setSelectedCell(cell: Cell | null) {
+    selectedCell.value = cell
+  }
+
+  /**
+   * 从持久化数据恢复画布（唯一渲染入口）
+   *
+   * 注意：恢复属于"加载已有数据"，不应标记 isDirty。
+   * 节点/连线/标签的创建规则统一走 erdUtils 工厂函数。
+   */
+  function renderFromErdData(data: ErDiagramFile) {
+    if (!graph.value) return
+    data.tables.forEach(t => graph.value!.addNode(buildNodeMeta(t)))
+    data.relations.forEach(r => {
+      graph.value!.addEdge(buildEdgeMeta(r))
+      const label = buildEdgeLabel(r.sourceFields, r.targetFields)
+      if (label) {
+        const edge = graph.value!.getCellById(r.id)
+        if (edge?.isEdge()) edge.setLabels([label])
+      }
+    })
+    graphVersion.value++
+  }
+
   // === 节点操作 ===
   function addTable(table: ErTableData) {
     if (!graph.value) return
-    
-    // 分配画布位置（如果没有指定坐标）
+
+    // 兜底：未指定坐标时按节点数量网格排布
     if (table.x === undefined || table.y === undefined) {
-      const nodes = graph.value.getNodes()
-      const offsetX = nodes.length > 0 ? (nodes.length % 4) * 260 : 50
-      const offsetY = nodes.length > 0 ? Math.floor(nodes.length / 4) * 300 : 50
-      table.x = offsetX + 50
-      table.y = offsetY + 50
+      const count = graph.value.getNodes().length
+      table.x = 50 + (count % 4) * 260
+      table.y = 50 + Math.floor(count / 4) * 300
     }
 
-    graph.value.addNode({
-      id: table.id,
-      shape: 'er-table-node',
-      x: table.x,
-      y: table.y,
-      width: 220,
-      height: Math.max(100, Math.min(table.fields.length, 5) * 22 + 55),
-      table: table,
-      data: table
-    })
+    graph.value.addNode(buildNodeMeta(table))
     graphVersion.value++
     markDirty()
   }
@@ -80,6 +93,18 @@ export const useErdStore = defineStore('erd', () => {
     }
     graphVersion.value++
     markDirty()
+  }
+
+  /** 批量删除节点/连线（节点会连带删除其关联连线） */
+  function removeCells(cells: Cell[]) {
+    if (!graph.value || cells.length === 0) return
+    cells.forEach(c => {
+      if (c.isNode()) removeTable(c.id)
+      else if (c.isEdge()) removeRelation(c.id)
+    })
+    if (selectedCell.value && cells.some(c => c.id === selectedCell.value!.id)) {
+      selectedCell.value = null
+    }
   }
 
   // === 连线操作 ===
@@ -103,31 +128,13 @@ export const useErdStore = defineStore('erd', () => {
     } else {
       // 程序化创建新边
       const edgeId = `edge-${uuidv4()}`
-      graph.value.addEdge({
+      graph.value.addEdge(buildEdgeMeta({
         id: edgeId,
-        source: { cell: sourceTableId },
-        target: { cell: targetTableId },
-        router: {
-          name: 'manhattan',
-          args: { padding: 20 }
-        },
-        connector: { name: 'rounded' },
-        attrs: {
-          line: {
-            stroke: '#888888',
-            strokeWidth: 2,
-            targetMarker: null
-          }
-        },
-        labels: [],
-        data: {
-          id: edgeId,
-          sourceTableId,
-          targetTableId,
-          sourceFields: [] as string[],
-          targetFields: [] as string[]
-        }
-      })
+        sourceTableId,
+        targetTableId,
+        sourceFields: [],
+        targetFields: [],
+      }))
     }
     markDirty()
   }
@@ -148,32 +155,9 @@ export const useErdStore = defineStore('erd', () => {
     data.targetFields = targetFields
     edge.setData(data)
 
-    // 更新连线标签
-    if (sourceFields.length > 0 && targetFields.length > 0) {
-      const labelText = sourceFields.map((s, i) => {
-        const t = targetFields[i] || targetFields[0]
-        return `${s} = ${t}`
-      }).join('\n')
-      
-      edge.setLabels([{
-        attrs: {
-          text: { text: labelText, fill: '#d4d4d4', fontSize: 11 },
-          rect: {
-            fill: '#1e1e1e',
-            stroke: '#555555',
-            strokeWidth: 1,
-            rx: 4,
-            ry: 4,
-            refWidth: '120%',
-            refHeight: '120%',
-            refX: -10,
-            refY: -10
-          }
-        }
-      }])
-    } else {
-      edge.setLabels([])
-    }
+    // 更新连线标签（统一走 erdUtils.buildEdgeLabel）
+    const label = buildEdgeLabel(sourceFields, targetFields)
+    edge.setLabels(label ? [label] : [])
     markDirty()
   }
 
@@ -282,10 +266,13 @@ export const useErdStore = defineStore('erd', () => {
     // 初始化
     init,
     setGraph,
+    setSelectedCell,
+    renderFromErdData,
 
     // 节点
     addTable,
     removeTable,
+    removeCells,
 
     // 连线
     addRelation,

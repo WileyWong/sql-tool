@@ -16,7 +16,7 @@
       <div v-if="contextMenu.type === 'node' || contextMenu.type === 'edge'" class="menu-item dangerous" @click="handleDeleteSelected">
         🗑 {{ $t('erd.deleteElement') }}
       </div>
-      <div v-if="contextMenu.type === 'canvas' && selectionCellCount >= 2" class="menu-item dangerous" @click="handleBatchDelete">
+      <div v-if="contextMenu.type === 'canvas' && selectionCellCount >= 2" class="menu-item dangerous" @click="handleDeleteSelected">
         🗑 删除选中 ({{ selectionCellCount }})
       </div>
     </div>
@@ -32,7 +32,7 @@ import { useEditorStore } from '../../stores/editor'
 import { useErdStore } from '../../stores/erd'
 import { useConnectionStore } from '../../stores/connection'
 import type { ErTableData } from '../../../shared/types/erd'
-import { buildTableHtml } from './erdUtils'
+import { buildTableHtml, buildEdgeAttrs, ER_STYLE } from './erdUtils'
 
 const { t } = useI18n()
 const editorStore = useEditorStore()
@@ -49,7 +49,6 @@ const erdPanel = inject<{
 }>('erdPanel')
 
 const contextMenu = ref({ visible: false, x: 0, y: 0, type: 'canvas' as 'canvas' | 'node' | 'edge' })
-let contextMenuCell: import('@antv/x6').Cell | null = null
 const dropPosition = ref<{ x: number; y: number } | null>(null)
 
 const selectionCellCount = ref(0)
@@ -64,8 +63,8 @@ function applyHighlight(cell: import('@antv/x6').Cell) {
     const d = (cell as any).getData?.() as ErTableData | undefined
     if (d?.fields) cell.setAttrs({ fo: { html: buildTableHtml(d, true) } })
   } else if (cell.isEdge()) {
-    cell.attr('line/stroke', '#4fc3f7')
-    cell.attr('line/strokeWidth', 3)
+    cell.attr('line/stroke', ER_STYLE.edgeColorSelected)
+    cell.attr('line/strokeWidth', ER_STYLE.edgeWidthSelected)
   }
 }
 function removeHighlight(cell: import('@antv/x6').Cell) {
@@ -73,8 +72,8 @@ function removeHighlight(cell: import('@antv/x6').Cell) {
     const d = (cell as any).getData?.() as ErTableData | undefined
     if (d?.fields) cell.setAttrs({ fo: { html: buildTableHtml(d, false) } })
   } else if (cell.isEdge()) {
-    cell.attr('line/stroke', '#888888')
-    cell.attr('line/strokeWidth', 2)
+    cell.attr('line/stroke', ER_STYLE.edgeColor)
+    cell.attr('line/strokeWidth', ER_STYLE.edgeWidth)
   }
 }
 
@@ -149,10 +148,10 @@ function initGraph() {
   graph = new Graph({
     container: canvasContainer.value,
     autoResize: true,
-    background: { color: '#1e1e1e' },
+    background: { color: ER_STYLE.canvasBg },
     grid: { size: 10, visible: true },
     connecting: {
-      router: { name: 'manhattan', args: { padding: 20 } },
+      router: { name: 'manhattan', args: { padding: ER_STYLE.manhattanPadding } },
       connector: { name: 'rounded' },
       allowBlank: false, allowLoop: false,
       allowNode: true, allowPort: true, allowMulti: false,
@@ -183,9 +182,18 @@ function initGraph() {
   graph.use(selection)
 
   // Selection 插件自带高亮类 .x6-node-selected，但我们是 foreignObject，
-  // 仍需手工更新 fo.html。用 cell:selected/unselected 事件同步视觉高亮。
-  graph.on('cell:selected', ({ cell }) => { applyHighlight(cell); updateSelectionCount() })
-  graph.on('cell:unselected', ({ cell }) => { removeHighlight(cell); updateSelectionCount() })
+  // 仍需手工更新 fo.html。用 cell:selected/unselected 事件同步视觉高亮，
+  // 同时把选中态同步到 erdStore.selectedCell（格式/删除统一走 selectedCell）。
+  graph.on('cell:selected', ({ cell }) => {
+    erdStore.setSelectedCell(cell)
+    applyHighlight(cell)
+    updateSelectionCount()
+  })
+  graph.on('cell:unselected', ({ cell }) => {
+    if (erdStore.selectedCell?.id === cell.id) erdStore.setSelectedCell(null)
+    removeHighlight(cell)
+    updateSelectionCount()
+  })
 
   // ===== 端口 hover 显隐 =====
   const allPorts = ['port-top', 'port-right', 'port-bottom', 'port-left']
@@ -194,16 +202,12 @@ function initGraph() {
   graph.on('node:added', ({ node }) => allPorts.forEach(p => node.setPortProp(p, 'attrs/portBody/style/visibility', 'hidden')))
 
   // ===== 连线完成 =====
+  // 去重已由 connecting.validateConnection 保证（重复时直接阻止连接），此处无需再判重。
   graph.on('edge:connected', ({ edge, currentCell }) => {
     const sourceCell = edge.getSourceCell()
     if (!sourceCell || !currentCell) return
-    const dupCount = graph!.getEdges().filter(e => {
-      if (e.id === edge.id) return false
-      return e.getSourceCellId() === sourceCell.id && e.getTargetCellId() === currentCell.id
-    }).length
-    if (dupCount > 0) { graph!.removeEdge(edge.id); return }
     edge.setLabels([])
-    edge.setAttrs({ line: { stroke: '#888888', strokeWidth: 2, targetMarker: null } })
+    edge.setAttrs(buildEdgeAttrs())
     erdStore.addRelation(sourceCell.id, currentCell.id, edge.id)
   })
 
@@ -218,14 +222,17 @@ function initGraph() {
   // ===== 右键菜单 =====
   graph.on('cell:contextmenu', ({ e, cell }) => {
     e.preventDefault()
-    contextMenuCell = cell
+    // 若右键的 cell 不在当前选区，则单选它 → 触发 cell:selected 同步 selectedCell
+    if (graph && !graph.isSelected(cell)) {
+      graph.cleanSelection()
+      graph.select(cell)
+    }
     updateSelectionCount()
     if (cell.isNode()) contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, type: 'node' }
     else if (cell.isEdge()) contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, type: 'edge' }
   })
   graph.on('blank:contextmenu', ({ e }) => {
     e.preventDefault()
-    contextMenuCell = null
     updateSelectionCount()
     if (graph) {
       const local = graph.clientToLocal(e.clientX, e.clientY)
@@ -242,41 +249,17 @@ function initGraph() {
 
   erdStore.setGraph(graph)
 
+  // 从持久化数据恢复画布（渲染逻辑统一收敛在 erdStore）
   const tab = editorStore.activeTab
-  if (tab?.erdData) renderFromErdData(tab.erdData)
+  if (tab?.erdData) erdStore.renderFromErdData(tab.erdData)
 }
 
 function updateSelectionCount() {
   selectionCellCount.value = graph?.getSelectedCells().length ?? 0
 }
 
-function renderFromErdData(data: Parameters<typeof erdStore.addTable>[0] extends ErTableData ? any : never) {
-  if (!graph) return
-  const d = data as import('../../../shared/types/erd').ErDiagramFile
-  d.tables.forEach((t: ErTableData) => {
-    graph!.addNode({ id: t.id, shape: 'er-table-node', x: t.x, y: t.y, width: 220,
-      height: Math.max(100, Math.min(t.fields.length, 5) * 22 + 55), table: t, data: t })
-  })
-  d.relations.forEach((r: import('../../../shared/types/erd').ErRelationData) => {
-    graph!.addEdge({
-      id: r.id, source: { cell: r.sourceTableId }, target: { cell: r.targetTableId },
-      router: { name: 'manhattan', args: { padding: 20 } }, connector: { name: 'rounded' },
-      attrs: { line: { stroke: '#888888', strokeWidth: 2 } }, vertices: r.vertices,
-      data: { id: r.id, sourceTableId: r.sourceTableId, targetTableId: r.targetTableId, sourceFields: r.sourceFields, targetFields: r.targetFields }
-    })
-    if (r.sourceFields.length > 0 || r.targetFields.length > 0) {
-      const labelText = r.sourceFields.map((s, i) => `${s} = ${r.targetFields[i] || r.targetFields[0]}`).join('\n')
-      const edge = graph!.getCellById(r.id)
-      if (edge?.isEdge()) edge.setLabels([{ attrs: { text: { text: labelText, fill: '#d4d4d4', fontSize: 11 }, rect: { fill: '#1e1e1e', stroke: '#555555', strokeWidth: 1, rx: 4, ry: 4 } } }])
-    }
-  })
-}
-
 function handleDeleteKey() {
-  const cells = graph?.getSelectedCells() ?? []
-  if (cells.length > 0) {
-    cells.forEach(c => { if (c.isNode()) erdStore.removeTable(c.id); else if (c.isEdge()) erdStore.removeRelation(c.id) })
-  }
+  erdStore.removeCells(graph?.getSelectedCells() ?? [])
   contextMenu.value.visible = false
 }
 
@@ -290,25 +273,16 @@ function handleAddTable() {
 
 function handleFormatNode() {
   contextMenu.value.visible = false
-  const cell = contextMenuCell
+  const cell = erdStore.selectedCell
   if (!cell?.isNode()) return
   const data = cell.getData() as ErTableData
-  erdPanel?.openFormatDialog(data.backgroundColor || '#2d2d2d')
+  erdPanel?.openFormatDialog(data.backgroundColor || ER_STYLE.defaultBg)
 }
 
+/** 删除当前选中的节点/连线（右键菜单"删除"与"删除选中 N"共用） */
 function handleDeleteSelected() {
   contextMenu.value.visible = false
-  const target = contextMenuCell
-  if (target?.isNode()) erdStore.removeTable(target.id)
-  else if (target?.isEdge()) erdStore.removeRelation(target.id)
-  contextMenuCell = null
-}
-
-function handleBatchDelete() {
-  contextMenu.value.visible = false
-  const cells = graph?.getSelectedCells() ?? []
-  cells.forEach(c => { if (c.isNode()) erdStore.removeTable(c.id); else if (c.isEdge()) erdStore.removeRelation(c.id) })
-  contextMenuCell = null
+  erdStore.removeCells(graph?.getSelectedCells() ?? [])
 }
 
 watch(() => editorStore.activeTabId, (newId) => {
