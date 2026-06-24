@@ -51,7 +51,7 @@ async function loadTables() {
     await connectionStore.loadTablesWithColumns(props.connectionId, props.databaseName)
     const meta = connectionStore.getDatabaseMeta(props.connectionId, props.databaseName)
     if (meta?.tables) {
-      allTables.value = meta.tables.map(t => typeof t === 'string' ? t : t.name || t.tableName || '')
+      allTables.value = meta.tables.map(t => typeof t === 'string' ? t : t.name || '')
     }
   } catch { allTables.value = [] }
   finally { loading.value = false }
@@ -72,7 +72,7 @@ function handleConfirm() {
   const tables: ErTableData[] = selectedTables.value.map((name, i) => {
     let fields: any[] = []
     if (meta) {
-      const tableMeta = meta.tables?.find(t => (typeof t === 'string' ? t === name : (t.name || t.tableName) === name))
+      const tableMeta = meta.tables?.find(t => (typeof t === 'string' ? t === name : t.name === name))
       fields = (tableMeta && typeof tableMeta === 'object' && 'columns' in tableMeta) ? (tableMeta as any).columns || [] : []
     }
     return {
