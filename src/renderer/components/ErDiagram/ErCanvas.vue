@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, inject, watch } from 'vue'
+import { ref, onMounted, onUnmounted, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Graph, Markup, Selection } from '@antv/x6'
@@ -287,13 +287,18 @@ function handleDeleteSelected() {
   erdStore.removeCells(graph?.getSelectedCells() ?? [])
 }
 
-watch(() => editorStore.activeTabId, (newId) => {
-  if (newId !== erdStore.activeTabId) {
-    erdStore.dispose()
-    graph = null
-    selection = null
+/**
+ * 组件卸载（切换/关闭标签页）前，把当前画布状态序列化回所属标签页的 erdData，
+ * 避免切走后再切回时丢失本次会话内的画布编辑。
+ */
+function persistToTab() {
+  const tabId = erdStore.activeTabId
+  if (!tabId || !graph) return
+  const tab = editorStore.tabs.find(t => t.id === tabId)
+  if (tab && tab.tabType === 'erd') {
+    tab.erdData = erdStore.serializeToErdData()
   }
-})
+}
 
 onMounted(() => {
   erdStore.init(editorStore.activeTabId || '')
@@ -301,6 +306,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  persistToTab()
   erdStore.dispose()
   graph = null
   selection = null

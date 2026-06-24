@@ -29,8 +29,8 @@
     <!-- SQL 标签页内容 -->
     <SqlEditorPanel v-if="isSqlTab" ref="sqlEditorPanelRef" />
     
-    <!-- ER 图标签页内容 -->
-    <ErDiagramPanel v-else-if="isErdTab" ref="erdDiagramPanelRef" />
+    <!-- ER 图标签页内容（按标签页 ID 独立实例，切换时重新挂载，避免多个 ER 标签页共用同一画布） -->
+    <ErDiagramPanel v-else-if="isErdTab" :key="activeTabId" ref="erdDiagramPanelRef" />
   </div>
 </template>
 
