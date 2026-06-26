@@ -651,6 +651,13 @@ function formatSqlValue(value: unknown): string {
     }
     return `X'${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')}'`
   }
+  // 普通 JavaScript 对象（如 JSON 列）→ JSON.stringify + MySQL 转义
+  // MySQL 字符串字面量中 \ 是转义字符，需将 JSON.stringify 输出的 \n \t \\ 等再加一层反斜杠，
+  // 确保 MySQL 原样传递给 JSON 解析器。例: JSON 中的 \n → SQL 字面量写为 \\n → MySQL 解析后为 \n
+  if (value && typeof value === 'object') {
+    const jsonStr = JSON.stringify(value)
+    return `'${jsonStr.replace(/\\/g, '\\\\').replace(/'/g, "''")}'`
+  }
   return `'${String(value).replace(/'/g, "''")}'`
 }
 
