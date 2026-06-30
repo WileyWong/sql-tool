@@ -176,6 +176,7 @@ body {
   min-height: 200px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* 上下分隔条 */
@@ -184,6 +185,8 @@ body {
   background: var(--resizer-color);
   cursor: ns-resize;
   flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 
 .resize-handle:hover,
@@ -197,6 +200,7 @@ body {
   background: var(--bg-base);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* 状态栏 */
