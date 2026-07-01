@@ -459,6 +459,8 @@
     "pleaseWait": "请稍候...",
     "confirmOperation": "确认操作",
     "operationCancelled": "操作已取消",
-    "queryCancelled": "查询已取消"
+    "queryCancelled": "查询已取消",
+    "queryCancelFailed": "无法取消，查询可能已完成或连接已断开",
+    "queryCancelFailedCompleted": "取消请求已发送但查询已完成，数据可能已被修改"
   }
 }

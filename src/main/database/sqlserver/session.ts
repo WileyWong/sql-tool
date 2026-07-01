@@ -70,6 +70,8 @@ interface SqlServerSession {
   status: 'active' | 'reconnecting' | 'disconnected'
   /** 正在执行的请求对象，用于取消查询 */
   runningRequest?: sql.Request
+  /** 是否已请求取消当前查询 */
+  cancelled: boolean
   /** 僵尸检测：渲染进程无响应计数 */
   suspiciousCount: number
 }
@@ -138,6 +140,7 @@ export class SqlServerSessionManager implements ISessionManager {
       createdAt: Date.now(),
       lastActiveAt: Date.now(),
       status: 'active',
+      cancelled: false,
       suspiciousCount: 0
     }
     this.sessions.set(tabId, session)
@@ -272,9 +275,11 @@ export class SqlServerSessionManager implements ISessionManager {
     }
 
     const results: QueryResult[] = []
+    session.cancelled = false  // 重置取消标记
     const batches = this.splitByGo(trimmedSql)
 
     for (const batch of batches) {
+
       if (!batch.trim()) continue
 
       const batchStartTime = Date.now()
@@ -391,12 +396,27 @@ export class SqlServerSessionManager implements ISessionManager {
       }
     }
 
+    // 检查是否在本次执行过程中被请求取消
+    if (session.cancelled) {
+      session.cancelled = false
+      // SQL Server 的 request.cancel() 会抛出 ECANCEL 错误
+      const wasKilled = results.some(r =>
+        r.type === 'error' &&
+        ((r as QueryError).code === 'ECANCEL' || (r as QueryError).message?.includes('cancel'))
+      )
+      ;(results as unknown as { __cancelled?: boolean; __wasKilled?: boolean }).__cancelled = true
+      ;(results as unknown as { __cancelled?: boolean; __wasKilled?: boolean }).__wasKilled = wasKilled
+    }
+
     return results
   }
 
   async cancelQuery(tabId: string): Promise<boolean> {
     const session = this.sessions.get(tabId)
     if (!session || !session.runningRequest) return false
+
+    // 先标记已请求取消
+    session.cancelled = true
 
     try {
       session.runningRequest.cancel()

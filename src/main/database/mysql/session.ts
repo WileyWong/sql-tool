@@ -35,6 +35,8 @@ interface MySQLSession {
   status: 'active' | 'reconnecting' | 'disconnected'
   /** 正在执行的查询的线程 ID，用于取消查询 */
   runningQueryThreadId?: number
+  /** 是否已请求取消当前查询 */
+  cancelled: boolean
   /** 僵尸检测：渲染进程无响应计数 */
   suspiciousCount: number
 }
@@ -100,6 +102,7 @@ export class MySQLSessionManager implements ISessionManager {
       createdAt: Date.now(),
       lastActiveAt: Date.now(),
       status: 'active',
+      cancelled: false,
       suspiciousCount: 0
     }
     this.sessions.set(tabId, session)
@@ -243,8 +246,10 @@ export class MySQLSessionManager implements ISessionManager {
     // 记录查询线程 ID（用于取消）
     const threadId = (connection as unknown as { threadId: number }).threadId
     session.runningQueryThreadId = threadId
+    session.cancelled = false  // 重置取消标记
 
     const results: QueryResult[] = []
+
 
     try {
       const statements = splitStatementsToTexts(trimmedSql)
@@ -322,7 +327,21 @@ export class MySQLSessionManager implements ISessionManager {
         }
       }
     } finally {
+      // 保存取消状态（在 finally 中检查，因为此时查询已返回）
+      const wasCancelled = session.cancelled
       session.runningQueryThreadId = undefined
+      session.cancelled = false
+
+      // 如果取消请求已发送，判断是否真正被中断
+      if (wasCancelled) {
+        const wasKilled = results.some(r =>
+          r.type === 'error' &&
+          ((r as QueryError).code === 'ER_QUERY_INTERRUPTED' || (r as QueryError).sqlState === '70100')
+        )
+        // 通过特殊属性传递取消信息（不污染 QueryResult 类型）
+        ;(results as unknown as { __cancelled?: boolean; __wasKilled?: boolean }).__cancelled = true
+        ;(results as unknown as { __cancelled?: boolean; __wasKilled?: boolean }).__wasKilled = wasKilled
+      }
     }
 
     return results
@@ -331,6 +350,9 @@ export class MySQLSessionManager implements ISessionManager {
   async cancelQuery(tabId: string): Promise<boolean> {
     const session = this.sessions.get(tabId)
     if (!session || !session.runningQueryThreadId) return false
+
+    // 先标记已请求取消（无论 KILL 是否发送成功）
+    session.cancelled = true
 
     try {
       // 使用同一个连接执行 KILL QUERY 需要另一个连接

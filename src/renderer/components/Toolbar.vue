@@ -158,7 +158,22 @@ async function handleExecute() {
     const database = editorStore.activeTab?.databaseName
     const tabId = editorStore.activeTab?.id
     const result = await window.api.query.execute(currentTabConnection.value.id, tabId!, sql, maxRows, database)
-    if (result.success && result.results) {
+    // 如果执行过程中被取消，根据实际情况处理
+    if ((result as any).cancelled) {
+      const wasKilled = (result as any).wasKilled ?? false
+      if (wasKilled) {
+        // 查询确实被中断，数据未修改
+        resultStore.addMessage('warning', t('message.queryCancelled'))
+        resultStore.setExecutionStatus('cancelled')
+      } else {
+        // 取消请求已发送但查询已完成，数据已被修改
+        if (result.results) {
+          resultStore.handleQueryResults(result.results)
+        }
+        resultStore.addMessage('warning', t('message.queryCancelFailedCompleted'))
+        resultStore.setExecutionStatus('error')
+      }
+    } else if (result.success && result.results) {
       resultStore.handleQueryResults(result.results)
       resultStore.setExecutionStatus('success')
     } else {
@@ -179,8 +194,11 @@ async function handleStop() {
   
   const result = await window.api.query.cancel(currentTabConnection.value.id, tabId)
   if (result.success) {
-    resultStore.addMessage('warning', t('message.queryCancelled'))
+    // KILL QUERY 已发送，等待 execute 返回后给出最终结果
     resultStore.setExecutionStatus('cancelled')
+  } else {
+    // 无法取消：查询可能已完成，或连接已断开
+    ElMessage.warning(t('message.queryCancelFailed'))
   }
 }
 

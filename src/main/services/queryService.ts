@@ -74,6 +74,20 @@ export async function execute(data: {
       maxRows: data.maxRows || Defaults.MAX_ROWS,
       currentDatabase: data.database,
     })
+    // 检查 session 层是否设置了取消标记
+    const cancelMeta = (results as unknown as { __cancelled?: boolean; __wasKilled?: boolean })
+    if (cancelMeta.__cancelled) {
+      const wasKilled = cancelMeta.__wasKilled ?? false
+      // 清理内部标记，不对外暴露
+      delete cancelMeta.__cancelled
+      delete cancelMeta.__wasKilled
+      return deepSerialize({
+        success: false,
+        cancelled: true,
+        wasKilled,
+        results
+      })
+    }
     // 使用深度序列化确保所有数据都可以通过 IPC 传输
     return deepSerialize({ success: true, results })
   } catch (error: unknown) {

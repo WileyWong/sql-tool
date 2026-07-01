@@ -459,6 +459,8 @@
     "pleaseWait": "請稍候...",
     "confirmOperation": "確認操作",
     "operationCancelled": "操作已取消",
-    "queryCancelled": "查詢已取消"
+    "queryCancelled": "查詢已取消",
+    "queryCancelFailed": "無法取消，查詢可能已完成或連線已中斷",
+    "queryCancelFailedCompleted": "取消請求已發送但查詢已完成，資料可能已被修改"
   }
 }
