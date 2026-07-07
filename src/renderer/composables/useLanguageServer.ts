@@ -187,7 +187,15 @@ export function useLanguageServer() {
         // 更新视图元数据
         const views = dbMeta.views.map(v => ({
           name: v.name,
-          comment: undefined as string | undefined
+          comment: undefined as string | undefined,
+          columns: v.columns.map(c => ({
+            name: c.name,
+            type: c.type,
+            nullable: c.nullable !== false,
+            defaultValue: c.defaultValue,
+            comment: c.comment,
+            isPrimaryKey: c.primaryKey
+          }))
         }))
         await window.api.sqlLanguageServer.updateViews(views)
       } else {

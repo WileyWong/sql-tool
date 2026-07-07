@@ -302,11 +302,13 @@ export class MetadataService {
   }
 
   /**
-   * 获取指定表的字段
+   * 获取指定表或视图的字段
    */
-  getColumns(tableName: string): ColumnMetadata[] {
-    const table = this.tables.get(tableName.toLowerCase())
-    return table?.columns || []
+  getColumns(tableOrViewName: string): ColumnMetadata[] {
+    const table = this.tables.get(tableOrViewName.toLowerCase())
+    if (table) return table.columns
+    const view = this.views.get(tableOrViewName.toLowerCase())
+    return view?.columns || []
   }
 
   /**

@@ -88,6 +88,7 @@ export interface ColumnMetadata {
 export interface ViewMetadata {
   name: string
   comment?: string
+  columns: ColumnMetadata[]
 }
 
 /**

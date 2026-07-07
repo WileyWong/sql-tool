@@ -390,7 +390,7 @@ export class SqlServerDriver implements IDatabaseDriver {
   }
 
   /**
-   * 获取视图列表
+   * 获取视图列表（含字段信息）
    */
   async getViews(connectionId: string, database: string): Promise<ViewMeta[]> {
     const pool = await this.getPoolWithReconnect(connectionId)
@@ -401,16 +401,74 @@ export class SqlServerDriver implements IDatabaseDriver {
     // 切换到指定数据库
     await pool.request().query(`USE [${database}]`)
     
-    const result = await pool.request().query(`
+    // 获取视图名称
+    const viewResult = await pool.request().query(`
       SELECT name
       FROM sys.views
       WHERE SCHEMA_NAME(schema_id) = 'dbo'
       ORDER BY name
     `)
     
-    return result.recordset.map(r => ({
-      name: r.name,
-      columns: []
+    const viewNames: string[] = viewResult.recordset.map(r => r.name)
+    if (viewNames.length === 0) {
+      return []
+    }
+    
+    // 批量查询所有视图的字段（与 getColumns 查询逻辑一致，但联表 sys.views 而非 sys.tables）
+    const columnResult = await pool.request().query(`
+      SELECT 
+        v.name AS view_name,
+        c.name AS column_name,
+        ty.name AS data_type,
+        ty.name + 
+          CASE 
+            WHEN ty.name IN ('varchar', 'nvarchar', 'char', 'nchar', 'varbinary') 
+              THEN '(' + IIF(c.max_length = -1, 'MAX', 
+                IIF(ty.name IN ('nvarchar', 'nchar'), CAST(c.max_length/2 AS VARCHAR), CAST(c.max_length AS VARCHAR))) + ')'
+            WHEN ty.name IN ('decimal', 'numeric') 
+              THEN '(' + CAST(c.precision AS VARCHAR) + ',' + CAST(c.scale AS VARCHAR) + ')'
+            WHEN ty.name IN ('datetime2', 'time', 'datetimeoffset')
+              THEN '(' + CAST(c.scale AS VARCHAR) + ')'
+            ELSE ''
+          END AS column_type,
+        c.is_nullable,
+        CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key,
+        ep.value AS column_comment
+      FROM sys.columns c
+      INNER JOIN sys.views v ON c.object_id = v.object_id
+      INNER JOIN sys.types ty ON c.user_type_id = ty.user_type_id
+      LEFT JOIN (
+        SELECT ic.column_id, ic.object_id
+        FROM sys.index_columns ic
+        INNER JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+        WHERE i.is_primary_key = 1
+      ) pk ON c.column_id = pk.column_id AND c.object_id = pk.object_id
+      LEFT JOIN sys.extended_properties ep ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
+      WHERE SCHEMA_NAME(v.schema_id) = 'dbo'
+      ORDER BY v.name, c.column_id
+    `)
+    
+    // 按视图名分组字段
+    const columnsMap = new Map<string, ColumnMeta[]>()
+    for (const r of columnResult.recordset) {
+      const viewName = r.view_name
+      if (!columnsMap.has(viewName)) {
+        columnsMap.set(viewName, [])
+      }
+      columnsMap.get(viewName)!.push({
+        name: r.column_name,
+        type: r.data_type,
+        columnType: r.column_type,
+        nullable: r.is_nullable === true || r.is_nullable === 1,
+        primaryKey: r.is_primary_key === 1,
+        autoIncrement: false,
+        comment: r.column_comment || undefined
+      })
+    }
+    
+    return viewNames.map(name => ({
+      name,
+      columns: columnsMap.get(name) || []
     }))
   }
 

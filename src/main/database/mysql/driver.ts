@@ -332,7 +332,7 @@ export class MySQLDriver implements IDatabaseDriver {
   }
 
   /**
-   * 获取视图列表
+   * 获取视图列表（含字段信息）
    */
   async getViews(connectionId: string, database: string): Promise<ViewMeta[]> {
     const connection = await this.getConnectionWithReconnect(connectionId)
@@ -340,16 +340,58 @@ export class MySQLDriver implements IDatabaseDriver {
       throw new Error('连接不存在')
     }
     
-    const [rows] = await connection.query(
+    // 获取视图名称
+    const [viewRows] = await connection.query(
       `SELECT TABLE_NAME
        FROM information_schema.VIEWS
        WHERE TABLE_SCHEMA = ?`,
       [database]
     )
     
-    return (rows as { TABLE_NAME: string }[]).map(r => ({
-      name: r.TABLE_NAME,
-      columns: []
+    const viewNames = (viewRows as { TABLE_NAME: string }[]).map(r => r.TABLE_NAME)
+    if (viewNames.length === 0) {
+      return []
+    }
+    
+    // 批量查询所有视图的字段
+    const [columnRows] = await connection.query(
+      `SELECT 
+        TABLE_NAME,
+        COLUMN_NAME, 
+        DATA_TYPE, 
+        COLUMN_TYPE,
+        IS_NULLABLE, 
+        COLUMN_KEY, 
+        COLUMN_DEFAULT,
+        COLUMN_COMMENT
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (?)
+       ORDER BY ORDINAL_POSITION`,
+      [database, viewNames]
+    )
+    
+    // 按视图名分组字段
+    const columnsMap = new Map<string, ColumnMeta[]>()
+    for (const r of columnRows as any[]) {
+      const viewName = r.TABLE_NAME
+      if (!columnsMap.has(viewName)) {
+        columnsMap.set(viewName, [])
+      }
+      columnsMap.get(viewName)!.push({
+        name: r.COLUMN_NAME,
+        type: r.COLUMN_TYPE || r.DATA_TYPE,
+        columnType: r.COLUMN_TYPE,
+        nullable: r.IS_NULLABLE === 'YES',
+        primaryKey: r.COLUMN_KEY === 'PRI',
+        autoIncrement: false,
+        defaultValue: r.COLUMN_DEFAULT || undefined,
+        comment: r.COLUMN_COMMENT || undefined
+      })
+    }
+    
+    return viewNames.map(name => ({
+      name,
+      columns: columnsMap.get(name) || []
     }))
   }
 
