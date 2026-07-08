@@ -645,9 +645,13 @@ async function handleMenuClick(key: string) {
     }
     case 'showCreateView':
       // 查看视图创建语句
+      if (!node.databaseName || !node.connectionId) {
+        ElMessage.warning(t('error.noDatabase'))
+        break
+      }
       viewCreateInfo.value = {
-        connectionId: node.connectionId!,
-        database: node.databaseName!,
+        connectionId: node.connectionId,
+        database: node.databaseName,
         viewName: node.label
       }
       viewCreateDialogVisible.value = true

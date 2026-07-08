@@ -496,8 +496,10 @@ export class MySQLDriver implements IDatabaseDriver {
       throw new Error('连接不存在')
     }
     
+    // 确保有默认数据库上下文，避免连接未指定 database 时 ER_NO_DB_ERROR
+    await connection.query(`USE \`${database}\``)
     const [rows] = await connection.query(
-      `SHOW CREATE TABLE \`${database}\`.\`${table}\``
+      `SHOW CREATE TABLE \`${table}\``
     )
     
     const result = rows as { Table: string; 'Create Table': string }[]
@@ -513,8 +515,10 @@ export class MySQLDriver implements IDatabaseDriver {
       throw new Error('连接不存在')
     }
     
+    // 确保有默认数据库上下文，避免连接未指定 database 时 ER_NO_DB_ERROR
+    await connection.query(`USE \`${database}\``)
     const [rows] = await connection.query(
-      `SHOW CREATE VIEW \`${database}\`.\`${view}\``
+      `SHOW CREATE VIEW \`${view}\``
     )
     
     const result = rows as { View: string; 'Create View': string }[]
