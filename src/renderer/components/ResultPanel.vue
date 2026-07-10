@@ -13,6 +13,7 @@
           <!-- 结果表格 -->
           <template v-if="tab.type === 'resultset'">
             <ResultTable 
+              :key="editorStore.activeTabId"
               :data="tab.data as QueryResultSet" 
               :data-operations="dataOps"
               :editor-tab-id="editorStore.activeTabId || undefined"
