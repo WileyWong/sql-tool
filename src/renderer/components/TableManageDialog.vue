@@ -15,7 +15,7 @@
             <el-icon class="is-loading"><Loading /></el-icon>
             <span>{{ $t('common.loading') }}</span>
           </div>
-          <pre v-else class="sql-content">{{ createSql }}</pre>
+          <div v-else ref="sqlEditorContainer" class="sql-editor-wrapper"></div>
         </div>
       </el-tab-pane>
       
@@ -152,10 +152,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Loading } from '@element-plus/icons-vue'
 import { useConnectionStore } from '../stores/connection'
+import { registerSqlDarkTheme, getDefaultTheme } from '../config/monaco-theme'
+import * as monaco from 'monaco-editor'
 import type { ColumnMeta, IndexMeta } from '@shared/types'
 
 const { t } = useI18n()
@@ -190,6 +192,65 @@ const loading = ref({
   createSql: false,
   columns: false,
   indexes: false
+})
+
+// Monaco Editor 相关
+const sqlEditorContainer = ref<HTMLElement | null>(null)
+let sqlEditor: monaco.editor.IStandaloneCodeEditor | null = null
+
+// 初始化 SQL 编辑器
+function initSqlEditor() {
+  if (!sqlEditorContainer.value || !createSql.value) return
+
+  disposeSqlEditor()
+
+  registerSqlDarkTheme()
+
+  sqlEditor = monaco.editor.create(sqlEditorContainer.value, {
+    value: createSql.value,
+    language: 'sql',
+    theme: getDefaultTheme(),
+    readOnly: true,
+    minimap: { enabled: false },
+    lineNumbers: 'on',
+    scrollBeyondLastLine: false,
+    wordWrap: 'on',
+    tabSize: 2,
+    automaticLayout: true,
+    contextmenu: true,
+    fontSize: 13,
+    lineHeight: 20
+  })
+}
+
+// 销毁 SQL 编辑器
+function disposeSqlEditor() {
+  if (sqlEditor) {
+    sqlEditor.dispose()
+    sqlEditor = null
+  }
+}
+
+// 监听 createSql 加载完成，初始化编辑器
+watch(createSql, (newVal) => {
+  if (newVal && activeTab.value === 'createSql') {
+    nextTick(() => {
+      initSqlEditor()
+    })
+  }
+})
+
+// 监听页签切换，确保编辑器正确布局
+watch(activeTab, (newVal) => {
+  if (newVal === 'createSql' && createSql.value) {
+    nextTick(() => {
+      if (sqlEditor) {
+        sqlEditor.layout()
+      } else {
+        initSqlEditor()
+      }
+    })
+  }
 })
 
 // 监听对话框打开
@@ -308,8 +369,14 @@ function getIndexTypeTagType(type: IndexMeta['type']): 'primary' | 'success' | '
 
 // 关闭对话框
 function handleClose() {
+  disposeSqlEditor()
   connectionStore.closeTableManageDialog()
 }
+
+// 组件销毁时清理
+onBeforeUnmount(() => {
+  disposeSqlEditor()
+})
 </script>
 
 <style scoped>
@@ -322,22 +389,15 @@ function handleClose() {
 }
 
 .sql-container {
-  background-color: var(--bg-base);
   border-radius: 4px;
-  padding: 12px;
   min-height: 350px;
   max-height: 400px;
-  overflow: auto;
+  overflow: hidden;
 }
 
-.sql-content {
-  margin: 0;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #d4d4d4;
-  white-space: pre-wrap;
-  word-break: break-all;
+.sql-editor-wrapper {
+  width: 100%;
+  height: 400px;
 }
 
 .loading-container {
