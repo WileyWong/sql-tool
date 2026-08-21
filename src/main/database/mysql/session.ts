@@ -20,6 +20,7 @@ import type { QueryOptions } from '../core/interface'
 import { getConnectionConfig } from '../core/config-store'
 import { splitStatementsToTexts } from '../../sql-language-server/services/sqlParserService'
 import { t } from '../../i18n'
+import { getMysqlFieldTypeName, type MysqlResultField } from './field-type'
 
 /**
  * MySQL 独占会话
@@ -288,10 +289,10 @@ export class MySQLSessionManager implements ISessionManager {
 
             const resultSet: QueryResultSet = {
               type: 'resultset',
-              columns: (fields as { name: string; type: number }[]).map(f => ({
-                name: f.name,
-                type: this.getTypeName(f.type),
-                isPrimaryKey: primaryKeys.includes(f.name)
+              columns: (fields as MysqlResultField[]).map(f => ({
+                name: f.name || '',
+                type: getMysqlFieldTypeName(f),
+                isPrimaryKey: primaryKeys.includes(f.name || '')
               })),
               rows: rows as Record<string, unknown>[],
               rowCount: (rows as unknown[]).length,
@@ -652,14 +653,4 @@ export class MySQLSessionManager implements ISessionManager {
     return /\bLIMIT\s+\d+/i.test(sql)
   }
 
-  private getTypeName(typeCode: number): string {
-    const types: Record<number, string> = {
-      0: 'DECIMAL', 1: 'TINYINT', 2: 'SMALLINT', 3: 'INT',
-      4: 'FLOAT', 5: 'DOUBLE', 6: 'NULL', 7: 'TIMESTAMP',
-      8: 'BIGINT', 9: 'MEDIUMINT', 10: 'DATE', 11: 'TIME',
-      12: 'DATETIME', 13: 'YEAR', 15: 'VARCHAR', 16: 'BIT',
-      245: 'JSON', 246: 'DECIMAL', 252: 'BLOB', 253: 'VARCHAR', 254: 'CHAR'
-    }
-    return types[typeCode] || 'UNKNOWN'
-  }
 }

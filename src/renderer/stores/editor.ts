@@ -37,6 +37,9 @@ export const useEditorStore = defineStore('editor', () => {
   
   // 最近文件列表版本号（用于触发 MenuBar 刷新）
   const recentFilesVersion = ref(0)
+
+  // 会话是否已完成首次恢复；未就绪时禁止把空 tabs 写盘
+  const sessionReady = ref(false)
   
   // 状态栏 hover 提示
   const hoverHint = ref<string | null>(null)
@@ -63,13 +66,18 @@ export const useEditorStore = defineStore('editor', () => {
   
   // 初始化：尝试恢复会话，失败时创建第一个标签页
   async function init() {
+    if (sessionReady.value) return
+
     if (tabs.value.length === 0) {
       // 尝试恢复上次会话
       try {
         const sessionState = await window.api.sessionState.load()
         if (sessionState) {
           const restored = restoreTabs(sessionState as Parameters<typeof restoreTabs>[0])
-          if (restored) return
+          if (restored) {
+            sessionReady.value = true
+            return
+          }
         }
       } catch (error) {
         console.error('[EditorStore] Failed to restore session:', error)
@@ -77,6 +85,7 @@ export const useEditorStore = defineStore('editor', () => {
       // 恢复失败或无会话数据，创建默认空白 Tab
       createTab()
     }
+    sessionReady.value = true
   }
   
   // 创建新标签页
@@ -415,18 +424,13 @@ export const useEditorStore = defineStore('editor', () => {
 
   // 重新排序标签页
   function reorderTabs(newOrder: string[]) {
-    // 根据新的 ID 顺序重新排列 tabs 数组
+    const ids = newOrder.filter(Boolean)
+    if (ids.length !== tabs.value.length) return
+
     const tabMap = new Map(tabs.value.map(t => [t.id, t]))
-    const reorderedTabs: EditorTab[] = []
+    if (ids.some(id => !tabMap.has(id))) return
 
-    for (const tabId of newOrder) {
-      const tab = tabMap.get(tabId)
-      if (tab) {
-        reorderedTabs.push(tab)
-      }
-    }
-
-    // 使用 splice 原地修改数组，保持响应式
+    const reorderedTabs = ids.map(id => tabMap.get(id)!)
     tabs.value.splice(0, tabs.value.length, ...reorderedTabs)
   }
 
@@ -520,13 +524,16 @@ export const useEditorStore = defineStore('editor', () => {
   // 防抖自动保存会话状态（每次 tabs 变化后保存，ERD 使用更长间隔）
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   function debouncedSaveSession() {
+    if (!sessionReady.value || tabs.value.length === 0) return
     if (saveTimer) clearTimeout(saveTimer)
     // ERD 标签页数据量大，使用 10 秒间隔；纯 SQL 标签页使用 3 秒
     const hasErdDirty = tabs.value.some(t => t.tabType === 'erd' && t.isDirty)
     const delay = hasErdDirty ? 10000 : 3000
     saveTimer = setTimeout(() => {
+      if (!sessionReady.value || tabs.value.length === 0) return
       try {
         const state = serializeTabs()
+        if (state.tabs.length === 0) return
         window.api.sessionState.save(state).catch(() => {})
       } catch {
         // 忽略
@@ -535,7 +542,12 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   // 监听 tabs 的深层变化，自动增量保存
-  watch(tabs, debouncedSaveSession, { deep: true })
+  watch(tabs, () => {
+    if (sessionReady.value && tabs.value.length === 0) {
+      createTab()
+    }
+    debouncedSaveSession()
+  }, { deep: true })
   watch(activeTabId, debouncedSaveSession)
 
   return {

@@ -137,11 +137,14 @@ provide('dataOperations', {
 // 处理窗口关闭前事件：自动保存会话状态（Hot Exit）
 async function handleBeforeClose() {
   try {
-    // 序列化所有 tabs 状态（含未保存内容）并持久化
     const sessionState = editorStore.serializeTabs()
-    console.log('[App] Saving session state, tabs:', sessionState.tabs.length)
-    await window.api.sessionState.save(sessionState)
-    console.log('[App] Session state saved successfully')
+    if (sessionState.tabs.length === 0) {
+      console.warn('[App] Skip saving empty session state')
+    } else {
+      console.log('[App] Saving session state, tabs:', sessionState.tabs.length)
+      await window.api.sessionState.save(sessionState)
+      console.log('[App] Session state saved successfully')
+    }
   } catch (error) {
     console.error('[App] Failed to save session state:', error)
   }

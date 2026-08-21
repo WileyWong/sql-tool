@@ -126,11 +126,15 @@ function initTabSortable() {
       dragClass: 'sortable-drag',
       delay: 0,
       onEnd: (evt) => {
-        if (evt.oldIndex === evt.newIndex) return
-        const newOrder: string[] = []
-        const tabItems = tabNav.querySelectorAll('.el-tabs__item')
-        tabItems.forEach((item) => newOrder.push(item.getAttribute('data-name') || ''))
-        if (newOrder.length > 0) editorStore.reorderTabs(newOrder)
+        const { oldIndex, newIndex } = evt
+        if (oldIndex == null || newIndex == null || oldIndex === newIndex) return
+        const currentIds = editorStore.tabs.map(t => t.id)
+        if (oldIndex >= currentIds.length || newIndex >= currentIds.length) return
+        const ids = [...currentIds]
+        const [moved] = ids.splice(oldIndex, 1)
+        if (!moved) return
+        ids.splice(newIndex, 0, moved)
+        editorStore.reorderTabs(ids)
       }
     })
   }, 100)
