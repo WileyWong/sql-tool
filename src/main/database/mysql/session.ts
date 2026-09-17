@@ -8,8 +8,6 @@ import type {
   ConnectionConfig,
   DatabaseType,
   QueryResult,
-  QueryResultSet,
-  QueryMessage,
   QueryError,
   ExplainResult,
   ExplainNode
@@ -19,8 +17,7 @@ import type { ISessionManager, SessionInfo } from '../core/session-interface'
 import type { QueryOptions } from '../core/interface'
 import { getConnectionConfig } from '../core/config-store'
 import { splitStatementsToTexts } from '../../sql-language-server/services/sqlParserService'
-import { t } from '../../i18n'
-import { getMysqlFieldTypeName, type MysqlResultField } from './field-type'
+import { normalizeMysqlQueryResult, toQueryResultFromNormalized } from './query-result'
 
 /**
  * MySQL 独占会话
@@ -271,49 +268,33 @@ export class MySQLSessionManager implements ISessionManager {
 
           const [rows, fields] = await connection.query(execSql)
           const executionTime = Date.now() - stmtStartTime
+          const normalizedList = normalizeMysqlQueryResult(rows, fields)
 
-          if (Array.isArray(rows) && fields) {
-            // 解析单表信息
+          let extras: {
+            editable?: boolean
+            tableName?: string
+            databaseName?: string
+            primaryKeys?: string[]
+          } | undefined
+
+          const hasResultSet = normalizedList.some(item => Array.isArray(item.rows) && !('affectedRows' in (item.rows as object)))
+          if (hasResultSet) {
             const tableInfo = this.parseSingleTableQuery(statement)
-            let editable = false
-            let primaryKeys: string[] = []
-            let tableName: string | undefined
-            let databaseName: string | undefined
-
             if (tableInfo && currentDatabase) {
-              databaseName = tableInfo.databaseName || currentDatabase
-              tableName = tableInfo.tableName
-              primaryKeys = await this.getTablePrimaryKeys(connection, databaseName, tableName)
-              editable = primaryKeys.length > 0
+              const databaseName = tableInfo.databaseName || currentDatabase
+              const tableName = tableInfo.tableName
+              const primaryKeys = await this.getTablePrimaryKeys(connection, databaseName, tableName)
+              extras = {
+                databaseName,
+                tableName,
+                primaryKeys,
+                editable: primaryKeys.length > 0
+              }
             }
+          }
 
-            const resultSet: QueryResultSet = {
-              type: 'resultset',
-              columns: (fields as MysqlResultField[]).map(f => ({
-                name: f.name || '',
-                type: getMysqlFieldTypeName(f),
-                isPrimaryKey: primaryKeys.includes(f.name || '')
-              })),
-              rows: rows as Record<string, unknown>[],
-              rowCount: (rows as unknown[]).length,
-              executionTime,
-              editable,
-              tableName,
-              databaseName,
-              primaryKeys: primaryKeys.length > 0 ? primaryKeys : undefined
-            }
-            results.push(resultSet)
-          } else {
-            const result = rows as { affectedRows: number; insertId?: number }
-            const affectedRowsKey = result.affectedRows === 1 ? 'result.rowAffected' : 'result.rowsAffected'
-            const affectedRowsText = t(affectedRowsKey).replace('{count}', String(result.affectedRows))
-            const message: QueryMessage = {
-              type: 'message',
-              affectedRows: result.affectedRows,
-              message: `${affectedRowsText}${result.insertId ? `, Insert ID: ${result.insertId}` : ''}`,
-              executionTime
-            }
-            results.push(message)
+          for (const item of normalizedList) {
+            results.push(toQueryResultFromNormalized(item, executionTime, extras))
           }
         } catch (error: unknown) {
           const err = error as { code?: string; message?: string; sqlState?: string }
