@@ -1009,11 +1009,18 @@ export function splitStatements(sql: string): SqlStatement[] {
       continue
     }
 
-    // 处理字符串
+    // 处理字符串：MySQL 用 '' / "" / `` 转义，默认也支持 \'
     if (!inString && (char === "'" || char === '"' || char === '`')) {
       inString = true
       stringChar = char
-    } else if (inString && char === stringChar && prevChar !== '\\') {
+    } else if (inString && char === stringChar) {
+      if (nextChar === stringChar) {
+        i++
+        continue
+      }
+      if (stringChar !== '`' && prevChar === '\\') {
+        continue
+      }
       inString = false
     }
 
@@ -1105,10 +1112,15 @@ export function getSqlPositionState(text: string): SqlPositionState {
         stringChar = char
         continue
       }
-    } else {
-      if (char === stringChar && text[i - 1] !== '\\') {
-        inString = false
+    } else if (char === stringChar) {
+      if (nextChar === stringChar) {
+        i++
+        continue
       }
+      if (stringChar !== '`' && text[i - 1] === '\\') {
+        continue
+      }
+      inString = false
     }
   }
 
@@ -1169,10 +1181,15 @@ export function findLastSemicolonPosition(text: string): number {
       if (char === ';') {
         lastSemicolon = i
       }
-    } else {
-      if (char === stringChar && text[i - 1] !== '\\') {
-        inString = false
+    } else if (char === stringChar) {
+      if (nextChar === stringChar) {
+        i++
+        continue
       }
+      if (stringChar !== '`' && text[i - 1] === '\\') {
+        continue
+      }
+      inString = false
     }
   }
 
