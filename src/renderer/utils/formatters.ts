@@ -200,3 +200,69 @@ export function formatValueForExport(value: unknown, columnType: string): unknow
   
   return value
 }
+
+function isNumericColumnType(columnType: string): boolean {
+  const upperType = columnType.toUpperCase()
+  return /^(TINY|SMALL|MEDIUM|BIG)?INT|^(FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL|MONEY|SMALLMONEY|NUMBER)/.test(upperType)
+}
+
+/**
+ * 把单元格原值转成编辑框里的文本。
+ */
+export function formatEditValue(value: unknown, columnType: string): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  const formattedBit = formatBitValue(value, columnType)
+  if (formattedBit !== null) {
+    return formattedBit
+  }
+
+  const formattedDate = formatDateTime(value, columnType)
+  if (formattedDate !== null) {
+    return formattedDate
+  }
+
+  if (typeof value === 'object') {
+    return JSON.stringify(value)
+  }
+
+  return String(value)
+}
+
+/**
+ * 把编辑框文本转回单元格值。
+ * 日期时间经 IPC 后是 ISO 字符串，编辑框里是本地格式；文本没改时必须交还原值，
+ * 否则和原值的 === 会对不上，被当成已修改。
+ */
+export function parseEditValue(strValue: string, columnType: string, originalVal: unknown): unknown {
+  if (strValue === '') return null
+
+  if (originalVal !== null && originalVal !== undefined && strValue === formatEditValue(originalVal, columnType)) {
+    return originalVal
+  }
+
+  if (originalVal !== null && originalVal !== undefined) {
+    if (typeof originalVal === 'number') {
+      const num = Number(strValue)
+      if (!isNaN(num)) return num
+    } else if (typeof originalVal === 'boolean') {
+      const lower = strValue.toLowerCase()
+      if (lower === 'true' || lower === '1') return true
+      if (lower === 'false' || lower === '0') return false
+    } else if (typeof originalVal === 'bigint') {
+      try { return BigInt(strValue) } catch { /* 按字符串保留 */ }
+    } else if (typeof originalVal === 'object') {
+      try { return JSON.parse(strValue) } catch { /* 按字符串保留 */ }
+    }
+    return strValue
+  }
+
+  if (isNumericColumnType(columnType)) {
+    const num = Number(strValue)
+    if (!isNaN(num)) return num
+  }
+
+  return strValue
+}
