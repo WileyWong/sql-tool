@@ -19,7 +19,16 @@ import { Defaults } from '@shared/constants'
 import type { ISessionManager, SessionInfo } from '../core/session-interface'
 import type { QueryOptions } from '../core/interface'
 import { getConnectionConfig } from '../core/config-store'
+import { DriverFactory } from '../core/factory'
 import { t } from '../../i18n'
+import { SqlServerDriver } from './driver'
+import {
+  batchChangesDatabase,
+  escapeSqlServerIdentifier,
+  isSqlServerConnectionClosedError,
+  parseSqlServerSingleTable,
+  sameSqlServerDatabase
+} from './query-utils'
 
 /**
  * 序列化值，将不可克隆的类型转换为可序列化的格式
@@ -88,6 +97,8 @@ export class SqlServerSessionManager implements ISessionManager {
   private connectionSessions = new Map<string, Set<string>>()
   private maxSessionsPerConnection = Defaults.MAX_SESSIONS_PER_CONNECTION
   private zombieTimer: ReturnType<typeof setInterval> | null = null
+  /** 主键列缓存：connectionId + 库 + schema + 表 */
+  private primaryKeyCache = new Map<string, string[]>()
 
   // ==================== 会话生命周期 ====================
 
@@ -135,7 +146,7 @@ export class SqlServerSessionManager implements ISessionManager {
       tabId,
       connectionId,
       pool,
-      database,
+      database: database || config.database,
       config,
       createdAt: Date.now(),
       lastActiveAt: Date.now(),
@@ -246,6 +257,47 @@ export class SqlServerSessionManager implements ISessionManager {
       }]
     }
 
+    try {
+      return await this.executeQueryOnPool(pool, tabId, sqlText, options)
+    } catch (error: unknown) {
+      if (!isSqlServerConnectionClosedError(error)) {
+        const err = error as { message?: string }
+        return [{
+          type: 'error',
+          code: 'E4001',
+          message: err.message || '数据库连接已断开，重连失败'
+        }]
+      }
+
+      const session = this.sessions.get(tabId)
+      if (!session) {
+        return [{
+          type: 'error',
+          code: 'E4001',
+          message: '数据库连接已断开，重连失败'
+        }]
+      }
+
+      try {
+        pool = await this.reconnectSession(session)
+        return await this.executeQueryOnPool(pool, tabId, sqlText, options)
+      } catch (retryError: unknown) {
+        const err = retryError as { message?: string }
+        return [{
+          type: 'error',
+          code: 'E4001',
+          message: err.message || '数据库连接已断开，重连失败'
+        }]
+      }
+    }
+  }
+
+  private async executeQueryOnPool(
+    pool: sql.ConnectionPool,
+    tabId: string,
+    sqlText: string,
+    options?: QueryOptions
+  ): Promise<QueryResult[]> {
     const session = this.sessions.get(tabId)!
     session.lastActiveAt = Date.now()
 
@@ -261,58 +313,50 @@ export class SqlServerSessionManager implements ISessionManager {
     const maxRows = options?.maxRows || Defaults.MAX_ROWS
     const currentDatabase = options?.currentDatabase
 
-    if (currentDatabase) {
-      try {
-        await pool.request().batch(`USE [${currentDatabase}]`)
-      } catch (error: unknown) {
-        const err = error as { code?: string; message?: string }
-        return [{
-          type: 'error',
-          code: err.code || 'E4003',
-          message: `切换数据库失败: ${err.message || currentDatabase}`
-        }]
-      }
-    }
+    const useError = await this.ensureDatabase(pool, session, currentDatabase)
+    if (useError) return [useError]
 
     const results: QueryResult[] = []
-    session.cancelled = false  // 重置取消标记
+    session.cancelled = false
     const batches = this.splitByGo(trimmedSql)
 
     for (const batch of batches) {
-
       if (!batch.trim()) continue
 
-      const batchStartTime = Date.now()
-
-      // 对整个 batch 做 SELECT TOP 改写（逐条处理 batch 内的 SELECT 语句）
       const execBatch = this.rewriteSelectsInBatch(batch, maxRows)
+      const tableInfo = parseSqlServerSingleTable(batch)
+      const primaryKeyPromise = this.lookupPrimaryKeys(session.connectionId, tableInfo, currentDatabase)
+      const batchStartTime = Date.now()
 
       try {
         const request = pool.request()
-        // 开启 arrayRowMode，避免同名列被合并为数组
         request.arrayRowMode = true
         session.runningRequest = request
         // 使用 batch() 而非 query()，底层走 execSqlBatch 而非 sp_executesql
         // 这样 SET 命令在连接级别生效，临时表、会话状态都能跨 batch 保持
         const result = await request.batch(execBatch)
         const executionTime = Date.now() - batchStartTime
+        const primaryKeys = session.cancelled ? [] : await primaryKeyPromise
 
-        // arrayRowMode 下 recordsets 中每行是 unknown[]，columns 按索引保留所有列（含同名列）
+        if (batchChangesDatabase(execBatch)) {
+          session.database = undefined
+        }
+
         const recordsets = result.recordsets as unknown as unknown[][][]
 
         if (recordsets && recordsets.length > 0) {
+          const databaseName = tableInfo ? (tableInfo.databaseName || currentDatabase) : undefined
+          const tableName = tableInfo?.tableName
+          const editable = primaryKeys.length > 0
+
           for (let i = 0; i < recordsets.length; i++) {
             const arrayRows = recordsets[i]
-            // batch() 不会把 columns 放到 result.columns 上（这是 query() 独有的），
-            // 但每个 recordset 数组上有一个非枚举的 columns 属性（由 mssql 内部设置）
-            // arrayRowMode 下该属性是数组，保留了所有列（含同名列）
             const columnsInfo = ((arrayRows as any).columns || []) as Array<{
               name: string
               type: any
               index: number
             }>
 
-            // 处理同名列：生成唯一列名
             const uniqueNames: string[] = []
             const nameCount = new Map<string, number>()
             for (const col of columnsInfo) {
@@ -326,7 +370,6 @@ export class SqlServerSessionManager implements ISessionManager {
               nameCount.set(baseName, count + 1)
             }
 
-            // 将数组行转换为对象行（使用唯一列名）
             const objectRows: Record<string, unknown>[] = arrayRows.map(row => {
               const obj: Record<string, unknown> = {}
               for (let j = 0; j < uniqueNames.length; j++) {
@@ -335,25 +378,12 @@ export class SqlServerSessionManager implements ISessionManager {
               return obj
             })
 
-            const tableInfo = this.parseSingleTableQuery(batch)
-            let editable = false
-            let primaryKeys: string[] = []
-            let tableName: string | undefined
-            let databaseName: string | undefined
-
-            if (tableInfo && currentDatabase) {
-              databaseName = tableInfo.databaseName || currentDatabase
-              tableName = tableInfo.tableName
-              primaryKeys = await this.getTablePrimaryKeys(pool, databaseName, tableName)
-              editable = primaryKeys.length > 0
-            }
-
             const serializedRows = serializeRows(objectRows)
             const serializedColumns: { name: string; type: string; isPrimaryKey: boolean }[] =
               uniqueNames.map((name, idx) => ({
                 name,
                 type: this.getTypeName(columnsInfo[idx].type),
-                isPrimaryKey: primaryKeys.includes(columnsInfo[idx].name)
+                isPrimaryKey: primaryKeys.some(pk => pk.toLowerCase() === columnsInfo[idx].name.toLowerCase())
               }))
 
             const resultSet: QueryResultSet = {
@@ -382,6 +412,9 @@ export class SqlServerSessionManager implements ISessionManager {
           results.push(message)
         }
       } catch (error: unknown) {
+        if (results.length === 0 && isSqlServerConnectionClosedError(error)) {
+          throw error
+        }
         const err = error as { code?: string; message?: string; number?: number; state?: string }
         const queryError: QueryError = {
           type: 'error',
@@ -396,10 +429,8 @@ export class SqlServerSessionManager implements ISessionManager {
       }
     }
 
-    // 检查是否在本次执行过程中被请求取消
     if (session.cancelled) {
       session.cancelled = false
-      // SQL Server 的 request.cancel() 会抛出 ECANCEL 错误
       const wasKilled = results.some(r =>
         r.type === 'error' &&
         ((r as QueryError).code === 'ECANCEL' || (r as QueryError).message?.includes('cancel'))
@@ -450,18 +481,18 @@ export class SqlServerSessionManager implements ISessionManager {
       }
     }
 
-    if (currentDatabase) {
-      try {
-        await pool.request().batch(`USE [${currentDatabase}]`)
-      } catch (error: unknown) {
-        const err = error as { code?: string; message?: string }
-        return {
-          type: 'error',
-          code: err.code || 'E4003',
-          message: `切换数据库失败: ${err.message || currentDatabase}`
-        }
+    let useError: QueryError | null
+    try {
+      useError = await this.ensureDatabase(pool, session, currentDatabase)
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      return {
+        type: 'error',
+        code: 'E4001',
+        message: err.message || '数据库连接已断开，重连失败'
       }
     }
+    if (useError) return useError
 
     try {
       await pool.request().batch('SET SHOWPLAN_XML ON')
@@ -740,71 +771,116 @@ export class SqlServerSessionManager implements ISessionManager {
     const session = this.sessions.get(tabId)
     if (!session) throw new Error('会话不存在，请先执行查询以建立连接')
 
-    try {
-      await session.pool.request().batch('SELECT 1')
+    if (session.status === 'active' && session.pool.connected) {
       return session.pool
-    } catch {
-      session.status = 'reconnecting'
-      console.log(`[SqlServerSession] 会话连接 ${tabId} 已断开，尝试重连...`)
+    }
 
-      try {
-        try { await session.pool.close() } catch { /* 忽略 */ }
+    return this.reconnectSession(session)
+  }
 
-        const options = session.config.options as SqlServerOptions | undefined
-        const sqlConfig: sql.config = {
-          server: session.config.host,
-          port: session.config.port,
-          user: session.config.username,
-          password: session.config.password,
-          database: session.database || session.config.database || undefined,
-          options: {
-            encrypt: options?.encrypt ?? true,
-            trustServerCertificate: options?.trustServerCertificate ?? true,
-            enableArithAbort: true
-          },
-          pool: { min: 1, max: 1 },
-          connectionTimeout: Defaults.CONNECTION_TIMEOUT,
-          requestTimeout: Defaults.QUERY_TIMEOUT || 30000
-        }
+  private async reconnectSession(session: SqlServerSession): Promise<sql.ConnectionPool> {
+    session.status = 'reconnecting'
+    console.log(`[SqlServerSession] 会话连接 ${session.tabId} 已断开，尝试重连...`)
 
-        if (options?.domain) {
-          sqlConfig.domain = options.domain
-        }
+    try {
+      try { await session.pool.close() } catch { /* 忽略 */ }
 
-        const newPool = await new sql.ConnectionPool(sqlConfig).connect()
-        session.pool = newPool
-        session.status = 'active'
-        session.lastActiveAt = Date.now()
+      const options = session.config.options as SqlServerOptions | undefined
+      const sqlConfig: sql.config = {
+        server: session.config.host,
+        port: session.config.port,
+        user: session.config.username,
+        password: session.config.password,
+        database: session.database || session.config.database || undefined,
+        options: {
+          encrypt: options?.encrypt ?? true,
+          trustServerCertificate: options?.trustServerCertificate ?? true,
+          enableArithAbort: true
+        },
+        pool: { min: 1, max: 1 },
+        connectionTimeout: Defaults.CONNECTION_TIMEOUT,
+        requestTimeout: Defaults.QUERY_TIMEOUT || 30000
+      }
 
-        console.log(`[SqlServerSession] 会话连接 ${tabId} 重连成功（会话状态已重置）`)
-        return newPool
-      } catch (error: unknown) {
-        session.status = 'disconnected'
-        const err = error as { message?: string }
-        throw new Error(`数据库连接已断开，重连失败: ${err.message || '未知错误'}`)
+      if (options?.domain) {
+        sqlConfig.domain = options.domain
+      }
+
+      const newPool = await new sql.ConnectionPool(sqlConfig).connect()
+      session.pool = newPool
+      session.status = 'active'
+      session.lastActiveAt = Date.now()
+
+      console.log(`[SqlServerSession] 会话连接 ${session.tabId} 重连成功（会话状态已重置）`)
+      return newPool
+    } catch (error: unknown) {
+      session.status = 'disconnected'
+      const err = error as { message?: string }
+      throw new Error(`数据库连接已断开，重连失败: ${err.message || '未知错误'}`)
+    }
+  }
+
+  private async ensureDatabase(
+    pool: sql.ConnectionPool,
+    session: SqlServerSession,
+    currentDatabase?: string
+  ): Promise<QueryError | null> {
+    if (!currentDatabase || sameSqlServerDatabase(session.database, currentDatabase)) {
+      return null
+    }
+
+    try {
+      await pool.request().batch(`USE [${escapeSqlServerIdentifier(currentDatabase)}]`)
+      session.database = currentDatabase
+      return null
+    } catch (error: unknown) {
+      if (isSqlServerConnectionClosedError(error)) throw error
+      const err = error as { code?: string; message?: string }
+      return {
+        type: 'error',
+        code: err.code || 'E4003',
+        message: `切换数据库失败: ${err.message || currentDatabase}`
       }
     }
   }
 
-  private async getTablePrimaryKeys(
-    pool: sql.ConnectionPool,
-    database: string,
-    table: string
+  private lookupPrimaryKeys(
+    connectionId: string,
+    tableInfo: ReturnType<typeof parseSqlServerSingleTable>,
+    currentDatabase?: string
+  ): Promise<string[]> {
+    if (!tableInfo) return Promise.resolve([])
+    const databaseName = tableInfo.databaseName || currentDatabase
+    if (!databaseName) return Promise.resolve([])
+
+    const schemaName = tableInfo.schemaName || 'dbo'
+    const cacheKey = [connectionId, databaseName, schemaName, tableInfo.tableName]
+      .map(part => part.toLowerCase())
+      .join('\0')
+    const cached = this.primaryKeyCache.get(cacheKey)
+    if (cached) return Promise.resolve(cached)
+
+    return this.fetchPrimaryKeys(connectionId, databaseName, schemaName, tableInfo.tableName, cacheKey)
+  }
+
+  private async fetchPrimaryKeys(
+    connectionId: string,
+    databaseName: string,
+    schemaName: string,
+    tableName: string,
+    cacheKey: string
   ): Promise<string[]> {
     try {
-      await pool.request().batch(`USE [${database}]`)
-      const result = await pool.request()
-        .query(`
-          SELECT c.name AS column_name
-          FROM sys.indexes i
-          INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-          INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-          INNER JOIN sys.tables t ON i.object_id = t.object_id
-          WHERE t.name = '${table.replace(/'/g, "''")}' AND i.is_primary_key = 1
-          ORDER BY ic.key_ordinal
-        `)
-      return result.recordset.map(r => r.column_name)
-    } catch {
+      const driver = DriverFactory.getDriver('sqlserver')
+      if (!(driver instanceof SqlServerDriver)) return []
+      const keys = await driver.getTablePrimaryKeyColumns(connectionId, databaseName, schemaName, tableName)
+      this.primaryKeyCache.set(cacheKey, keys)
+      return keys
+    } catch (error) {
+      console.warn(
+        `[SqlServerSession] 主键查询失败，结果不可编辑: ${databaseName}.${schemaName}.${tableName}`,
+        error
+      )
       return []
     }
   }
@@ -872,27 +948,6 @@ export class SqlServerSessionManager implements ISessionManager {
 
   private hasOffset(sqlText: string): boolean {
     return /\bOFFSET\s+\d+\s+ROWS?\b/i.test(sqlText)
-  }
-
-  private parseSingleTableQuery(sqlText: string): { tableName: string; databaseName?: string } | null {
-    const trimmed = sqlText.trim()
-    if (!/^\s*SELECT\s/i.test(trimmed)) return null
-
-    const fromMatch = trimmed.match(/\bFROM\s+(\[?\w+\]?\.)?(\[?\w+\]?\.)?(\[?\w+\]?)/i)
-    if (!fromMatch) return null
-    if (/\bJOIN\b/i.test(trimmed)) return null
-
-    const afterFrom = trimmed.substring(trimmed.search(/\bFROM\b/i) + 5)
-    const beforeWhere = afterFrom.split(/\bWHERE\b/i)[0]
-    if (beforeWhere.includes(',')) return null
-
-    const tableName = fromMatch[3].replace(/\[|\]/g, '')
-    let databaseName: string | undefined
-    if (fromMatch[1] && fromMatch[2]) {
-      databaseName = fromMatch[1].replace(/\[|\]|\./g, '')
-    }
-
-    return { tableName, databaseName }
   }
 
   private getTypeName(typeInfo: sql.ISqlType | (() => sql.ISqlType) | sql.ISqlTypeFactory): string {

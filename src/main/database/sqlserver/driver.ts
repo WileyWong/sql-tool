@@ -741,6 +741,46 @@ export class SqlServerDriver implements IDatabaseDriver {
     }))
   }
 
+  /**
+   * 在元数据连接上查主键，不占用编辑器会话连接，也不先 USE。
+   * 连接不存在时抛错，调用方不缓存这次失败。
+   */
+  async getTablePrimaryKeyColumns(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<string[]> {
+    const info = this.connections.get(connectionId)
+    if (!info) {
+      throw new Error('元数据连接不存在')
+    }
+
+    const pool = info.pool.connected
+      ? info.pool
+      : await this.getPoolWithReconnect(connectionId)
+    if (!pool) {
+      throw new Error('元数据连接不存在')
+    }
+
+    const quotedDb = `[${database.replace(/]/g, ']]')}]`
+    const result = await pool.request()
+      .input('schema', sql.NVarChar, schema || 'dbo')
+      .input('table', sql.NVarChar, table)
+      .query(`
+        SELECT c.name AS column_name
+        FROM ${quotedDb}.sys.indexes i
+        INNER JOIN ${quotedDb}.sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+        INNER JOIN ${quotedDb}.sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+        INNER JOIN ${quotedDb}.sys.tables t ON i.object_id = t.object_id
+        INNER JOIN ${quotedDb}.sys.schemas s ON t.schema_id = s.schema_id
+        WHERE t.name = @table AND s.name = @schema AND i.is_primary_key = 1
+        ORDER BY ic.key_ordinal
+      `)
+
+    return result.recordset.map(row => String(row.column_name))
+  }
+
   // ==================== 私有方法 ====================
 
   /**

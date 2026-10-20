@@ -218,7 +218,7 @@ import { useI18n } from 'vue-i18n'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { ElMessage } from 'element-plus'
 import type { QueryResultSet, ColumnDef } from '@shared/types'
-import { formatDateTime, formatBitValue, formatCellValue } from '../utils/formatters'
+import { formatCellValue, formatEditValue, parseEditValue } from '../utils/formatters'
 import JsonTreeViewer from './JsonTreeViewer.vue'
 import XmlTreeViewer from './XmlTreeViewer.vue'
 import type { UseDataOperationsReturn } from '../composables/useDataOperations'
@@ -595,72 +595,6 @@ function handleNewRowDblClick(tempId: string, column: ColumnDef) {
     inputEl?.focus()
     inputEl?.select()
   })
-}
-
-// 判断列类型是否为数值型
-function isNumericColumnType(columnType: string): boolean {
-  const t = columnType.toUpperCase()
-  return /^(TINY|SMALL|MEDIUM|BIG)?INT|^(FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL|MONEY|SMALLMONEY|NUMBER)/.test(t)
-}
-
-// 根据列类型将编辑框的字符串值转回合适的类型
-function parseEditValue(strValue: string, columnType: string, originalVal: unknown): unknown {
-  if (strValue === '') return null
-  
-  // 优先根据原始值类型还原
-  if (originalVal !== null && originalVal !== undefined) {
-    if (typeof originalVal === 'number') {
-      const num = Number(strValue)
-      if (!isNaN(num)) return num
-    } else if (typeof originalVal === 'boolean') {
-      const lower = strValue.toLowerCase()
-      if (lower === 'true' || lower === '1') return true
-      if (lower === 'false' || lower === '0') return false
-    } else if (typeof originalVal === 'bigint') {
-      try { return BigInt(strValue) } catch { /* fall through */ }
-    } else if (typeof originalVal === 'object') {
-      try { return JSON.parse(strValue) } catch { /* fall through */ }
-    }
-    return strValue
-  }
-  
-  // 没有原始值时（如新增行），根据列类型推断
-  if (isNumericColumnType(columnType)) {
-    const num = Number(strValue)
-    if (!isNaN(num)) return num
-  }
-  
-  return strValue
-}
-
-// 格式化编辑值
-function formatEditValue(value: unknown, columnType: string): string {
-  if (value === null || value === undefined) {
-    return ''
-  }
-  
-  // 尝试 BIT 类型格式化
-  const formattedBit = formatBitValue(value, columnType)
-  if (formattedBit !== null) {
-    return formattedBit
-  }
-  
-  if (typeof value === 'object') {
-    // 检查是否是日期时间类型
-    const formattedDate = formatDateTime(value, columnType)
-    if (formattedDate !== null) {
-      return formattedDate
-    }
-    return JSON.stringify(value)
-  }
-  
-  // 尝试日期时间格式化
-  const formattedDate = formatDateTime(value, columnType)
-  if (formattedDate !== null) {
-    return formattedDate
-  }
-  
-  return String(value)
 }
 
 // 确认编辑（仅退出编辑模式，不保存到数据库）
