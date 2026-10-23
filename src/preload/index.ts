@@ -169,8 +169,8 @@ const api = {
       ipcRenderer.invoke('sql-ls:completion', documentText, line, character),
     
     // 语法诊断
-    validate: (documentText: string) =>
-      ipcRenderer.invoke('sql-ls:validate', documentText),
+    validate: (documentText: string, dbType: DatabaseType) =>
+      ipcRenderer.invoke('sql-ls:validate', documentText, dbType),
     
     // 悬浮提示
     hover: (documentText: string, line: number, character: number) =>

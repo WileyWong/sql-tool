@@ -386,9 +386,13 @@ export function useLanguageServer() {
     if (!model) return
 
     const documentText = model.getValue()
+    const connectionId = editorStore.activeTab?.connectionId
+    const dbType = connectionStore.connections.find(
+      connection => connection.id === connectionId
+    )?.type || 'mysql'
 
     try {
-      const result = await window.api.sqlLanguageServer.validate(documentText)
+      const result = await window.api.sqlLanguageServer.validate(documentText, dbType)
       
       if (!result.success) {
         monaco.editor.setModelMarkers(model, 'sql', [])

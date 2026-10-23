@@ -6,6 +6,7 @@ import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver'
 import { Parser } from 'node-sql-parser'
 import { splitStatements, mapToParserDialect } from '../services/sqlParserService'
 import { MetadataService } from '../services/metadataService'
+import type { DatabaseType } from '../../../shared/types'
 
 export class DiagnosticProvider {
   private metadataService: MetadataService
@@ -19,10 +20,9 @@ export class DiagnosticProvider {
   /**
    * 验证 SQL 文档
    */
-  validate(documentText: string): Diagnostic[] {
+  validate(documentText: string, dbType?: DatabaseType): Diagnostic[] {
     const diagnostics: Diagnostic[] = []
-    const dbType = this.metadataService.getDatabaseType()
-    const dialect = mapToParserDialect(dbType)
+    const dialect = mapToParserDialect(dbType ?? this.metadataService.getDatabaseType())
 
     // 按语句分割
     const statements = splitStatements(documentText)

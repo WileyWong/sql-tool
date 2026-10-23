@@ -62,10 +62,11 @@ function registerIpcHandlers(): void {
   // 语法诊断
   ipcMain.handle('sql-ls:validate', async (
     _event: IpcMainInvokeEvent,
-    documentText: string
+    documentText: string,
+    dbType?: DatabaseType
   ) => {
     try {
-      const diagnostics = diagnosticProvider.validate(documentText)
+      const diagnostics = diagnosticProvider.validate(documentText, dbType)
       return { success: true, diagnostics }
     } catch (error: any) {
       console.error('诊断请求失败:', error)
