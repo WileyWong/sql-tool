@@ -410,7 +410,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.sql-panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-base); }
+.sql-panel { display: flex; flex: 1; flex-direction: column; min-height: 0; background: var(--bg-base); }
 .editor-container { flex: 1; min-height: 0; }
 
 .connection-info { background: var(--bg-surface); padding: 8px 12px; display: flex; gap: 20px; font-size: 12px; border-bottom: 1px solid var(--border-color); }

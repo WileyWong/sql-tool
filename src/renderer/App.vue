@@ -86,6 +86,8 @@ import { useConnectionStore } from './stores/connection'
 const { locale, t } = useI18n()
 const editorStore = useEditorStore()
 const connectionStore = useConnectionStore()
+const MIN_EDITOR_HEIGHT = 200
+const MIN_RESULT_HEIGHT = 80
 const resultHeight = ref(200)
 const sidebarWidth = ref(260)
 const saveConfirmDialogRef = ref<InstanceType<typeof SaveConfirmDialog> | null>(null)
@@ -206,19 +208,24 @@ function startResizeV(e: MouseEvent) {
   const startY = e.clientY
   const startHeight = resultHeight.value
   
-  // 获取内容区域总高度，确保编辑区最小高度为 100px
+  // 结果区、分隔条和编辑区必须始终保持在内容区域内
   const contentSection = document.querySelector('.content') as HTMLElement
   const totalHeight = contentSection?.clientHeight || 600
-  const minEditorHeight = 100
-  const maxResultHeight = Math.max(80, totalHeight - minEditorHeight)
+  const resizeHandle = e.currentTarget as HTMLElement
+  const maxResultHeight = Math.max(
+    MIN_RESULT_HEIGHT,
+    totalHeight - MIN_EDITOR_HEIGHT - resizeHandle.offsetHeight
+  )
   
   document.body.style.cursor = 'ns-resize'
   document.body.style.userSelect = 'none'
   
   function onMouseMove(e: MouseEvent) {
     const delta = startY - e.clientY
-    // 限制结果面板高度：最小 80px，最大为总高度减去编辑区最小高度
-    resultHeight.value = Math.max(80, Math.min(maxResultHeight, startHeight + delta))
+    resultHeight.value = Math.max(
+      MIN_RESULT_HEIGHT,
+      Math.min(maxResultHeight, startHeight + delta)
+    )
   }
   
   function onMouseUp() {
