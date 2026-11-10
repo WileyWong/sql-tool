@@ -18,6 +18,7 @@ import type {
 } from '@shared/types'
 import { Defaults } from '@shared/constants'
 import type { IDatabaseDriver } from '../core/interface'
+import { closeSqlServerPool, probeSqlServerPool } from './pool-health'
 
 // 连接信息（包含连接池和配置）
 interface SqlServerConnectionInfo {
@@ -76,7 +77,7 @@ export class SqlServerDriver implements IDatabaseDriver {
       }
     } finally {
       if (pool) {
-        await pool.close()
+        await closeSqlServerPool(pool)
       }
     }
   }
@@ -107,11 +108,7 @@ export class SqlServerDriver implements IDatabaseDriver {
   async disconnect(connectionId: string): Promise<void> {
     const info = this.connections.get(connectionId)
     if (info) {
-      try {
-        await info.pool.close()
-      } catch {
-        // 忽略断开连接时的错误
-      }
+      await closeSqlServerPool(info.pool)
       this.connections.delete(connectionId)
     }
   }
@@ -131,13 +128,7 @@ export class SqlServerDriver implements IDatabaseDriver {
   async isConnected(connectionId: string): Promise<boolean> {
     const info = this.connections.get(connectionId)
     if (!info) return false
-    
-    try {
-      await info.pool.request().query('SELECT 1')
-      return true
-    } catch {
-      return false
-    }
+    return probeSqlServerPool(info.pool)
   }
 
   /**
@@ -832,12 +823,7 @@ export class SqlServerDriver implements IDatabaseDriver {
     console.log(`[SqlServerDriver] 连接 ${connectionId} 已断开，尝试重连...`)
     
     try {
-      // 尝试关闭旧连接（忽略错误）
-      try {
-        await info.pool.close()
-      } catch {
-        // 忽略
-      }
+      await closeSqlServerPool(info.pool)
       
       // 创建新连接
       const newPool = await this.createConnection(info.config)
@@ -860,12 +846,7 @@ export class SqlServerDriver implements IDatabaseDriver {
    * 检查连接池是否存活
    */
   private async isPoolAlive(pool: sql.ConnectionPool): Promise<boolean> {
-    try {
-      await pool.request().query('SELECT 1')
-      return true
-    } catch {
-      return false
-    }
+    return probeSqlServerPool(pool)
   }
 
   /**

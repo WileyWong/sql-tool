@@ -18,10 +18,14 @@ export const Defaults = {
   MAX_SUGGESTIONS: 20,
   /** 每个服务器最大编辑器会话数 */
   MAX_SESSIONS_PER_CONNECTION: 20,
-  /** 会话空闲超时时间（毫秒），30 分钟 */
+  /** 会话空闲超时时间（毫秒），30 分钟。超时后关闭连接，下次查询重新建连 */
   SESSION_IDLE_TIMEOUT: 30 * 60 * 1000,
   /** 僵尸会话检测间隔（毫秒），60 秒 */
-  ZOMBIE_DETECTION_INTERVAL: 60 * 1000
+  ZOMBIE_DETECTION_INTERVAL: 60 * 1000,
+  /** 连接空闲超过该时间后，执行语句前先做短超时探活 */
+  PROBE_AFTER_IDLE: 60 * 1000,
+  /** 探活超时（毫秒）。超时视为连接已失效，销毁后重连 */
+  PROBE_TIMEOUT: 5 * 1000
 } as const
 
 /**

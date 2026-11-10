@@ -21,6 +21,11 @@ export function initializeDrivers(): void {
   
   console.log('[Database] 已注册驱动:', DriverFactory.getRegisteredTypes().join(', '))
   console.log('[Database] 已注册会话管理器:', DriverFactory.getRegisteredSessionTypes().join(', '))
+
+  // 空闲会话回收之前只写了实现，没有启动。Tab 关闭时会主动销毁会话，这里只回收空闲和已断开的连接。
+  for (const type of DriverFactory.getRegisteredSessionTypes()) {
+    DriverFactory.getSessionManager(type).startZombieDetection(async () => true)
+  }
 }
 
 /**

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   batchChangesDatabase,
   isSqlServerConnectionClosedError,
+  isSqlServerRequestTimeout,
   parseSqlServerSingleTable,
   sameSqlServerDatabase
 } from '../../src/main/database/sqlserver/query-utils'
@@ -82,5 +83,16 @@ describe('isSqlServerConnectionClosedError', () => {
   it('查询超时和 SQL 错误不重试', () => {
     expect(isSqlServerConnectionClosedError({ code: 'ETIMEOUT', message: 'Timeout: Request failed to complete' })).toBe(false)
     expect(isSqlServerConnectionClosedError({ code: 'EREQUEST', message: 'Invalid object name' })).toBe(false)
+  })
+})
+
+describe('isSqlServerRequestTimeout', () => {
+  it('识别客户端请求超时', () => {
+    expect(isSqlServerRequestTimeout({ code: 'ETIMEOUT', message: 'Timeout: Request failed to complete in 600000ms' })).toBe(true)
+    expect(isSqlServerRequestTimeout({ message: 'Request timeout' })).toBe(true)
+  })
+
+  it('普通 SQL 错误不是超时', () => {
+    expect(isSqlServerRequestTimeout({ code: 'EREQUEST', message: 'Invalid object name' })).toBe(false)
   })
 })

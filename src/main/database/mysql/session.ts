@@ -3,7 +3,7 @@
  * 每个编辑器 Tab 独占一个物理 MySQL 连接
  */
 
-import mysql, { Connection } from 'mysql2/promise'
+import type { Connection } from 'mysql2/promise'
 import type {
   ConnectionConfig,
   DatabaseType,
@@ -18,6 +18,15 @@ import type { QueryOptions } from '../core/interface'
 import { getConnectionConfig } from '../core/config-store'
 import { splitStatementsToTexts } from '../../sql-language-server/services/sqlParserService'
 import { normalizeMysqlQueryResult, toQueryResultFromNormalized } from './query-result'
+import {
+  closeMysqlConnection,
+  destroyMysqlConnection,
+  isMysqlConnectionUsable,
+  openMysqlConnection,
+  pingMysql,
+  queryMysql
+} from './connection'
+import { shouldProbeConnection } from '../core/connection-health'
 
 /**
  * MySQL 独占会话
@@ -56,6 +65,8 @@ export class MySQLSessionManager implements ISessionManager {
 
   /** 僵尸检测定时器 */
   private zombieTimer: ReturnType<typeof setInterval> | null = null
+  /** 上一轮检测尚未结束时不再叠一轮，避免死连接把定时器堆起来 */
+  private zombieChecking = false
 
   // ==================== 会话生命周期 ====================
 
@@ -76,19 +87,7 @@ export class MySQLSessionManager implements ISessionManager {
     if (!config) throw new Error('连接配置不存在')
 
     // 4. 创建独占物理连接
-    const connection = await mysql.createConnection({
-      host: config.host,
-      port: config.port,
-      user: config.username,
-      password: config.password,
-      database: database || config.database || undefined,
-      connectTimeout: Defaults.CONNECTION_TIMEOUT,
-      multipleStatements: true,
-      supportBigNumbers: true,
-      bigNumberStrings: true
-    })
-    // 设置字符集，使 collation 与服务端一致，避免 CONCAT 等函数的 collation 冲突
-    await connection.query('SET NAMES utf8mb4')
+    const connection = await openMysqlConnection(config, database)
 
     // 5. 注册会话
     const session: MySQLSession = {
@@ -118,12 +117,7 @@ export class MySQLSessionManager implements ISessionManager {
     const session = this.sessions.get(tabId)
     if (!session) return
 
-    // 1. 关闭物理连接
-    try {
-      await session.connection.end()
-    } catch {
-      // 忽略关闭错误
-    }
+    await closeMysqlConnection(session.connection)
 
     // 2. 清理反向索引
     this.connectionSessions.get(session.connectionId)?.delete(tabId)
@@ -155,11 +149,7 @@ export class MySQLSessionManager implements ISessionManager {
 
   destroyAllSessionsSync(): void {
     for (const [tabId, session] of this.sessions) {
-      try {
-        session.connection.end().catch(() => {})
-      } catch {
-        // 忽略
-      }
+      destroyMysqlConnection(session.connection)
       this.sessions.delete(tabId)
     }
     this.connectionSessions.clear()
@@ -186,9 +176,10 @@ export class MySQLSessionManager implements ISessionManager {
     const session = this.sessions.get(tabId)
     if (!session) return false
     try {
-      await session.connection.ping()
+      await pingMysql(session.connection)
       return true
     } catch {
+      session.status = 'disconnected'
       return false
     }
   }
@@ -230,7 +221,7 @@ export class MySQLSessionManager implements ISessionManager {
     // 如果指定了数据库，先切换
     if (currentDatabase) {
       try {
-        await connection.query(`USE \`${currentDatabase}\``)
+        await queryMysql(connection, `USE \`${currentDatabase}\``)
       } catch (error: unknown) {
         const err = error as { code?: string; message?: string }
         return [{
@@ -266,7 +257,7 @@ export class MySQLSessionManager implements ISessionManager {
             execSql = `${execSql} LIMIT ${maxRows}`
           }
 
-          const [rows, fields] = await connection.query(execSql)
+          const [rows, fields] = await queryMysql(connection, execSql)
           const executionTime = Date.now() - stmtStartTime
           const normalizedList = normalizeMysqlQueryResult(rows, fields)
 
@@ -339,19 +330,12 @@ export class MySQLSessionManager implements ISessionManager {
     try {
       // 使用同一个连接执行 KILL QUERY 需要另一个连接
       // 创建临时连接来执行 KILL
-      const tempConn = await mysql.createConnection({
-        host: session.config.host,
-        port: session.config.port,
-        user: session.config.username,
-        password: session.config.password,
-        connectTimeout: Defaults.CONNECTION_TIMEOUT
-      })
+      const tempConn = await openMysqlConnection(session.config)
       try {
-        await tempConn.query('SET NAMES utf8mb4')
-        await tempConn.query(`KILL QUERY ${session.runningQueryThreadId}`)
+        await queryMysql(tempConn, `KILL QUERY ${session.runningQueryThreadId}`, undefined, Defaults.CONNECTION_TIMEOUT)
         return true
       } finally {
-        await tempConn.end().catch(() => {})
+        await closeMysqlConnection(tempConn)
       }
     } catch {
       return false
@@ -384,7 +368,7 @@ export class MySQLSessionManager implements ISessionManager {
 
     if (currentDatabase) {
       try {
-        await connection.query(`USE \`${currentDatabase}\``)
+        await queryMysql(connection, `USE \`${currentDatabase}\``)
       } catch (error: unknown) {
         const err = error as { code?: string; message?: string }
         return {
@@ -396,7 +380,7 @@ export class MySQLSessionManager implements ISessionManager {
     }
 
     try {
-      const [rows] = await connection.query(`EXPLAIN ${sql}`)
+      const [rows] = await queryMysql(connection, `EXPLAIN ${sql}`)
       const rawRows = rows as Record<string, unknown>[]
 
       const nodes: ExplainNode[] = rawRows.map(row => ({
@@ -451,24 +435,24 @@ export class MySQLSessionManager implements ISessionManager {
     const results: Array<{ sql: string; affectedRows: number }> = []
 
     try {
-      await connection.query('START TRANSACTION')
+      await queryMysql(connection, 'START TRANSACTION')
 
       for (const sql of sqls) {
         try {
-          const [result] = await connection.query(sql)
+          const [result] = await queryMysql(connection, sql)
           const res = result as { affectedRows: number }
           results.push({ sql, affectedRows: res.affectedRows || 0 })
         } catch (error: unknown) {
-          await connection.query('ROLLBACK')
+          await queryMysql(connection, 'ROLLBACK')
           const err = error as { message?: string }
           return { success: false, message: `执行失败: ${err.message || '未知错误'}\nSQL: ${sql}` }
         }
       }
 
-      await connection.query('COMMIT')
+      await queryMysql(connection, 'COMMIT')
       return { success: true, results }
     } catch (error: unknown) {
-      try { await connection.query('ROLLBACK') } catch { /* 忽略 */ }
+      try { await queryMysql(connection, 'ROLLBACK') } catch { /* 忽略 */ }
       const err = error as { message?: string }
       return { success: false, message: err.message || '批量执行失败' }
     }
@@ -487,7 +471,7 @@ export class MySQLSessionManager implements ISessionManager {
     session.lastActiveAt = Date.now()
 
     try {
-      await connection.query(sql)
+      await queryMysql(connection, sql)
       return { success: true }
     } catch (error: unknown) {
       const err = error as { message?: string }
@@ -500,9 +484,20 @@ export class MySQLSessionManager implements ISessionManager {
   startZombieDetection(checkTabExists: (tabId: string) => Promise<boolean>): void {
     if (this.zombieTimer) return
 
-    this.zombieTimer = setInterval(async () => {
-      for (const [tabId, session] of this.sessions) {
-        // 检查空闲超时
+    this.zombieTimer = setInterval(() => {
+      if (this.zombieChecking) return
+      this.zombieChecking = true
+      void this.sweepZombieSessions(checkTabExists).finally(() => {
+        this.zombieChecking = false
+      })
+    }, Defaults.ZOMBIE_DETECTION_INTERVAL)
+  }
+
+  private async sweepZombieSessions(checkTabExists: (tabId: string) => Promise<boolean>): Promise<void> {
+    for (const [tabId, session] of this.sessions) {
+        // 查询进行中时不要探活：ping 会排在当前语句后面，超时会把正在用的连接销毁
+        if (session.runningQueryThreadId) continue
+
         if (Date.now() - session.lastActiveAt > Defaults.SESSION_IDLE_TIMEOUT) {
           console.log(`[MySQLSession] 会话空闲超时: tabId=${tabId}`)
           await this.destroySession(tabId)
@@ -532,8 +527,7 @@ export class MySQLSessionManager implements ISessionManager {
             await this.destroySession(tabId)
           }
         }
-      }
-    }, Defaults.ZOMBIE_DETECTION_INTERVAL)
+    }
   }
 
   stopZombieDetection(): void {
@@ -552,42 +546,40 @@ export class MySQLSessionManager implements ISessionManager {
     const session = this.sessions.get(tabId)
     if (!session) throw new Error('会话不存在，请先执行查询以建立连接')
 
-    try {
-      await session.connection.ping()
+    const broken = session.status !== 'active' || !isMysqlConnectionUsable(session.connection)
+    if (!broken && !shouldProbeConnection(session.lastActiveAt)) {
       return session.connection
-    } catch {
-      // 连接已断开，尝试重连
-      session.status = 'reconnecting'
-      console.log(`[MySQLSession] 会话连接 ${tabId} 已断开，尝试重连...`)
+    }
 
+    if (!broken) {
       try {
-        try { await session.connection.end() } catch { /* 忽略 */ }
-
-        const newConnection = await mysql.createConnection({
-          host: session.config.host,
-          port: session.config.port,
-          user: session.config.username,
-          password: session.config.password,
-          database: session.database || session.config.database || undefined,
-          connectTimeout: Defaults.CONNECTION_TIMEOUT,
-          multipleStatements: true,
-          supportBigNumbers: true,
-          bigNumberStrings: true
-        })
-        // 设置字符集，使 collation 与服务端一致，避免 CONCAT 等函数的 collation 冲突
-        await newConnection.query('SET NAMES utf8mb4')
-
-        session.connection = newConnection
-        session.status = 'active'
-        session.lastActiveAt = Date.now()
-
-        console.log(`[MySQLSession] 会话连接 ${tabId} 重连成功（会话状态已重置）`)
-        return newConnection
-      } catch (error: unknown) {
-        session.status = 'disconnected'
-        const err = error as { message?: string }
-        throw new Error(`数据库连接已断开，重连失败: ${err.message || '未知错误'}`)
+        await pingMysql(session.connection)
+        return session.connection
+      } catch {
+        console.log(`[MySQLSession] 会话连接 ${tabId} 探活失败，尝试重连...`)
       }
+    } else {
+      console.log(`[MySQLSession] 会话连接 ${tabId} 已失效，尝试重连...`)
+    }
+
+    return this.reopenSession(session)
+  }
+
+  private async reopenSession(session: MySQLSession): Promise<Connection> {
+    session.status = 'reconnecting'
+    await closeMysqlConnection(session.connection)
+
+    try {
+      const newConnection = await openMysqlConnection(session.config, session.database)
+      session.connection = newConnection
+      session.status = 'active'
+      session.lastActiveAt = Date.now()
+      console.log(`[MySQLSession] 会话连接 ${session.tabId} 重连成功（会话状态已重置）`)
+      return newConnection
+    } catch (error: unknown) {
+      session.status = 'disconnected'
+      const err = error as { message?: string }
+      throw new Error(`数据库连接已断开，重连失败: ${err.message || '未知错误'}`)
     }
   }
 
@@ -600,7 +592,7 @@ export class MySQLSessionManager implements ISessionManager {
     table: string
   ): Promise<string[]> {
     try {
-      const [rows] = await connection.query(
+      const [rows] = await queryMysql(connection, 
         `SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE 
          WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = 'PRIMARY'
          ORDER BY ORDINAL_POSITION`,

@@ -4,7 +4,7 @@
  * 用户查询操作已迁移到 MySQLSessionManager（session.ts）
  */
 
-import mysql, { Connection } from 'mysql2/promise'
+import type { Connection } from 'mysql2/promise'
 import type { 
   ConnectionConfig, 
   TestConnectionResult, 
@@ -17,6 +17,7 @@ import type {
 } from '@shared/types'
 import { Defaults } from '@shared/constants'
 import type { IDatabaseDriver } from '../core/interface'
+import { closeMysqlConnection, openMysqlConnection, pingMysql, queryMysql } from './connection'
 
 // 连接信息（包含连接对象和配置）
 interface MySQLConnectionInfo {
@@ -40,20 +41,10 @@ export class MySQLDriver implements IDatabaseDriver {
   async testConnection(config: ConnectionConfig): Promise<TestConnectionResult> {
     let connection: Connection | null = null
     try {
-      connection = await mysql.createConnection({
-        host: config.host,
-        port: config.port,
-        user: config.username,
-        password: config.password,
-        database: config.database || undefined,
-        connectTimeout: Defaults.CONNECTION_TIMEOUT
-      })
-      
-      // 设置字符集，使 collation 与服务端一致，避免 CONCAT 等函数的 collation 冲突
-      await connection.query('SET NAMES utf8mb4')
+      connection = await openMysqlConnection(config)
       
       // 获取服务器版本
-      const [rows] = await connection.query('SELECT VERSION() as version')
+      const [rows] = await queryMysql(connection, 'SELECT VERSION() as version', undefined, Defaults.CONNECTION_TIMEOUT)
       const version = (rows as { version: string }[])[0]?.version || 'Unknown'
       
       return {
@@ -81,7 +72,7 @@ export class MySQLDriver implements IDatabaseDriver {
       }
     } finally {
       if (connection) {
-        await connection.end()
+        await closeMysqlConnection(connection)
       }
     }
   }
@@ -112,11 +103,7 @@ export class MySQLDriver implements IDatabaseDriver {
   async disconnect(connectionId: string): Promise<void> {
     const info = this.connections.get(connectionId)
     if (info) {
-      try {
-        await info.connection.end()
-      } catch {
-        // 忽略断开连接时的错误
-      }
+      await closeMysqlConnection(info.connection)
       this.connections.delete(connectionId)
     }
   }
@@ -138,7 +125,7 @@ export class MySQLDriver implements IDatabaseDriver {
     if (!info) return false
     
     try {
-      await info.connection.ping()
+      await pingMysql(info.connection)
       return true
     } catch {
       return false
@@ -642,20 +629,7 @@ export class MySQLDriver implements IDatabaseDriver {
    * 创建 MySQL 连接
    */
   private async createConnection(config: ConnectionConfig): Promise<Connection> {
-    const connection = await mysql.createConnection({
-      host: config.host,
-      port: config.port,
-      user: config.username,
-      password: config.password,
-      database: config.database || undefined,
-      connectTimeout: Defaults.CONNECTION_TIMEOUT,
-      multipleStatements: true,
-      supportBigNumbers: true,
-      bigNumberStrings: true
-    })
-    // 设置字符集，使 collation 与服务端一致，避免 CONCAT 等函数的 collation 冲突
-    await connection.query('SET NAMES utf8mb4')
-    return connection
+    return openMysqlConnection(config)
   }
 
   /**
@@ -678,12 +652,7 @@ export class MySQLDriver implements IDatabaseDriver {
     console.log(`[MySQLDriver] 连接 ${connectionId} 已断开，尝试重连...`)
     
     try {
-      // 尝试关闭旧连接（忽略错误）
-      try {
-        await info.connection.end()
-      } catch {
-        // 忽略
-      }
+      await closeMysqlConnection(info.connection)
       
       // 创建新连接
       const newConnection = await this.createConnection(info.config)
@@ -707,7 +676,7 @@ export class MySQLDriver implements IDatabaseDriver {
    */
   private async isConnectionAlive(connection: Connection): Promise<boolean> {
     try {
-      await connection.ping()
+      await pingMysql(connection)
       return true
     } catch {
       return false

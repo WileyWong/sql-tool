@@ -78,3 +78,11 @@ export function isSqlServerConnectionClosedError(error: unknown): boolean {
   const message = err.message || ''
   return /connection is closed|connection not yet open|connection lost|socket hang up/i.test(message)
 }
+
+/** 请求在客户端超时。语句可能已经执行，不能当作“没发出去”再重试。 */
+export function isSqlServerRequestTimeout(error: unknown): boolean {
+  const err = error as { code?: string; message?: string }
+  const code = String(err.code || '').toUpperCase()
+  if (code === 'ETIMEOUT' || code === 'ETIMEDOUT') return true
+  return /timeout: request failed to complete|request timeout/i.test(err.message || '')
+}

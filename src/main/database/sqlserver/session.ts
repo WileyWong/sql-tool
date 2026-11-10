@@ -26,9 +26,12 @@ import {
   batchChangesDatabase,
   escapeSqlServerIdentifier,
   isSqlServerConnectionClosedError,
+  isSqlServerRequestTimeout,
   parseSqlServerSingleTable,
   sameSqlServerDatabase
 } from './query-utils'
+import { closeSqlServerPool, probeSqlServerPool } from './pool-health'
+import { shouldProbeConnection } from '../core/connection-health'
 
 /**
  * 序列化值，将不可克隆的类型转换为可序列化的格式
@@ -97,6 +100,8 @@ export class SqlServerSessionManager implements ISessionManager {
   private connectionSessions = new Map<string, Set<string>>()
   private maxSessionsPerConnection = Defaults.MAX_SESSIONS_PER_CONNECTION
   private zombieTimer: ReturnType<typeof setInterval> | null = null
+  /** 上一轮检测尚未结束时不再叠一轮，避免死连接把定时器堆起来 */
+  private zombieChecking = false
   /** 主键列缓存：connectionId + 库 + schema + 表 */
   private primaryKeyCache = new Map<string, string[]>()
 
@@ -168,11 +173,7 @@ export class SqlServerSessionManager implements ISessionManager {
     const session = this.sessions.get(tabId)
     if (!session) return
 
-    try {
-      await session.pool.close()
-    } catch {
-      // 忽略关闭错误
-    }
+    await closeSqlServerPool(session.pool)
 
     this.connectionSessions.get(session.connectionId)?.delete(tabId)
     if (this.connectionSessions.get(session.connectionId)?.size === 0) {
@@ -229,13 +230,10 @@ export class SqlServerSessionManager implements ISessionManager {
 
   async isSessionAlive(tabId: string): Promise<boolean> {
     const session = this.sessions.get(tabId)
-    if (!session) return false
-    try {
-      await session.pool.request().batch('SELECT 1')
-      return true
-    } catch {
-      return false
-    }
+    if (!session || session.status !== 'active') return false
+    const alive = await probeSqlServerPool(session.pool)
+    if (!alive) session.status = 'disconnected'
+    return alive
   }
 
   // ==================== 查询操作 ====================
@@ -260,6 +258,16 @@ export class SqlServerSessionManager implements ISessionManager {
     try {
       return await this.executeQueryOnPool(pool, tabId, sqlText, options)
     } catch (error: unknown) {
+      if (isSqlServerRequestTimeout(error)) {
+        const session = this.sessions.get(tabId)
+        if (session) session.status = 'disconnected'
+        const err = error as { message?: string }
+        return [{
+          type: 'error',
+          code: 'ETIMEOUT',
+          message: err.message || '查询超时'
+        }]
+      }
       if (!isSqlServerConnectionClosedError(error)) {
         const err = error as { message?: string }
         return [{
@@ -725,15 +733,27 @@ export class SqlServerSessionManager implements ISessionManager {
   startZombieDetection(checkTabExists: (tabId: string) => Promise<boolean>): void {
     if (this.zombieTimer) return
 
-    this.zombieTimer = setInterval(async () => {
-      for (const [tabId, session] of this.sessions) {
-        if (Date.now() - session.lastActiveAt > Defaults.SESSION_IDLE_TIMEOUT) {
-          console.log(`[SqlServerSession] 会话空闲超时: tabId=${tabId}`)
-          await this.destroySession(tabId)
-          continue
-        }
+    this.zombieTimer = setInterval(() => {
+      if (this.zombieChecking) return
+      this.zombieChecking = true
+      void this.sweepZombieSessions(checkTabExists).finally(() => {
+        this.zombieChecking = false
+      })
+    }, Defaults.ZOMBIE_DETECTION_INTERVAL)
+  }
 
-        if (!await this.isSessionAlive(tabId)) {
+  private async sweepZombieSessions(checkTabExists: (tabId: string) => Promise<boolean>): Promise<void> {
+    for (const [tabId, session] of this.sessions) {
+      // 查询进行中时不要探活，避免取消掉正在执行的请求
+      if (session.runningRequest) continue
+
+      if (Date.now() - session.lastActiveAt > Defaults.SESSION_IDLE_TIMEOUT) {
+        console.log(`[SqlServerSession] 会话空闲超时: tabId=${tabId}`)
+        await this.destroySession(tabId)
+        continue
+      }
+
+      if (!await this.isSessionAlive(tabId)) {
           console.warn(`[SqlServerSession] 僵尸会话（连接已断开）: tabId=${tabId}`)
           await this.destroySession(tabId)
           continue
@@ -754,8 +774,7 @@ export class SqlServerSessionManager implements ISessionManager {
             await this.destroySession(tabId)
           }
         }
-      }
-    }, Defaults.ZOMBIE_DETECTION_INTERVAL)
+    }
   }
 
   stopZombieDetection(): void {
@@ -771,8 +790,15 @@ export class SqlServerSessionManager implements ISessionManager {
     const session = this.sessions.get(tabId)
     if (!session) throw new Error('会话不存在，请先执行查询以建立连接')
 
-    if (session.status === 'active' && session.pool.connected) {
+    const reusable = session.status === 'active' && session.pool.connected
+    if (reusable && !shouldProbeConnection(session.lastActiveAt)) {
       return session.pool
+    }
+
+    if (reusable) {
+      const alive = await probeSqlServerPool(session.pool)
+      if (alive) return session.pool
+      console.log(`[SqlServerSession] 会话连接 ${tabId} 探活失败，尝试重连...`)
     }
 
     return this.reconnectSession(session)
@@ -783,7 +809,7 @@ export class SqlServerSessionManager implements ISessionManager {
     console.log(`[SqlServerSession] 会话连接 ${session.tabId} 已断开，尝试重连...`)
 
     try {
-      try { await session.pool.close() } catch { /* 忽略 */ }
+      await closeSqlServerPool(session.pool)
 
       const options = session.config.options as SqlServerOptions | undefined
       const sqlConfig: sql.config = {
