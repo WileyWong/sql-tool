@@ -45,8 +45,11 @@ const api = {
     functions: (connectionId: string, database: string) =>
       ipcRenderer.invoke(IpcChannels.DATABASE_FUNCTIONS, { connectionId, database }),
     
-    tableCreateSql: (connectionId: string, database: string, table: string): Promise<{ success: boolean; sql?: string; message?: string }> =>
-      ipcRenderer.invoke(IpcChannels.DATABASE_TABLE_CREATE_SQL, { connectionId, database, table }),
+    tableCreateSql: (connectionId: string, database: string, table: string, schema?: string): Promise<{ success: boolean; sql?: string; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_TABLE_CREATE_SQL, { connectionId, database, table, schema }),
+
+    cloneTable: (connectionId: string, database: string, table: string, targetTable: string, includeData: boolean, schema?: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IpcChannels.DATABASE_TABLE_CLONE, { connectionId, database, table, targetTable, includeData, schema }),
     
     viewCreateSql: (connectionId: string, database: string, view: string, schema?: string): Promise<{ success: boolean; sql?: string; message?: string }> =>
       ipcRenderer.invoke(IpcChannels.DATABASE_VIEW_CREATE_SQL, { connectionId, database, view, schema }),

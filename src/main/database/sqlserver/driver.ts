@@ -641,6 +641,37 @@ export class SqlServerDriver implements IDatabaseDriver {
   }
 
   /**
+   * 在原表所在数据库中创建备份表
+   */
+  async cloneTable(connectionId: string, database: string, table: string, targetTable: string, includeData: boolean, schema?: string): Promise<void> {
+    const pool = await this.getPoolWithReconnect(connectionId)
+    if (!pool) {
+      throw new Error('连接不存在')
+    }
+
+    const schemaName = schema || 'dbo'
+    const quote = (name: string) => `[${name.replace(/]/g, ']]')}]`
+    const sourceTable = `${quote(schemaName)}.${quote(table)}`
+    const targetTableIdentifier = `${quote(schemaName)}.${quote(targetTable)}`
+    const createSql = await this.getTableCreateSql(connectionId, database, table, schemaName)
+    const targetCreateSql = createSql.replace(`CREATE TABLE ${sourceTable}`, `CREATE TABLE ${targetTableIdentifier}`)
+
+    await pool.request().query(`USE ${quote(database)};\n${targetCreateSql};`)
+    if (!includeData) {
+      return
+    }
+
+    const columns = await this.getColumns(connectionId, database, table, schemaName)
+    const columnList = columns.map(column => quote(column.name)).join(', ')
+    const hasIdentityColumn = columns.some(column => column.isIdentity)
+    const identityPrefix = hasIdentityColumn ? `SET IDENTITY_INSERT ${targetTableIdentifier} ON;\n` : ''
+    const identitySuffix = hasIdentityColumn ? `\nSET IDENTITY_INSERT ${targetTableIdentifier} OFF;` : ''
+    await pool.request().query(
+      `USE ${quote(database)};\n${identityPrefix}INSERT INTO ${targetTableIdentifier} (${columnList}) SELECT ${columnList} FROM ${sourceTable};${identitySuffix}`
+    )
+  }
+
+  /**
    * 获取视图的创建语句（SQL Server 使用 OBJECT_DEFINITION）
    */
   async getViewCreateSql(connectionId: string, database: string, view: string, schema?: string): Promise<string> {

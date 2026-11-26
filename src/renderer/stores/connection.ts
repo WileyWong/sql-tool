@@ -312,8 +312,13 @@ export const useConnectionStore = defineStore('connection', () => {
   }
   
   // 获取表的建表语句
-  async function getTableCreateSql(connectionId: string, database: string, table: string): Promise<{ success: boolean; sql?: string; message?: string }> {
-    return window.api.database.tableCreateSql(connectionId, database, table)
+  async function getTableCreateSql(connectionId: string, database: string, table: string, schema?: string): Promise<{ success: boolean; sql?: string; message?: string }> {
+    return window.api.database.tableCreateSql(connectionId, database, table, schema)
+  }
+
+  // 在原表所在数据库中创建备份表
+  async function cloneTable(connectionId: string, database: string, table: string, targetTable: string, includeData: boolean, schema?: string): Promise<{ success: boolean; message?: string }> {
+    return window.api.database.cloneTable(connectionId, database, table, targetTable, includeData, schema)
   }
   
   // 获取视图的创建语句
@@ -436,6 +441,7 @@ export const useConnectionStore = defineStore('connection', () => {
     openTableManageDialog,
     closeTableManageDialog,
     getTableCreateSql,
+    cloneTable,
     getViewCreateSql,
     getTableIndexes,
     openCreateTableDialog,

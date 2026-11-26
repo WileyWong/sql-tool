@@ -38,8 +38,20 @@ export function setupDatabaseHandlers(ipcMain: IpcMain): void {
   })
 
   // 获取表的建表语句
-  ipcMain.handle(IpcChannels.DATABASE_TABLE_CREATE_SQL, async (_, data: { connectionId: string; database: string; table: string }) => {
-    return metadataService.getTableCreateSql(data.connectionId, data.database, data.table)
+  ipcMain.handle(IpcChannels.DATABASE_TABLE_CREATE_SQL, async (_, data: { connectionId: string; database: string; table: string; schema?: string }) => {
+    return metadataService.getTableCreateSql(data.connectionId, data.database, data.table, data.schema)
+  })
+
+  // 在原表所在数据库中创建备份表
+  ipcMain.handle(IpcChannels.DATABASE_TABLE_CLONE, async (_, data: {
+    connectionId: string
+    database: string
+    table: string
+    targetTable: string
+    includeData: boolean
+    schema?: string
+  }) => {
+    return metadataService.cloneTable(data.connectionId, data.database, data.table, data.targetTable, data.includeData, data.schema)
   })
 
   // 获取视图的创建语句

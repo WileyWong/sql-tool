@@ -48,6 +48,7 @@ export const IpcChannels = {
   DATABASE_VIEWS: 'database:views',
   DATABASE_FUNCTIONS: 'database:functions',
   DATABASE_TABLE_CREATE_SQL: 'database:tableCreateSql',
+  DATABASE_TABLE_CLONE: 'database:tableClone',
   DATABASE_VIEW_CREATE_SQL: 'database:viewCreateSql',
   DATABASE_INDEXES: 'database:indexes',
   DATABASE_CHARSETS: 'database:charsets',

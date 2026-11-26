@@ -108,6 +108,11 @@ export interface IDatabaseDriver {
   getTableCreateSql(connectionId: string, database: string, table: string, schema?: string): Promise<string>
 
   /**
+   * 在原表所在数据库中创建备份表
+   */
+  cloneTable(connectionId: string, database: string, table: string, targetTable: string, includeData: boolean, schema?: string): Promise<void>
+
+  /**
    * 获取视图的创建语句
    */
   getViewCreateSql(connectionId: string, database: string, view: string, schema?: string): Promise<string>

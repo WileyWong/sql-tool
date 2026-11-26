@@ -75,12 +75,22 @@ export async function getFunctions(connectionId: string, database: string) {
 }
 
 /** 获取表的建表语句 */
-export async function getTableCreateSql(connectionId: string, database: string, table: string) {
+export async function getTableCreateSql(connectionId: string, database: string, table: string, schema?: string) {
   try {
-    const sql = await driverFor(connectionId).getTableCreateSql(connectionId, database, table)
+    const sql = await driverFor(connectionId).getTableCreateSql(connectionId, database, table, schema)
     return { success: true, sql }
   } catch (error: unknown) {
     return { success: false, message: errMessage(error, '获取建表语句失败') }
+  }
+}
+
+/** 在原表所在数据库中创建备份表 */
+export async function cloneTable(connectionId: string, database: string, table: string, targetTable: string, includeData: boolean, schema?: string) {
+  try {
+    await driverFor(connectionId).cloneTable(connectionId, database, table, targetTable, includeData, schema)
+    return { success: true }
+  } catch (error: unknown) {
+    return { success: false, message: errMessage(error, '复制表失败') }
   }
 }
 

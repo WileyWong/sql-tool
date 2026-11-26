@@ -375,6 +375,8 @@ const contextMenuItems = computed(() => {
         { key: 'query100', label: t('contextMenu.query100') },
         { key: 'manage', label: t('contextMenu.manage') },
         { key: 'editTable', label: t('contextMenu.editTable') },
+        { key: 'copyTableStructureAndData', label: t('contextMenu.copyTableStructureAndData') },
+        { key: 'copyTableStructure', label: t('contextMenu.copyTableStructure') },
         { key: 'dropTable', label: t('contextMenu.dropTable') }
       ]
     case 'view':
@@ -632,6 +634,12 @@ async function handleMenuClick(key: string) {
       // 打开修改表对话框
       connectionStore.openEditTableDialog(node.connectionId!, node.databaseName!, (node.data as TableMeta)?.name || node.label, node.schema)
       break
+    case 'copyTableStructure':
+      await cloneTable(node, false)
+      break
+    case 'copyTableStructureAndData':
+      await cloneTable(node, true)
+      break
     case 'dropTable':
       // 删除表
       handleDropTable(node)
@@ -666,6 +674,59 @@ async function handleMenuClick(key: string) {
 // 点击其他地方关闭菜单
 function closeContextMenu() {
   contextMenu.value.visible = false
+}
+
+async function cloneTable(node: TreeNode, includeData: boolean) {
+  const tableName = (node.data as TableMeta)?.name || node.label
+  try {
+    const conn = connectionStore.connections.find(item => item.id === node.connectionId)
+    const maxLength = conn?.type === 'sqlserver' ? 128 : 64
+    const { value } = await ElMessageBox.prompt(
+      t('database.cloneTablePrompt', { table: tableName }),
+      includeData ? t('contextMenu.copyTableStructureAndData') : t('contextMenu.copyTableStructure'),
+      {
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+        inputValue: `${tableName}_bak${getDateSuffix()}`,
+        inputValidator: (input: string) => {
+          const name = input.trim()
+          if (!name) return t('database.cloneTableNameRequired')
+          if (/[\s./\\:*?"<>|`\[\]]/.test(name)) return t('database.cloneTableNameInvalid')
+          if (name.length > maxLength) return t('database.cloneTableNameTooLong', { max: maxLength })
+          return true
+        }
+      }
+    )
+    const result = await connectionStore.cloneTable(
+      node.connectionId!,
+      node.databaseName!,
+      tableName,
+      value.trim(),
+      includeData,
+      node.schema
+    )
+    if (!result.success) {
+      ElMessage.error(result.message || t('message.operationFailed'))
+      return
+    }
+
+    ElMessage.success(t('database.cloneTableSuccess'))
+    const tablesNode = treeRef.value?.getNode(`${node.connectionId}-${node.databaseName}-tables`)
+    if (tablesNode) {
+      tablesNode.loaded = false
+      tablesNode.expand()
+    }
+  } catch {
+    // 用户取消输入
+  }
+}
+
+function getDateSuffix(): string {
+  const date = new Date()
+  const year = String(date.getFullYear()).slice(-2)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}${month}${day}`
 }
 
 // 删除表

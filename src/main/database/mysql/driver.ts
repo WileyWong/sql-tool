@@ -494,6 +494,22 @@ export class MySQLDriver implements IDatabaseDriver {
   }
 
   /**
+   * 在原表所在数据库中创建备份表
+   */
+  async cloneTable(connectionId: string, database: string, table: string, targetTable: string, includeData: boolean): Promise<void> {
+    const connection = await this.getConnectionWithReconnect(connectionId)
+    if (!connection) {
+      throw new Error('连接不存在')
+    }
+
+    const quote = (name: string) => `\`${name.replace(/`/g, '``')}\``
+    await connection.query(`CREATE TABLE ${quote(database)}.${quote(targetTable)} LIKE ${quote(database)}.${quote(table)}`)
+    if (includeData) {
+      await connection.query(`INSERT INTO ${quote(database)}.${quote(targetTable)} SELECT * FROM ${quote(database)}.${quote(table)}`)
+    }
+  }
+
+  /**
    * 获取视图的创建语句
    */
   async getViewCreateSql(connectionId: string, database: string, view: string): Promise<string> {
